@@ -1,0 +1,612 @@
+import time
+
+from enum import Enum
+
+from TypeText import max_y_offset
+from Utils import *
+from Character import *
+from Location import *
+
+class BattleAction(Enum):
+    NONE = 0
+    SHOOT = 1
+    MELEE = 2
+    EVADE = 3
+    ITEM = 4
+    CHARGE = 5
+
+FLASH_DURATION = 500
+CHARACTER_COMBAT_WIDTH = 60
+CHARACTER_COMBAT_HEIGHT = 70
+ITEM_COMBAT_WIDTH = 40
+ITEM_COMBAT_HEIGHT = 40
+ROUND_AND_PHASE_LEFT = 30
+ACTION_LEFT = 300
+TEAM_LEFT = 30
+TEAM_RIGHT = 880
+TEAM_TOP = 5
+TEAM_ACTIONS_X_OFFSET = 300
+
+def clear_announce_bar(surface):
+    background_surface = pygame.Surface((800, 25))
+    background_surface.fill((0, 0, 0))
+    surface.blit(background_surface, (ROUND_AND_PHASE_LEFT, 5))
+    pygame.display.flip()
+    time.sleep(2)
+
+def announce_round_and_phase(round, phase, surface, font):
+    text = f"Round: {round} Phase: {phase}"
+    action_text_surface = font.render(text, True, CYAN)
+    background_surface = pygame.Surface((action_text_surface.get_width() + 300, action_text_surface.get_height() + 5))
+    background_surface.fill((0, 0, 0))  # Black background
+    background_position = (ROUND_AND_PHASE_LEFT, 5)
+    surface.blit(background_surface, background_position)
+    surface.blit(action_text_surface, (ROUND_AND_PHASE_LEFT, 5))
+
+def announce_action(text, surface, font):
+    action_text_surface = font.render(text, True, CYAN)
+    background_surface = pygame.Surface((action_text_surface.get_width() + 150, action_text_surface.get_height() + 5))
+    background_surface.fill((0, 0, 0))  # Black background
+    background_position = (ACTION_LEFT, 5)
+    surface.blit(background_surface, background_position)
+    surface.blit(action_text_surface, (ACTION_LEFT, 5))
+    pygame.display.flip()
+    time.sleep(1)
+
+def clear_screen_for_round(round, phase, screen, font):
+    background_surface = pygame.Surface((500, 800))
+    background_surface.fill((0, 0, 0))  # Black background
+    background_position = (330, 60)
+    screen.blit(background_surface, background_position)
+    announce_round_and_phase(round, phase, screen, font)
+    pygame.display.flip()
+    time.sleep(1)
+
+def initiative(team, enemies):
+    all_characters = team + enemies
+
+    # Calculate scout bonus for the team
+    scout_bonus = sum(5 for member in team if member.has_item("scout"))
+
+    # Calculate squad tactics bonus for the team
+    member = determine_best_team_member(team, None, "Squad Tactics")
+    if member:
+        squad_tactics_bonus = member.get_effective_skill("Squad Tactics") / 10
+    else:
+        squad_tactics_bonus = 0
+
+    # Calculate initiative roll for each character
+    initiative_rolls = []
+    for character in all_characters:
+        roll = random.randint(1, 100) + character.get_effective_stat_level("surprise")
+        if character in team:
+            roll += scout_bonus
+            roll += squad_tactics_bonus
+        initiative_rolls.append((character, roll))
+
+    # Sort characters by initiative rolls (highest to lowest)
+    initiative_rolls.sort(key=lambda x: x[1], reverse=True)
+
+    # Return sorted characters
+    return [entry[0] for entry in initiative_rolls]
+
+def battle_display_character(character, context, xloc, yloc):
+    character.set_rect(pygame.Rect(xloc, yloc, CHARACTER_COMBAT_WIDTH, CHARACTER_COMBAT_HEIGHT))
+    context.screen.blit(character.portrait, character.get_rect())
+    text_surface = context.font.render(character.name, True, GREEN)
+    context.screen.blit(text_surface, (xloc + 70, yloc + CHARACTER_COMBAT_HEIGHT - 18))
+    draw_life_bar(character, context.screen, xloc, yloc)
+    offset = 70
+    for item in character.equipment: # convert to type once armor is a type
+        # simplify: Item needs a bit for "combat display item"
+        if item.type == "weapon" or item.type == "armor":
+            item.set_rect(pygame.Rect(xloc + offset, yloc, ITEM_COMBAT_WIDTH, ITEM_COMBAT_HEIGHT))
+            context.screen.blit(item.icon, (xloc + offset, yloc))
+            offset += 45
+    draw_character_location_dot(character, context)
+
+def draw_character_location_dot(character, context):
+    color = GREEN
+    if character.is_pirate():
+        color = RED
+        if character.location == (-1, -1):
+            character.location = (random.randint(-5, 5), random.randint(1, 10))
+            if context.location.name == "corridor":
+                character.location = (random.randint(-2, 2), random.randint(1, 10))
+        character.location = (LOCATION_NORTH[0] + character.location[0] * 10, LOCATION_NORTH[1] + character.location[1] * 10)
+    else:
+        if character.location == (-1, -1):
+            character.location = (random.randint(-5, 5), random.randint(1, 10))
+            if context.location.name == "corridor":
+                character.location = (random.randint(-2, 2), random.randint(1, 10))
+        character.location = (LOCATION_SOUTH[0] + character.location[0] * 10, LOCATION_SOUTH[1] - character.location[1] * 10)
+    draw_numbered_dot(character, context, color)
+
+def draw_numbered_dot(character, context, color):
+    pygame.draw.circle(context.screen, color, character.location, 7)
+    text_surface = context.font.render(str(character.battle_index), True, BLACK)
+    if character.battle_index == 1:
+        context.screen.blit(text_surface, (character.location[0] - 3, character.location[1] - 6))
+    elif character.battle_index > 9:
+        context.screen.blit(text_surface, (character.location[0] - 5, character.location[1] - 6))
+    else:
+        context.screen.blit(text_surface, (character.location[0] - 4, character.location[1] - 6))
+
+def draw_life_bar(character, screen, x, y):
+    # Calculate life level proportion
+    current_life = character.get_lifelevel()
+    max_life = character.max_lifelevel()
+    # limit bar size for screen constraints
+    max_life = min(200, max_life)
+
+    # Background bar (gray)
+    background_rect = pygame.Rect(x + 70, y + 46, max_life, 5)
+    pygame.draw.rect(screen, (60, 60, 60), background_rect)
+
+    # Foreground bar (green)
+    foreground_rect = pygame.Rect(x + 70, y + 46, current_life, 5)
+    pygame.draw.rect(screen, (0, 255, 0), foreground_rect)
+
+def battle_display_action(character, action, screen, font):
+    if character.is_pirate():
+        battle_display_pirate_action(character, action, screen, font)
+    else:
+        battle_display_character_action(character, action, screen, font)
+
+def battle_display_character_action(character, action, screen, font):
+    text_surface = font.render(action.name, True, GREEN)
+    screen.blit(text_surface, (character.get_rect().left + TEAM_ACTIONS_X_OFFSET, character.get_rect().top))
+    pygame.display.flip()
+
+def battle_display_pirate_action(character, action, screen, font):
+    text_surface = font.render(action.name, True, GREEN)
+    screen.blit(text_surface, (character.get_rect().left - TEAM_ACTIONS_X_OFFSET, character.get_rect().top))
+    pygame.display.flip()
+
+def battle_display_character_hit(character, screen):
+    red_overlay = pygame.Surface(character.portrait.get_size(), pygame.SRCALPHA)
+    red_overlay.fill((255, 0, 0, 128))  # Semi-transparent red
+    screen.blit(red_overlay, character.rect)
+    pygame.display.flip()
+    time.sleep(.5)
+    screen.blit(character.portrait, character.rect)
+    pygame.display.flip()
+
+def battle_display_character_action_result(character, action, hit, screen, font):
+    color = RED
+    result = "MISS"
+    if hit:
+        color = GREEN
+        result = "HIT"
+    text_surface = font.render(result, True, color)
+    screen.blit(text_surface, (character.get_rect().left + TEAM_ACTIONS_X_OFFSET + 70, character.get_rect().top))
+
+def battle_display_pirate_action_result(character, action, hit, screen, font):
+    color = RED
+    result = "MISS"
+    if hit:
+        color = GREEN
+        result = "HIT"
+    text_surface = font.render(result, True, color)
+    screen.blit(text_surface, (character.get_rect().left - TEAM_ACTIONS_X_OFFSET + 70, character.get_rect().top))
+
+def battle_display_action_damage(character, action, hit, screen, font):
+    if character.is_pirate():
+        battle_display_pirate_action_damage(character, action, hit, screen, font)
+    else:
+        battle_display_character_action_damage(character, action, hit, screen, font)
+
+def battle_display_character_action_damage(character, action, damage, screen, font):
+    color = RED
+    text_surface = font.render(str(damage), True, color)
+    screen.blit(text_surface, (character.get_rect().left + TEAM_ACTIONS_X_OFFSET + 110, character.get_rect().top))
+
+def battle_display_pirate_action_damage(character, action, damage, screen, font):
+    color = RED
+    text_surface = font.render(str(damage), True, color)
+    screen.blit(text_surface, (character.get_rect().left - TEAM_ACTIONS_X_OFFSET + 110, character.get_rect().top))
+
+class TeamBattle:
+    def __init__(self, context):
+        self.context = context
+        self.smaller_font = pygame.font.Font(resource_path("fonts/Orbitron-Bold.ttf"), 12)
+        self.smallest_font = pygame.font.Font(resource_path("fonts/Orbitron-Bold.ttf"), 9)
+        for member in context.team:
+            member.location = (-1, -1)
+        if context.enemies:
+            for member in context.enemies:
+                member.location = (-1, -1)
+        self.round = 1
+
+    def draw_teams(self):
+        offset = TEAM_TOP
+        index = 1
+        for member in self.context.team:
+            if member.is_alive():
+                member.set_rect(pygame.Rect(TEAM_LEFT, 50 + offset, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT))
+                member.battle_index = index
+                battle_display_character(member, self.context, member.rect.left, member.rect.top)
+                offset += 75
+                index += 1
+                self.draw_map_name(member)
+        offset = TEAM_TOP
+        for member in self.context.enemies:
+            if member.is_alive():
+                member.set_rect(pygame.Rect(TEAM_RIGHT, 50 + offset, CHARACTER_COMBAT_WIDTH, CHARACTER_COMBAT_HEIGHT))
+                member.battle_index = index
+                battle_display_character(member, self.context, member.rect.left, member.rect.top)
+                offset += 75
+                index += 1
+                self.draw_map_name(member, RED)
+
+    def draw_map_name(self, member, color=GREEN):
+        xloc = LOCATION_LEFT
+        yloc = LOCATION_TOP + LOCATION_TOP + LOCATION_HEIGHT + member.battle_index * 20
+        draw_numbered_dot(member, self.context, color)
+        pygame.draw.circle(self.context.screen, color, (xloc, yloc), 7)
+        text_surface = self.smallest_font.render(str(member.battle_index), True, BLACK)
+        if member.battle_index == 1:
+            self.context.screen.blit(text_surface, (xloc - 3, yloc - 6))
+        elif member.battle_index > 9:
+            self.context.screen.blit(text_surface, (xloc - 5, yloc - 6))
+        else:
+            self.context.screen.blit(text_surface, (xloc-4, yloc-6))
+        xloc += 10
+        yloc -= 8
+        text_surface = self.smaller_font.render(member.name, True, color)
+        self.context.screen.blit(text_surface, (xloc, yloc))
+
+    def choose_battle_action_ranged_phase(self, member):
+        if member.occupation == "assaultbot" or member.occupation == "stunbot":
+            return BattleAction.SHOOT
+        if member.has_ranged_weapon():
+            return BattleAction.SHOOT
+        return BattleAction.EVADE
+
+    def choose_battle_action_melee_phase(self, member):
+        if member.occupation == "meleebot" or member.occupation == "batonbot":
+            return BattleAction.MELEE
+        if member.has_melee_weapon():
+            return BattleAction.MELEE
+        return BattleAction.EVADE
+
+    def run_battle_action(self, character, action):
+        if action == BattleAction.MELEE:
+            self.run_battle_action_melee(character)
+        elif action == BattleAction.EVADE:
+            self.run_battle_action_evade(character)
+        elif action == BattleAction.SHOOT:
+            self.run_battle_action_shoot(character)
+        elif action == BattleAction.ITEM:
+            return
+
+    def run_battle_action_evade(self, character):
+        print(f"{character.name} evades.")
+        announce_action(f"{character.name}'s action: EVADE", self.context.screen, self.context.font)
+        battle_display_action(character, BattleAction.EVADE, self.context.screen, self.context.font)
+        return
+
+    def run_battle_action_melee(self, character):
+        # Choose target logic
+        if not character.is_pirate():
+            target = self.choose_target(character, self.context.enemies)
+        else:
+            target = self.choose_target(character, self.context.team)
+        if target is None:
+            print(f"{character.name} Finds no target!")
+            return
+
+        # Choose weapon logic
+        chosen_weapon = self.choose_melee_weapon(character, target)
+        if chosen_weapon is None:
+            print(f"{character.name} Finds no weapon!")
+            return
+        base_weapon_damage = self.context.all_items[chosen_weapon].damage
+        damage_type = self.context.all_items[chosen_weapon].damage_type
+
+        announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
+
+        # play sound
+        play_weapon_sound(chosen_weapon)
+
+        battle_display_action(character, BattleAction.MELEE, self.context.screen, self.context.font)
+
+        # for loop of weapon rate
+
+        # Calculate if hit
+        hit = True
+        roll = random.randint(1, 100)
+        if roll <= 3:
+            hit = False
+        else:
+            melee_value = character.get_effective_combat_melee()
+            target_melee = target.get_effective_combat_melee()
+            adjusted_roll = roll
+            if target.get_last_action == BattleAction.EVADE:
+                adjusted_roll -= 10
+            if character.get_effective_skill_level("Martial Arts") > 75:
+                adjusted_roll += 20
+            elif character.get_effective_skill_level("Martial Arts") > 50:
+                adjusted_roll += 10
+            adjusted_roll = adjusted_roll * melee_value/target_melee
+            if adjusted_roll > 50:
+                hit = True
+
+        if not character.is_pirate():
+            battle_display_character_action_result(character, BattleAction.MELEE, hit, self.context.screen, self.context.font)
+        else:
+            battle_display_pirate_action_result(character, BattleAction.MELEE, hit, self.context.screen, self.context.font)
+        if hit:
+            print(f"Hit on roll {roll}")
+        else:
+            print(f"Miss on roll {roll}")
+
+        # If hit calculate damage
+        adjusted_damage = 0
+        if hit:
+            if character.has_item("slicer"):
+                base_weapon_damage = self.context.all_items["slicer"].damage
+            elif character.get_item("stun baton"):
+                base_weapon_damage = self.context.all_items["stun baton"].damage
+            adjusted_damage = random.randint(1, base_weapon_damage)
+            adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
+            if character.get_effective_skill_level("Martial Arts") > 75:
+                adjusted_damage += 20
+            elif character.get_effective_skill_level("Martial Arts") > 50:
+                adjusted_damage += 10
+            adjusted_damage = round(adjusted_damage)
+            print(f"Damage is: {adjusted_damage}")
+            target.hurt(adjusted_damage, damage_type)
+            draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
+
+        # Round and apply damage
+        adjusted_damage = round(adjusted_damage)
+        if hit and target.is_alive():
+            target.hurt(adjusted_damage, "impact")
+            draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
+            battle_display_action_damage(character, BattleAction.MELEE, adjusted_damage, self.context.screen, self.context.font)
+            battle_display_character_hit(target, self.context.screen)
+        return
+
+    @staticmethod
+    def choose_target(character, team):
+        # have character choose target on team
+        target = random_alive_member(team)
+        if target:
+            print(f"{character.name} chooses target {target.name}")
+        return target
+
+    def choose_ranged_weapon(self, character, target):
+        # improve: choose appropriate weapon for a target?
+        # choose weapon based on mission choices (nonlethal)
+        if character.has_item("blaster rifle"):
+            return "blaster rifle"
+        elif character.has_item("launcher") and self.round == 1:
+            return "launcher"
+        elif character.has_item("laser rifle"):
+            return "laser rifle"
+        elif character.has_item("laser pistol"):
+            return "laser pistol"
+        elif character.has_item("carbine"):
+            return "carbine"
+        elif character.has_item("magnum"):
+            return "magnum"
+        elif character.has_item("pistol"):
+            return "pistol"
+        elif character.has_item("stunner"):
+            return "stunner"
+        return None
+
+    def weapon_is_rifle(self, weapon):
+        if weapon == "blaster rifle":
+            return True
+        elif weapon == "laser rifle":
+            return True
+        return False
+
+    @staticmethod
+    def choose_melee_weapon(character, target):
+        # improve: choose appropriate weapon for a target?
+        if character.has_item("slicer"):
+            return "slicer"
+        elif character.has_item("stun baton"):
+            return "stun baton"
+        return None
+
+    def run_battle_action_shoot(self, character):
+        # Choose target logic
+        if not character.is_pirate():
+            target = self.choose_target(character, self.context.enemies)
+        else:
+            target = self.choose_target(character, self.context.team)
+        if target is None:
+            print(f"{character.name} Finds no target!")
+            return
+
+        # Choose weapon logic
+        chosen_weapon = self.choose_ranged_weapon(character, target)
+        if chosen_weapon is None:
+            print(f"{character.name} Finds no weapon!")
+            return
+        base_weapon_damage = self.context.all_items[chosen_weapon].damage
+        damage_type = self.context.all_items[chosen_weapon].damage_type
+
+        announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
+
+        # play sound
+        play_weapon_sound(chosen_weapon)
+
+        battle_display_action(character, BattleAction.SHOOT, self.context.screen, self.context.font)
+
+        # for loop of weapon rate
+
+        # Calculate if hit
+        hit = False
+        roll = random.randint(1, 100)
+        skill = "Projectile Weapons"
+        # if target has holofier, "hurt" gives 33% chance to miss anyway
+        if roll > 3:
+            # offense and evasion reflects health status
+            offense = character.get_effective_combat_offense()
+            target_evasion = target.get_effective_combat_evasion()
+            adjusted_roll = roll
+            if damage_type == "energy":
+                skill = "Energy Weapons"
+            elif damage_type == "sonic":
+                skill = "Sonic Weapons"
+            if target.get_last_action == BattleAction.EVADE:
+                adjusted_roll -= 10
+            if character.get_effective_skill_level(skill) > 75:
+                adjusted_roll += 20
+            elif character.get_effective_skill_level(skill) > 50:
+                adjusted_roll += 10
+            if self.weapon_is_rifle(chosen_weapon):
+                if character.get_effective_skill_level("Sharpshooting") > 75:
+                    adjusted_roll += 20
+                elif character.get_effective_skill_level("Sharpshooting") > 50:
+                    adjusted_roll += 10
+            adjusted_roll = adjusted_roll * offense / target_evasion
+            if adjusted_roll > 50:
+                hit = True
+
+        # launcher only fires first round, but always hits
+        if chosen_weapon == "launcher":
+            hit = True
+
+        if not character.is_pirate():
+            battle_display_character_action_result(character, BattleAction.SHOOT, hit, self.context.screen, self.context.font)
+        else:
+            battle_display_pirate_action_result(character, BattleAction.SHOOT, hit, self.context.screen, self.context.font)
+        if hit:
+            print(f"{character.name} hit on roll {roll}")
+        else:
+            print(f"{character.name} missed on roll {roll}")
+
+        # If hit calculate damage
+        adjusted_damage = 0
+        if hit:
+            adjusted_damage = random.randint(1, base_weapon_damage)
+            adjusted_damage = (adjusted_damage *
+                               (character.get_effective_combat_offense() / target.get_effective_combat_defense()))
+            if character.get_effective_skill_level(skill) > 75:
+                adjusted_damage += 20
+            elif character.get_effective_skill_level(skill) > 50:
+                adjusted_damage += 10
+            adjusted_damage = round(adjusted_damage)
+            print(f"Damage is: {adjusted_damage}")
+            target.hurt(adjusted_damage, "impact")
+            draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
+
+        # Round and apply damage
+        adjusted_damage = round(adjusted_damage)
+
+        if hit and chosen_weapon == "launcher":
+            print("Launcher hits enemies")
+            if not character.is_pirate():
+                targets = self.context.enemies
+            else:
+                targets = self.context.team
+            for target in targets:
+                self.damage_target(character, target, adjusted_damage, damage_type, self.context.screen, self.context.font)
+
+        elif hit and target.is_alive():
+            self.damage_target(character, target, adjusted_damage, damage_type, self.context.screen, self.context.font)
+        return
+
+    @staticmethod
+    def damage_target(character, target, adjusted_damage, damage_type, screen, font):
+        target.hurt(adjusted_damage, damage_type)
+        draw_life_bar(target, screen, target.rect.left, target.rect.top)
+        battle_display_action_damage(character, BattleAction.SHOOT, adjusted_damage, screen, font)
+        battle_display_character_hit(target, screen)
+
+    def battle_ended(self):
+        # temp for debugging
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        if not team_alive(self.context.team):
+            return True
+        if not team_alive(self.context.enemies):
+            return True
+        return False
+
+    def check_battle_ended(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        if not team_alive(self.context.team):
+            max_y_offset()
+            clear_announce_bar(self.context.screen)
+            announce_action("Team is dead!", self.context.screen, self.context.font)
+            return False
+        if not team_alive(self.context.enemies):
+            max_y_offset()
+            clear_announce_bar(self.context.screen)
+            announce_action("Enemies defeated.", self.context.screen, self.context.font)
+            return False
+        return True
+
+    def run_battle(self):
+        clear_announce_bar(self.context.screen)
+        pygame.mixer.music.fadeout(2000)
+        play_battle_music(pygame)
+        action_order = initiative(self.context.team, self.context.enemies)
+        draw_location(self.context.location, self.context.screen, LOCATION_LEFT, LOCATION_TOP, self.context.location_font, self.smaller_font)
+        self.draw_teams()
+        pygame.display.flip()
+        time.sleep(1)
+        battle_rages = True
+        self.round = 1
+        while battle_rages:
+            clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
+            # RANGED ROUND:
+            for character in self.context.ranged_robots:
+              self.run_battle_action(character, BattleAction.SHOOT)
+            for character in action_order:
+                if character.is_alive():
+                    action = self.choose_battle_action_ranged_phase(character)
+                    character.last_action = action
+                    # report action on screen
+                    self.run_battle_action(character, action)
+            time.sleep(1)
+
+            # MELEE ROUND
+            if not self.battle_ended():
+                clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
+                time.sleep(1)
+                for melee_robot in self.context.melee_robots:
+                    self.run_battle_action(melee_robot, BattleAction.MELEE)
+                for character in action_order:
+                    if character.is_alive():
+                        action = self.choose_battle_action_melee_phase(character)
+                        # report action on screen
+                        self.run_battle_action(character, action)
+
+            battle_rages = self.check_battle_ended()
+            self.round += 1
+            #self.print_debug(round)
+        # click to continue...
+        time.sleep(1)
+        max_y_offset()
+        clear_team_last_action(self.context.team)
+        return
+
+    def print_debug(self, round):
+        print(str(round))
+        for member in self.context.team:
+            print(f"{member.name} : life: {member.get_lifelevel()}")
+        for member in self.context.enemies:
+            print(f"{member.name} : life: {member.get_lifelevel()}")
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return
+
