@@ -109,9 +109,11 @@ def equip_team(team_data) :
             y_offset += 65
 
     def draw_dragged_item():
-        """Draws only the currently dragged item at its current mouse-following position."""
+        """Draws only the currently dragged item or robot at its current mouse-following position."""
         if dragging_item:
             screen.blit(dragging_item.icon, dragging_item.rect)
+        if dragging_robot and dragging_robot_rect:
+            screen.blit(dragging_robot.portrait, dragging_robot_rect)
 
     def draw_team():
         """Draws character boxes and checks for encumbrance."""
@@ -261,6 +263,8 @@ def equip_team(team_data) :
     original_dragging_item = None
     original_item_position = None
     dragging_from_character = None
+    dragging_robot = None
+    dragging_robot_rect = None
 
     # Load and scale background image
     background_image = pygame.image.load(resource_path("backgrounds/backgroundstage2.jpg"))
@@ -293,18 +297,25 @@ def equip_team(team_data) :
                              selected_tab = tab
 
                 # Check if clicking on a character to toggle their info display
+                # Clicking on a robot instead starts a drag to return it to the store
                 character_clicked = False
                 for i, character in enumerate(team):
                     character_rect = pygame.Rect(ITEM_PANEL_WIDTH, CREDITS_BAR_HEIGHT + i * TEAM_BOX_HEIGHT,
                                                  80, TEAM_BOX_HEIGHT)
                     if character_rect.collidepoint(mouse_pos):
-                        if selected_character == character:
-                            # If the same character is clicked again, toggle off
-                            showing_character_info = not showing_character_info
+                        if character.type == "robot":
+                            # Begin dragging the robot back toward the store
+                            dragging_robot = character
+                            dragging_robot_rect = pygame.Rect(
+                                ITEM_PANEL_WIDTH, CREDITS_BAR_HEIGHT + i * TEAM_BOX_HEIGHT, 70, 80)
                         else:
-                            # Select new character and show info
-                            selected_character = character
-                            showing_character_info = True
+                            if selected_character == character:
+                                # If the same character is clicked again, toggle off
+                                showing_character_info = not showing_character_info
+                            else:
+                                # Select new character and show info
+                                selected_character = character
+                                showing_character_info = True
                         character_clicked = True
                         break
 
@@ -382,10 +393,22 @@ def equip_team(team_data) :
                     dragging_from_character = None
                     original_item_position = None
 
+                if dragging_robot and dragging_robot_rect:
+                    if STORE_RECT.collidepoint(dragging_robot_rect.center):
+                        # Refund only the robot's purchase cost; its equipment stays
+                        refund = all_items[dragging_robot.occupation].cost
+                        credits += refund
+                        display_message(f"Sold {dragging_robot.name} for {refund} credits", screen, DEFAULT_FONT)
+                        team.remove(dragging_robot)
+                    dragging_robot = None
+                    dragging_robot_rect = None
+
             elif event.type == pygame.MOUSEMOTION:
                 # Dragging an item
                 if dragging_item:
                     dragging_item.rect.center = mouse_pos  # Move the item to follow the mouse pointer
+                if dragging_robot and dragging_robot_rect:
+                    dragging_robot_rect.center = mouse_pos
 
         # Draw background first
         screen.blit(background_image, (0, 0))
