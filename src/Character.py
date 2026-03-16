@@ -47,6 +47,8 @@ class Character:
         self.mission = {}
         if type != "robot":
             self.history = f"{self.name}, a {self.occupation} from {self.homeworld}, {self.event}. They now aim to {self.goal}."
+        else:
+            self.history = "A robot."
 
         # A list of Item objects
         self.equipment = []
