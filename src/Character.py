@@ -610,6 +610,12 @@ class Character:
         assaultbot.stats["offense"] = 75
         assaultbot.stats["defense"] = 75
         assaultbot.stats["evasion"] = 50
+        assaultbot.stats["deception"] = 50
+        assaultbot.stats["analyze"] = 10
+        assaultbot.stats["movement"] = 30
+        assaultbot.stats["meleecombat"] = 10
+        assaultbot.stats["surprise"] = 175
+        assaultbot.stats["leadership"] = 5
         assaultbot.skills = {"Energy Weapons":75, "Mech Combat":50}
         assaultbot.add_item(all_items["laser pistol"])
         assaultbot.add_item(all_items["power shield"])
@@ -627,16 +633,22 @@ class Character:
         stunbot.portrait = pygame.transform.scale(stunbot.portrait, (70, 80))
         stunbot.stats["livelevel"] = all_items["stunbot"].hp
         stunbot.max_life = all_items["stunbot"].hp
+        stunbot.stats["lifelevel"] = stunbot.max_life
         stunbot.stats["strength"] = 50
         stunbot.stats["intelligence"] = 30
         stunbot.stats["willpower"] = 90
         stunbot.stats["coordination"] = 80
         stunbot.stats["charisma"] = 10
         stunbot.stats["courage"] = 95
-
         stunbot.stats["offense"] = 75
         stunbot.stats["defense"] = 75
         stunbot.stats["evasion"] = 50
+        stunbot.stats["deception"] = 50
+        stunbot.stats["analyze"] = 10
+        stunbot.stats["movement"] = 30
+        stunbot.stats["meleecombat"] = 10
+        stunbot.stats["surprise"] = 125
+        stunbot.stats["leadership"] = 5
         stunbot.skills = {"Energy Weapons": 75, "Mech Combat":50}
         stunbot.add_item(all_items["stunner"])
         stunbot.add_item(all_items["power shield"])
@@ -653,9 +665,22 @@ class Character:
         mechbot.portrait = pygame.transform.scale(mechbot.portrait, (70, 80))
         mechbot.stats["livelevel"] = all_items["mechbot"].hp
         mechbot.max_life = all_items["mechbot"].hp
+        mechbot.stats["lifelevel"] = mechbot.max_life
+        mechbot.stats["strength"] = 50
+        mechbot.stats["intelligence"] = 30
+        mechbot.stats["willpower"] = 90
+        mechbot.stats["coordination"] = 80
+        mechbot.stats["charisma"] = 10
+        mechbot.stats["courage"] = 95
         mechbot.stats["offense"] = 10
         mechbot.stats["defense"] = 10
-        mechbot.stats["evasion"] = 40
+        mechbot.stats["evasion"] = 30
+        mechbot.stats["deception"] = 30
+        mechbot.stats["analyze"] = 35
+        mechbot.stats["movement"] = 30
+        mechbot.stats["meleecombat"] = 5
+        mechbot.stats["surprise"] = 20
+        mechbot.stats["leadership"] = 5
         mechbot.skills = {"Robot Repair": 65, "Fabrication": 35, "Mechanics": 50}
         mechbot.add_item(all_items["stunner"])
         return mechbot
@@ -671,9 +696,21 @@ class Character:
         techbot.portrait = pygame.transform.scale(techbot.portrait, (70, 80))
         techbot.stats["livelevel"] = all_items["techbot"].hp
         techbot.max_life = all_items["techbot"].hp
+        techbot.stats["strength"] = 50
+        techbot.stats["intelligence"] = 30
+        techbot.stats["willpower"] = 90
+        techbot.stats["coordination"] = 80
+        techbot.stats["charisma"] = 10
+        techbot.stats["courage"] = 95
         techbot.stats["offense"] = 10
         techbot.stats["defense"] = 10
         techbot.stats["evasion"] = 40
+        techbot.stats["deception"] = 30
+        techbot.stats["analyze"] = 65
+        techbot.stats["movement"] = 30
+        techbot.stats["meleecombat"] = 5
+        techbot.stats["surprise"] = 20
+        techbot.stats["leadership"] = 5
         techbot.skills = {"Robot Repair": 65, "Ships Systems": 55, "Fabrication": 15,
                               "Artifact Analysis": 45, "Hacking": 35}
         techbot.add_item(all_items["stunner"])
@@ -690,9 +727,22 @@ class Character:
         hackbot.portrait = pygame.transform.scale(hackbot.portrait, (70, 80))
         hackbot.stats["livelevel"] = all_items["hackbot"].hp
         hackbot.max_life = all_items["hackbot"].hp
+        hackbot.stats["lifelevel"] = hackbot.max_life
+        hackbot.stats["strength"] = 50
+        hackbot.stats["intelligence"] = 30
+        hackbot.stats["willpower"] = 90
+        hackbot.stats["coordination"] = 80
+        hackbot.stats["charisma"] = 10
+        hackbot.stats["courage"] = 95
         hackbot.stats["offense"] = 10
         hackbot.stats["defense"] = 10
         hackbot.stats["evasion"] = 40
+        hackbot.stats["deception"] = 30
+        hackbot.stats["analyze"] = 45
+        hackbot.stats["movement"] = 30
+        hackbot.stats["meleecombat"] = 5
+        hackbot.stats["surprise"] = 20
+        hackbot.stats["leadership"] = 5
         hackbot.skills = {"Robot Repair": 15, "Ships Systems": 45, "Fabrication": 10,
                           "Artifact Analysis": 25, "Hacking": 75}
         hackbot.add_item(all_items["stunner"])
@@ -709,9 +759,21 @@ class Character:
         meleebot.portrait = pygame.transform.scale(meleebot.portrait, (70, 80))
         meleebot.stats["livelevel"] = all_items["meleebot"].hp
         meleebot.max_life = all_items["meleebot"].hp
+        meleebot.stats["strength"] = 50
+        meleebot.stats["intelligence"] = 30
+        meleebot.stats["willpower"] = 90
+        meleebot.stats["coordination"] = 80
+        meleebot.stats["charisma"] = 10
+        meleebot.stats["courage"] = 95
         meleebot.stats["offense"] = 75
         meleebot.stats["defense"] = 75
-        meleebot.stats["evasion"] = 50
+        meleebot.stats["evasion"] = 75
+        meleebot.stats["deception"] = 40
+        meleebot.stats["analyze"] = 5
+        meleebot.stats["movement"] = 75
+        meleebot.stats["meleecombat"] = 75
+        meleebot.stats["surprise"] = 150
+        meleebot.stats["leadership"] = 5
         meleebot.skills = {"Martial Arts":75, "Mech Combat":50}
         meleebot.add_item(all_items["slicer"])
         meleebot.add_item(all_items["veer suit"])
@@ -728,9 +790,21 @@ class Character:
         batonbot.portrait = pygame.transform.scale(batonbot.portrait, (70, 80))
         batonbot.stats["livelevel"] = all_items["batonbot"].hp
         batonbot.max_life = all_items["batonbot"].hp
+        batonbot.stats["strength"] = 50
+        batonbot.stats["intelligence"] = 30
+        batonbot.stats["willpower"] = 90
+        batonbot.stats["coordination"] = 80
+        batonbot.stats["charisma"] = 10
+        batonbot.stats["courage"] = 95
         batonbot.stats["offense"] = 75
         batonbot.stats["defense"] = 75
         batonbot.stats["evasion"] = 50
+        batonbot.stats["deception"] = 40
+        batonbot.stats["analyze"] = 5
+        batonbot.stats["movement"] = 75
+        batonbot.stats["meleecombat"] = 75
+        batonbot.stats["surprise"] = 150
+        batonbot.stats["leadership"] = 5
         batonbot.skills = {"Martial Arts": 75, "Mech Combat":50}
         batonbot.add_item(all_items["stun baton"])
         batonbot.add_item(all_items["veer suit"])
@@ -747,9 +821,21 @@ class Character:
         medibot.portrait = pygame.transform.scale(medibot.portrait, (70, 80))
         medibot.stats["livelevel"] = all_items["medibot"].hp
         medibot.max_life = all_items["medibot"].hp
+        medibot.stats["strength"] = 50
+        medibot.stats["intelligence"] = 30
+        medibot.stats["willpower"] = 90
+        medibot.stats["coordination"] = 80
+        medibot.stats["charisma"] = 10
+        medibot.stats["courage"] = 95
         medibot.stats["offense"] = 10
         medibot.stats["defense"] = 10
         medibot.stats["evasion"] = 30
+        medibot.stats["deception"] = 40
+        medibot.stats["analyze"] = 15
+        medibot.stats["movement"] = 30
+        medibot.stats["meleecombat"] = 5
+        medibot.stats["surprise"] = 20
+        medibot.stats["leadership"] = 5
         medibot.skills = {"Medicine": 75, "Xenobiology": 50}
         medibot.add_item(all_items["stun baton"])
         medibot.add_item(all_items["medikit"])
@@ -766,9 +852,21 @@ class Character:
         mulebot.portrait = pygame.transform.scale(mulebot.portrait, (70, 80))
         mulebot.stats["livelevel"] = all_items["mulebot"].hp
         mulebot.max_life = all_items["mulebot"].hp
+        mulebot.stats["strength"] = 50
+        mulebot.stats["intelligence"] = 30
+        mulebot.stats["willpower"] = 90
+        mulebot.stats["coordination"] = 80
+        mulebot.stats["charisma"] = 10
+        mulebot.stats["courage"] = 95
         mulebot.stats["offense"] = 10
         mulebot.stats["defense"] = 10
         mulebot.stats["evasion"] = 30
+        mulebot.stats["deception"] = 30
+        mulebot.stats["analyze"] = 15
+        mulebot.stats["movement"] = 30
+        mulebot.stats["meleecombat"] = 5
+        mulebot.stats["surprise"] = 20
+        mulebot.stats["leadership"] = 5
         mulebot.skills = {}
         mulebot.add_item(all_items["stun baton"])
         return mulebot
@@ -784,9 +882,21 @@ class Character:
         scoutbot.portrait = pygame.transform.scale(scoutbot.portrait, (70, 80))
         scoutbot.stats["livelevel"] = all_items["scoutbot"].hp
         scoutbot.max_life = all_items["scoutbot"].hp
+        scoutbot.stats["strength"] = 10
+        scoutbot.stats["intelligence"] = 50
+        scoutbot.stats["willpower"] = 90
+        scoutbot.stats["coordination"] = 80
+        scoutbot.stats["charisma"] = 10
+        scoutbot.stats["courage"] = 95
         scoutbot.stats["offense"] = 10
-        scoutbot.stats["defense"] = 10
-        scoutbot.stats["evasion"] = 50
+        scoutbot.stats["defense"] = 60
+        scoutbot.stats["evasion"] = 85
+        scoutbot.stats["deception"] = 50
+        scoutbot.stats["analyze"] = 15
+        scoutbot.stats["movement"] = 125
+        scoutbot.stats["meleecombat"] = 5
+        scoutbot.stats["surprise"] = 150
+        scoutbot.stats["leadership"] = 5
         scoutbot.skills = {"Stealth": 50, "Espionage":50, "Detection":75}
         scoutbot.add_item(all_items["stunner"])
         scoutbot.add_item(all_items["scanner"])
