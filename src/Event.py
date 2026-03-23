@@ -79,6 +79,9 @@ def team_heals(team, screen, font):
         if member.stats["lifelevel"] <= 0:
             type_out_text(screen, f"{member.name} is dead.", font, RED)
             team.remove(member)
+    # Refresh each survivor's team reference so mulebot checks stay accurate
+    for member in team:
+        member.team = team
 
     healing_needed = team_needs_heal(team)
     if not healing_needed:

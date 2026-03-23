@@ -385,6 +385,8 @@ def mission(team_data) :
     if not team_data:
         team_data = load_team("team_data_stage_4.pkl")
     team = [Character.from_dict(data) for data in team_data]
+    for member in team:
+        member.team = team
     # Hacking icon sizes-- redo this
     for member in team:
         member.portrait = pygame.transform.scale(member.portrait, (60, 70))

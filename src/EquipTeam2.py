@@ -27,6 +27,8 @@ def equip_team(team_data) :
     if not team_data:
         team_data = load_team("team_data_stage_2.pkl")
     team = [Character.from_dict(data) for data in team_data]
+    for character in team:
+        character.team = team
 
     # Resize portraits to fit into a small area for each character
     for character in team:
@@ -204,25 +206,32 @@ def equip_team(team_data) :
     def add_robot_to_team(team, item):
         i = team_size(team)
         if item.name == "assaultbot":
-          team.append(Character.create_assaultbot(i, all_items))
+          robot = Character.create_assaultbot(i, all_items)
         elif item.name == "stunbot":
-          team.append(Character.create_stunbot(i, all_items))
+          robot = Character.create_stunbot(i, all_items)
         elif item.name == "mechbot":
-          team.append(Character.create_mechbot(i, all_items))
+          robot = Character.create_mechbot(i, all_items)
         elif item.name == "techbot":
-          team.append(Character.create_techbot(i, all_items))
+          robot = Character.create_techbot(i, all_items)
         elif item.name == "hackbot":
-          team.append(Character.create_hackbot(i, all_items))
+          robot = Character.create_hackbot(i, all_items)
         elif item.name == "meleebot":
-          team.append(Character.create_meleebot(i, all_items))
+          robot = Character.create_meleebot(i, all_items)
         elif item.name == "batonbot":
-          team.append(Character.create_batonbot(i, all_items))
+          robot = Character.create_batonbot(i, all_items)
         elif item.name == "medibot":
-          team.append(Character.create_medibot(i, all_items))
+          robot = Character.create_medibot(i, all_items)
         elif item.name == "mulebot":
-          team.append(Character.create_mulebot(i, all_items))
+          robot = Character.create_mulebot(i, all_items)
         elif item.name == "scoutbot":
-          team.append(Character.create_scoutbot(i, all_items))
+          robot = Character.create_scoutbot(i, all_items)
+        else:
+          return
+        robot.team = team
+        team.append(robot)
+        # Update all members' team references so mulebot check works for everyone
+        for member in team:
+            member.team = team
 
     def handle_item_return(item):
         nonlocal credits

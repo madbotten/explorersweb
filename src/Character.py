@@ -55,6 +55,8 @@ class Character:
         self.mission_points = 0
         # for robots
         self.max_life = 0
+        # Reference to the team list this character belongs to (set externally)
+        self.team = None
 
         self.morale = 100
         self.current_health = self.stats["lifelevel"]
@@ -247,6 +249,8 @@ class Character:
 
     # If encumbered and team has no mulebot, evasion will suffer
     def is_encumbered(self):
+        if self.team and any(m.occupation == "mulebot" for m in self.team):
+            return False
         total_mass = self.get_carried_mass()
         return total_mass > (self.get_effective_stat_level("strength") / 2)
 
@@ -882,7 +886,7 @@ class Character:
         scoutbot.portrait = pygame.transform.scale(scoutbot.portrait, (70, 80))
         scoutbot.stats["livelevel"] = all_items["scoutbot"].hp
         scoutbot.max_life = all_items["scoutbot"].hp
-        scoutbot.stats["strength"] = 10
+        scoutbot.stats["strength"] = 30
         scoutbot.stats["intelligence"] = 50
         scoutbot.stats["willpower"] = 90
         scoutbot.stats["coordination"] = 80

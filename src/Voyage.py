@@ -354,6 +354,8 @@ def voyage(team_data) :
     if not team_data:
         team_data = load_team("team_data_stage_3.pkl")
     team = [Character.from_dict(data) for data in team_data]
+    for character in team:
+        character.team = team
 
     # Resize portraits to fit into a small area for each character
     for character in team:
@@ -763,7 +765,7 @@ def voyage(team_data) :
                     event = repeatable_events[event_index]
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, None, None, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     events_completed += 1
                     day += 1
                 elif optional_singular_events:
@@ -771,7 +773,7 @@ def voyage(team_data) :
                     event = optional_singular_events.pop(event_index)
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, None, None, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     events_completed += 1
                     day += 1
                 else:

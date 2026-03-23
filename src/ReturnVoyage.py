@@ -155,6 +155,8 @@ def return_voyage(team_data) :
     if not team_data:
         team_data = load_team("team_data_stage_5.pkl")
     team = [Character.from_dict(data) for data in team_data]
+    for character in team:
+        character.team = team
 
     # Resize portraits to fit into a small area for each character
     for character in team:
