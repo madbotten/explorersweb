@@ -357,8 +357,8 @@ def voyage(team_data) :
 
     # Resize portraits to fit into a small area for each character
     for character in team:
-        if character.portrait:
-            character.portrait = pygame.transform.scale(character.portrait, (70, 80))
+        print(character.name)
+        character.portrait = pygame.transform.scale(character.portrait, (70, 80))
 
     # Load and play background music
     play_background_music("music/track3.mp3", pygame)

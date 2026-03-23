@@ -594,11 +594,19 @@ class Character:
     def create_assaultbot(index, all_items):
         assaultbot = Character(index, "robot")
         assaultbot.occupation = "assaultbot"
+        assaultbot.history = "A robot."
         assaultbot.name = "ASB" + str(index)
-        assaultbot.portrait = all_items["assaultbot"].icon
+        portrait_path = resource_path(f"gadgets/assaultbot.jpg")
+        assaultbot.portrait = pygame.image.load(portrait_path)
         assaultbot.portrait = pygame.transform.scale(assaultbot.portrait, (70, 80))
         assaultbot.stats["livelevel"] = all_items["assaultbot"].hp
         assaultbot.max_life = all_items["assaultbot"].hp
+        assaultbot.stats["strength"] = 50
+        assaultbot.stats["intelligence"] = 30
+        assaultbot.stats["willpower"] = 90
+        assaultbot.stats["coordination"] = 80
+        assaultbot.stats["charisma"] = 10
+        assaultbot.stats["courage"] = 95
         assaultbot.stats["offense"] = 75
         assaultbot.stats["defense"] = 75
         assaultbot.stats["evasion"] = 50
@@ -614,10 +622,18 @@ class Character:
         stunbot.occupation = "stunbot"
         stunbot.history = "A robot."
         stunbot.name = "STB" + str(index)
-        stunbot.portrait = all_items["stunbot"].icon
+        portrait_path = resource_path(f"gadgets/stunbot.jpg")
+        stunbot.portrait = pygame.image.load(portrait_path)
         stunbot.portrait = pygame.transform.scale(stunbot.portrait, (70, 80))
         stunbot.stats["livelevel"] = all_items["stunbot"].hp
         stunbot.max_life = all_items["stunbot"].hp
+        stunbot.stats["strength"] = 50
+        stunbot.stats["intelligence"] = 30
+        stunbot.stats["willpower"] = 90
+        stunbot.stats["coordination"] = 80
+        stunbot.stats["charisma"] = 10
+        stunbot.stats["courage"] = 95
+
         stunbot.stats["offense"] = 75
         stunbot.stats["defense"] = 75
         stunbot.stats["evasion"] = 50
@@ -632,7 +648,8 @@ class Character:
         mechbot.occupation = "mechbot"
         mechbot.history = "A robot."
         mechbot.name = "MKB" + str(index)
-        mechbot.portrait = all_items["mechbot"].icon
+        portrait_path = resource_path(f"gadgets/mechbot.jpg")
+        mechbot.portrait = pygame.image.load(portrait_path)
         mechbot.portrait = pygame.transform.scale(mechbot.portrait, (70, 80))
         mechbot.stats["livelevel"] = all_items["mechbot"].hp
         mechbot.max_life = all_items["mechbot"].hp
@@ -649,7 +666,8 @@ class Character:
         techbot.occupation = "techbot"
         techbot.history = "A robot."
         techbot.name = "TKB" + str(i)
-        techbot.portrait = all_items["techbot"].icon
+        portrait_path = resource_path(f"gadgets/techbot.jpg")
+        techbot.portrait = pygame.image.load(portrait_path)
         techbot.portrait = pygame.transform.scale(techbot.portrait, (70, 80))
         techbot.stats["livelevel"] = all_items["techbot"].hp
         techbot.max_life = all_items["techbot"].hp
@@ -667,7 +685,8 @@ class Character:
         hackbot.occupation = "hackbot"
         hackbot.history = "A robot."
         hackbot.name = "HKB" + str(i)
-        hackbot.portrait = all_items["hackbot"].icon
+        portrait_path = resource_path(f"gadgets/hackbot.jpg")
+        hackbot.portrait = pygame.image.load(portrait_path)
         hackbot.portrait = pygame.transform.scale(hackbot.portrait, (70, 80))
         hackbot.stats["livelevel"] = all_items["hackbot"].hp
         hackbot.max_life = all_items["hackbot"].hp
@@ -685,7 +704,8 @@ class Character:
         meleebot.occupation = "meleebot"
         meleebot.history = "A robot."
         meleebot.name = "MEB" + str(i)
-        meleebot.portrait = all_items["meleebot"].icon
+        portrait_path = resource_path(f"gadgets/meleebot.jpg")
+        meleebot.portrait = pygame.image.load(portrait_path)
         meleebot.portrait = pygame.transform.scale(meleebot.portrait, (70, 80))
         meleebot.stats["livelevel"] = all_items["meleebot"].hp
         meleebot.max_life = all_items["meleebot"].hp
@@ -703,7 +723,8 @@ class Character:
         batonbot.occupation = "batonbot"
         batonbot.history = "A robot."
         batonbot.name = "BAB" + str(i)
-        batonbot.portrait = all_items["batonbot"].icon
+        portrait_path = resource_path(f"gadgets/batonbot.jpg")
+        batonbot.portrait = pygame.image.load(portrait_path)
         batonbot.portrait = pygame.transform.scale(batonbot.portrait, (70, 80))
         batonbot.stats["livelevel"] = all_items["batonbot"].hp
         batonbot.max_life = all_items["batonbot"].hp
@@ -721,7 +742,8 @@ class Character:
         medibot.occupation = "medibot"
         medibot.history = "A robot."
         medibot.name = "MDB" + str(i)
-        medibot.portrait = all_items["medibot"].icon
+        portrait_path = resource_path(f"gadgets/medibot.jpg")
+        medibot.portrait = pygame.image.load(portrait_path)
         medibot.portrait = pygame.transform.scale(medibot.portrait, (70, 80))
         medibot.stats["livelevel"] = all_items["medibot"].hp
         medibot.max_life = all_items["medibot"].hp
@@ -739,7 +761,8 @@ class Character:
         mulebot.occupation = "mulebot"
         mulebot.history = "A robot."
         mulebot.name = "MUB" + str(i)
-        mulebot.portrait = all_items["mulebot"].icon
+        portrait_path = resource_path(f"gadgets/mulebot.jpg")
+        mulebot.portrait = pygame.image.load(portrait_path)
         mulebot.portrait = pygame.transform.scale(mulebot.portrait, (70, 80))
         mulebot.stats["livelevel"] = all_items["mulebot"].hp
         mulebot.max_life = all_items["mulebot"].hp
@@ -756,7 +779,8 @@ class Character:
         scoutbot.occupation = "scoutbot"
         scoutbot.history = "A robot."
         scoutbot.name = "SCB" + str(i)
-        scoutbot.portrait = all_items["scoutbot"].icon
+        portrait_path = resource_path(f"gadgets/scoutbot.jpg")
+        scoutbot.portrait = pygame.image.load(portrait_path)
         scoutbot.portrait = pygame.transform.scale(scoutbot.portrait, (70, 80))
         scoutbot.stats["livelevel"] = all_items["scoutbot"].hp
         scoutbot.max_life = all_items["scoutbot"].hp
@@ -814,5 +838,13 @@ class Character:
         if "mission points" in data:
             character.mission_points = data["mission points"]
         character.equipment = [Item.from_dict(item_data) for item_data in data["equipment"]]  # Recreate items
+
+        if data["type"] == "robot":
+            portrait_path = resource_path(f"gadgets/{character.occupation}.jpg")
+            try:
+                character.portrait = pygame.image.load(portrait_path)
+                character.portrait = pygame.transform.scale(character.portrait, (70, 80))
+            except pygame.error:
+                print(f"Failed to load robot portrait: {portrait_path}")
 
         return character

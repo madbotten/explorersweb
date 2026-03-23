@@ -358,26 +358,6 @@ def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
 def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
-def get_ranged_bots_on_team(team, all_items):
-    bots_on_team = []
-    num_assaultbots = num_items_on_team(team, "assaultbot")
-    bots_on_team.extend(Character.create_assaultbots(num_assaultbots, all_items))
-    if bots_on_team is None:
-        print("created None assaultbots")
-    num_stunbots = num_items_on_team(team, "stunbot")
-    bots_on_team.extend(Character.create_stunbots(num_stunbots, all_items))
-    if bots_on_team is None:
-        print("created None stunbots")
-    return bots_on_team
-
-def get_melee_bots_on_team(team, all_items):
-    bots_on_team = []
-    num_meleebots = num_items_on_team(team, "meleebot")
-    bots_on_team.extend(Character.create_meleebots(num_meleebots, all_items))
-    num_batonbots = num_items_on_team(team, "batonbot")
-    bots_on_team.extend(Character.create_meleebots(num_batonbots, all_items))
-    return bots_on_team
-
 def mission(team_data) :
     global max_height
     global locations
@@ -417,8 +397,6 @@ def mission(team_data) :
     # Load locations and attributes
     locations = load_pirate_locations()
     all_items = load_items_battle()
-    ranged_robots = get_ranged_bots_on_team(team, all_items)
-    melee_robots = get_melee_bots_on_team(team, all_items)
 
     # preevent, postevent, team, rangedbots, meleebots, enemies, stat_name, skill_name, items, locations, outcome, all_items
     goal_event = [
@@ -571,10 +549,6 @@ def mission(team_data) :
 
     if team is None:
         print("Team is None")
-    if ranged_robots is None:
-        print("Ranged robots is None")
-    if melee_robots is None:
-        print("Melee robots is None")
 
     # Event Loop
     running = True
@@ -613,7 +587,7 @@ def mission(team_data) :
                 event = goal_event[mission_index]
                 location = event.context.location
                 draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                event.run(team, ranged_robots, melee_robots, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                 hour += 1
                 voyage_complete = True
                 if not mission_failed:
@@ -626,7 +600,7 @@ def mission(team_data) :
                     event = optional_singular_events.pop(event_index)
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, ranged_robots, melee_robots, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     rooms_to_goal -= 1
                     hour += 1
                 else:
@@ -635,7 +609,7 @@ def mission(team_data) :
                     event = repeatable_events[event_index]
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, ranged_robots, melee_robots, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     rooms_to_goal -= 1
                     hour += 1
             waiting = True

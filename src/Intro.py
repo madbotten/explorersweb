@@ -13,7 +13,7 @@ TEAM_BOX_HEIGHT = (SCREEN_HEIGHT - CREDITS_BAR_HEIGHT) // 8  # Adjust for 8 char
 BASE_TEXT_X_OFFSET = 50
 
 TOPMOST = 10
-TOP_EDGE = 8
+TOP_EDGE = 5
 INSTRUCTIONS_TOP = 50
 INSTRUCTIONS_LEFT_EDGE = 180
 PROCEED_RECT = pygame.Rect(1130, TOP_EDGE, 105, 25)
@@ -64,6 +64,7 @@ def introduction3() :
         "Your team is persisted between each stage.",
         "You can resume from the last position in each stage using the links on the right.",
         "You can EXIT from any stage, but you can only resume from between completed stages.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the first stage, you select your team of 6 from 100 candidates.",
@@ -71,33 +72,41 @@ def introduction3() :
         "Click PROCEED once you have a full team chosen.",
         "Mouseovers describe stats and skills.",
         "Paying attention to hints in history impacts chances of recruiting traitors, frauds, or psychopaths.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the second stage, you equip your team.",
         "Use drag n drop to purchase and move items.",
+        "Up to four robots may be added to the team by dragging them over.",
+        "Items on robots may not be moved, sold, or traded between team members.",
         "Click your character to review their stats.",
         "Mouseovers explain item details.",
         "Once you leave this stage, weapons and armor are keyed to their users and cannot be passed around.",
         "Many enemy items are similarly keyed to their users and are of no use to the team.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the third stage, the team trains while traveling to the destination.",
         "Various events may affect your team's effectiveness on the mission.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the fourth stage, your team arrives at the mission point and begins their task.",
         "You can only watch as they proceed.",
         "Injuries degrade a team member's ability to use skills and fight.",
         "If they fail, the game ends.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the fifth phase, the team travels back to the home port.",
         "Various events may still affect your mission's success.",
+        "Click anywhere to continue..."
     ])
     instructions.append([
         "In the sixth and final phase, your score is displayed."
         "",
         "Good luck.",
+        "Click PROCEED to continue."
     ])
 
     # Split the text into multiple screens
@@ -112,9 +121,6 @@ def introduction3() :
     screen.blit(background_image, (0, 0))
     pygame.display.flip()
 
-    # Display a "Click to continue" message
-    click_to_continue = "Click anywhere to continue..."
-
     current_screen = 0
     stage = 0
     running = True
@@ -125,15 +131,11 @@ def introduction3() :
         # Draw background first
         screen.blit(background_image, (0, 0))
 
-        y_offset = 50
+        y_offset = 60
         for line in instruction_screens[current_screen]:
             text_surface = DEFAULT_FONT.render(line, True, WHITE)
             screen.blit(text_surface, (text_x_offset, y_offset))
             y_offset += 30
-
-        # Display "Click to continue"
-        click_surface = DEFAULT_FONT.render(click_to_continue, True, CYAN)
-        screen.blit(click_surface, (text_x_offset, SCREEN_HEIGHT - 40))
 
         # Display buttons
         screen.blit(PROCEED_TEXT, PROCEED_RECT.topleft)
