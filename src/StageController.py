@@ -6,7 +6,7 @@ from ChooseTeam4 import choose_team
 from MissionOrders import mission_orders
 from EquipTeam2 import equip_team
 from Voyage import voyage
-from Mission import mission
+from Mission import go_mission
 from ReturnVoyage import return_voyage
 from Score import score
 
@@ -48,7 +48,7 @@ def run_mission(stage, mission, team_data):
     # Stage 5: Mission
     if stage == 5:
         print("Starting Stage: Mission")
-        stage, team_data = mission(team_data)
+        stage, team_data = go_mission(team_data)
 
     # Stage 6: Return Voyage
     if stage == 6:

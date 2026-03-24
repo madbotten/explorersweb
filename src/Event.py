@@ -4,6 +4,7 @@ import time
 
 from Battle import *
 from TypeText import *
+from Character import *
 
 enemies_present_statements = [
     "Enemies are present! A battle breaks out.",
@@ -14,6 +15,17 @@ enemies_present_statements = [
     "A firefight erupts!",
     "The team finds themselves face-to-face with a heavily armed pirate group!"
 ]
+
+def team_evades_notice(team):
+    """Rolls to see if the team avoids being detected before combat.
+    Returns True if the team slips by unnoticed."""
+    if not team:
+        return False
+    avg_evasion = sum(m.get_effective_combat_evasion() for m in team) / len(team)
+    roll = random.randint(1, 100)
+    evaded = roll < avg_evasion
+    print(f"Stealth check: roll={roll}, avg_evasion={avg_evasion:.1f}, evaded={evaded}")
+    return evaded
 
 def mission_failure(screen, font):
     global mission_failed
@@ -218,6 +230,19 @@ class Event:
             type_out_text(screen, "Click to proceed.", font)
 
     def run_battle(self):
+        methods = self.context.team[0].mission.get("methods") if self.context.team else None
+
+        # --- Stealth check ---
+        if methods == "stealth":
+            if team_evades_notice(self.context.team):
+                type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
+                return  # skip combat entirely
+            else:
+                type_out_text(self.context.screen, "The team is spotted! Combat ensues.", self.context.font)
+        elif methods == "brazen":
+            self.context.brazen_bonus = 25
+            type_out_text(self.context.screen, "The team catches the enemy by surprise!", self.context.font)
+
         type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
         pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         event_battle = TeamBattle(self.context)

@@ -62,11 +62,11 @@ def clear_screen_for_round(round, phase, screen, font):
     pygame.display.flip()
     time.sleep(1)
 
-def initiative(team, enemies):
+def initiative(team, enemies, brazen_bonus=0):
     all_characters = team + enemies
 
     # Calculate scout bonus for the team
-    scout_bonus = sum(5 for member in team if member.has_item("scout"))
+    scout_bonus = sum(5 for member in team if member.occupation == "scoutbot")
 
     # Calculate squad tactics bonus for the team
     member = determine_best_team_member(team, None, "Squad Tactics")
@@ -82,6 +82,7 @@ def initiative(team, enemies):
         if character in team:
             roll += scout_bonus
             roll += squad_tactics_bonus
+            roll += brazen_bonus  # bonus when team chose "Be brazen"
         initiative_rolls.append((character, roll))
 
     # Sort characters by initiative rolls (highest to lowest)
@@ -278,15 +279,23 @@ class TeamBattle:
         elif action == BattleAction.SHOOT:
             self.run_battle_action_shoot(character)
         elif action == BattleAction.ITEM:
+            self.run_battle_action_item(character)
             return
+
+    def run_battle_action_item(self, character):
+        # TODO: implement item usage in combat
+        character.last_action = BattleAction.ITEM
+        return
 
     def run_battle_action_evade(self, character):
         print(f"{character.name} evades.")
         announce_action(f"{character.name}'s action: EVADE", self.context.screen, self.context.font)
         battle_display_action(character, BattleAction.EVADE, self.context.screen, self.context.font)
+        character.last_action = BattleAction.EVADE
         return
 
     def run_battle_action_melee(self, character):
+        character.last_action = BattleAction.MELEE
         # Choose target logic
         if not character.is_pirate():
             target = self.choose_target(character, self.context.enemies)
@@ -313,23 +322,26 @@ class TeamBattle:
 
         # for loop of weapon rate
 
-        # Calculate if hit
+        # Calculate if hit, low roll is better
         hit = True
         roll = random.randint(1, 100)
-        if roll <= 3:
+        if roll >= 95:
             hit = False
         else:
-            melee_value = character.get_effective_combat_melee()
+            melee = character.get_effective_combat_melee()
             target_melee = target.get_effective_combat_melee()
+            target_evasion = target.get_effective_stat("evasion")
+            offense = character.get_effective_stat("offense")
+            
             adjusted_roll = roll
-            if target.get_last_action == BattleAction.EVADE:
-                adjusted_roll -= 10
-            if character.get_effective_skill_level("Martial Arts") > 75:
-                adjusted_roll += 20
-            elif character.get_effective_skill_level("Martial Arts") > 50:
-                adjusted_roll += 10
-            adjusted_roll = adjusted_roll * melee_value/target_melee
-            if adjusted_roll > 50:
+            if target.last_action == BattleAction.EVADE:
+                adjusted_roll += 10 + (target_evasion / 10)
+            if target.has_item("holofier"):
+                adjusted_roll += 15
+            if character.get_effective_skill_level("Martial Arts") > 0:
+                adjusted_roll -= 10 + (character.get_effective_skill_level("Martial Arts") / 10)
+            adjusted_roll = adjusted_roll * target_melee/melee
+            if adjusted_roll < offense:
                 hit = True
 
         if not character.is_pirate():
@@ -414,6 +426,7 @@ class TeamBattle:
         return None
 
     def run_battle_action_shoot(self, character):
+        character.last_action = BattleAction.SHOOT
         # Choose target logic
         if not character.is_pirate():
             target = self.choose_target(character, self.context.enemies)
@@ -440,33 +453,36 @@ class TeamBattle:
 
         # for loop of weapon rate
 
-        # Calculate if hit
+        # Calculate if hit, lower roll is better
         hit = False
         roll = random.randint(1, 100)
         skill = "Projectile Weapons"
-        # if target has holofier, "hurt" gives 33% chance to miss anyway
+        
         if roll > 3:
             # offense and evasion reflects health status
             offense = character.get_effective_combat_offense()
             target_evasion = target.get_effective_combat_evasion()
+            
             adjusted_roll = roll
-            if damage_type == "energy":
+            if damage_type == "impact":
+                skill = "Projectile Weapons"
+            elif damage_type == "energy":
                 skill = "Energy Weapons"
             elif damage_type == "sonic":
-                skill = "Sonic Weapons"
-            if target.get_last_action == BattleAction.EVADE:
-                adjusted_roll -= 10
-            if character.get_effective_skill_level(skill) > 75:
-                adjusted_roll += 20
-            elif character.get_effective_skill_level(skill) > 50:
-                adjusted_roll += 10
+                skill = "Energy Weapons"
+
+            # if target evades, add 10 + evasion/10 to attacker's ranged roll
+            if target.last_action == BattleAction.EVADE:
+                adjusted_roll += 10 + (target_evasion / 10)
+            # if target has holofier, add 25 to attacker's ranged roll
+            if target.has_item("holofier"):
+                adjusted_roll += 25
+            adjusted_roll -= character.get_effective_skill_level(skill)/10
             if self.weapon_is_rifle(chosen_weapon):
-                if character.get_effective_skill_level("Sharpshooting") > 75:
-                    adjusted_roll += 20
-                elif character.get_effective_skill_level("Sharpshooting") > 50:
-                    adjusted_roll += 10
-            adjusted_roll = adjusted_roll * offense / target_evasion
-            if adjusted_roll > 50:
+                adjusted_roll -= character.get_effective_skill_level("Sharpshooting") / 10
+
+            adjusted_roll = adjusted_roll * target_evasion / offense
+            if adjusted_roll < offense:
                 hit = True
 
         # launcher only fires first round, but always hits
@@ -555,7 +571,7 @@ class TeamBattle:
         clear_announce_bar(self.context.screen)
         pygame.mixer.music.fadeout(2000)
         play_battle_music(pygame)
-        action_order = initiative(self.context.team, self.context.enemies)
+        action_order = initiative(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
         draw_location(self.context.location, self.context.screen, LOCATION_LEFT, LOCATION_TOP, self.context.location_font, self.smaller_font)
         self.draw_teams()
         pygame.display.flip()
@@ -565,8 +581,6 @@ class TeamBattle:
         while battle_rages:
             clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
             # RANGED ROUND:
-            for character in self.context.ranged_robots:
-              self.run_battle_action(character, BattleAction.SHOOT)
             for character in action_order:
                 if character.is_alive():
                     action = self.choose_battle_action_ranged_phase(character)
@@ -579,8 +593,6 @@ class TeamBattle:
             if not self.battle_ended():
                 clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
                 time.sleep(1)
-                for melee_robot in self.context.melee_robots:
-                    self.run_battle_action(melee_robot, BattleAction.MELEE)
                 for character in action_order:
                     if character.is_alive():
                         action = self.choose_battle_action_melee_phase(character)

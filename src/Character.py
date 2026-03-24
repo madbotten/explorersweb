@@ -159,8 +159,6 @@ class Character:
     # Apply the pain and return True if they died
     def hurt(self, damage, damage_type):
         # Some items protect from damage
-        if self.has_item("holofier") and random.randint(1, 100) < 33:
-            return False
         if self.has_item("veer suit") and damage_type == "impact":
             damage = damage - 8
         if self.has_item("power shield") and damage_type == "energy":
@@ -265,21 +263,6 @@ class Character:
         if skill_name is None:
             return 1
         total = 0
-        if "Hacking" == skill_name:
-            if self.has_item("hackerbot"):
-                total += 30
-        if "Ships Systems" == skill_name or "Robot Repair" == skill_name:
-            if self.has_item("mechbot"):
-                total += 40
-            if self.has_item("techbot"):
-                total += 40
-        if "Artifact Analysis" == skill_name:
-            if self.has_item("scanner"):
-                total += 40
-        if "Medicine" == skill_name:
-            if self.has_item("medibot"):
-                total += 40
-
         if self.has_skill(skill_name):
             total += self.skills[skill_name]
         return total

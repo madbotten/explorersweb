@@ -247,6 +247,7 @@ class EventContext:
         self.background = None
         self.location_font = None
         self.enemies = None
+        self.brazen_bonus = 0
 
     def add_run_params(self, team, screen, font, background, location_font):
         self.team = team

@@ -358,7 +358,7 @@ def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
 def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
-def mission(team_data) :
+def go_mission(team_data) :
     global max_height
     global locations
     global mission_failed
