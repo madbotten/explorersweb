@@ -158,13 +158,19 @@ class Character:
 
     # Apply the pain and return True if they died
     def hurt(self, damage, damage_type):
-        # Some items protect from damage
-        if self.has_item("veer suit") and damage_type == "impact":
-            damage = damage - 8
-        if self.has_item("power shield") and damage_type == "energy":
-            damage = damage - 8
-        if self.has_item("powered armor"):
-            damage = damage - 12
+        # Damage type → index in ARMOR_ATTRIBUTES tuple
+        # (energy, sonic, impact, slash, pierce, concussion, electric)
+        DAMAGE_TYPE_INDEX = {
+            "energy": 0, "sonic": 1, "impact": 2,
+            "slash": 3, "pierce": 4, "concussion": 5, "electric": 6,
+        }
+        damage_index = DAMAGE_TYPE_INDEX.get(damage_type, -1)
+
+        # Sum protection from all equipped armor items via ARMOR_ATTRIBUTES
+        if damage_index >= 0:
+            for item in self.equipment:
+                if item.name in ARMOR_ATTRIBUTES:
+                    damage -= ARMOR_ATTRIBUTES[item.name][damage_index]
 
         # always do at least 1 point on hit
         damage = max(1, damage)
