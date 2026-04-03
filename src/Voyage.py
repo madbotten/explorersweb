@@ -359,9 +359,17 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
         return
     target = random.choice(candidates)
 
+    # Build observer list for PUBLIC interactions (0-2 random bystanders).
+    if privacy_level == PUBLIC:
+        bystanders = [m for m in team if m is not initiator and m is not target]
+        num_observers = random.randint(0, min(2, len(bystanders)))
+        observer_list = random.sample(bystanders, num_observers)
+    else:
+        observer_list = []
+
     result = Interaction.resolve(
         initiator, target,
-        observer_list=[],
+        observer_list=observer_list,
         setting_type=setting_type,
         privacy_level=privacy_level,
     )
@@ -373,6 +381,10 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
     reaction = _interaction_reaction_string(result.success, liked_by_score, target.name)
     color = GREEN if result.success else RED
     type_out_text(screen, reaction, font, color)
+
+    if observer_list:
+        names = ", ".join(m.name for m in observer_list)
+        type_out_text(screen, f"Witnessed by: {names}.", font, CYAN)
 
 def calculate_outcome_interaction_private_professional(team, stat_name, skill_name, screen, font):
     """PRIVATE PROFESSIONAL: a quiet work talk in crew quarters."""

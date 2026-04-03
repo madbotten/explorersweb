@@ -1,5 +1,5 @@
 """
-Interaction.py — Step 2
+Interaction.py — Step 4
 
 Defines the Interaction class and its resolve() method, which drives social
 interactions between Characters on the same team.
@@ -9,8 +9,10 @@ Setting types  : PERSONAL | PROFESSIONAL
     In PROFESSIONAL interactions characters are more tolerant of interaction
     types they dislike, and team leaders may add a bonus to success chances.
 
-The observer_list parameter is accepted by resolve() but intentionally
-ignored in Step 2; Step 3 will add observer effects.
+For PUBLIC interactions an observer_list of 0-2 bystanders may be supplied.
+Observers experience smaller secondary effects based on their own preferences.
+Robots are immune to all relationship and morale changes (initiator, target,
+or observer).
 """
 
 from __future__ import annotations
@@ -52,6 +54,12 @@ MORALE_DELTA_FAILURE = 2
 # Fraction of the team leader's leadership stat added as a threshold
 # bonus in PROFESSIONAL interactions.
 LEADERSHIP_BONUS_FRACTION = 0.10
+
+# Observer (secondary witness) effect magnitudes — smaller than direct deltas.
+OBSERVER_RELATIONSHIP_DELTA   = 2   # vs 5/3 for direct target
+OBSERVER_MORALE_DELTA         = 1   # vs 3/2 for direct target
+# When the target reacted positively, observers lean positive too.
+TARGET_SUCCESS_OBSERVER_BONUS = 10  # added to observer's success threshold
 
 # ---------------------------------------------------------------------------
 # Object sentence fragment pools
@@ -313,6 +321,51 @@ def _calculate_threshold(
     return threshold
 
 
+def _resolve_observers(
+    observer_list: List["Character"],
+    interaction_type: str,
+    initiator_name: str,
+    target_succeeded: bool,
+) -> None:
+    """
+    Apply smaller secondary effects to witnesses of a PUBLIC interaction.
+
+    Each non-robot observer reacts based on their own interaction_liked_by
+    preference for the interaction type:
+
+    - If the *target* reacted positively, observers are more likely to share
+      that positive reaction (TARGET_SUCCESS_OBSERVER_BONUS added to their
+      success threshold).
+    - If the *target* reacted negatively, observers form their own independent
+      view — no bonus or penalty from the target's outcome.
+    - Robot observers are immune; nothing happens to them.
+
+    On observer success : adjust_relationship(initiator, +OBSERVER_RELATIONSHIP_DELTA)
+                          encourage(OBSERVER_MORALE_DELTA)
+    On observer failure : adjust_relationship(initiator, -OBSERVER_RELATIONSHIP_DELTA)
+                          demoralize(OBSERVER_MORALE_DELTA)
+    """
+    for observer in observer_list:
+        if getattr(observer, "is_robot", lambda: False)():
+            continue
+
+        liked_by_score = observer.interaction_liked_by.get(interaction_type, 0)
+        threshold = 50 + (liked_by_score // 5)
+
+        # Positive target outcome nudges observers toward positivity too.
+        if target_succeeded:
+            threshold += TARGET_SUCCESS_OBSERVER_BONUS
+        # Negative target outcome: observer keeps their own counsel (no modifier).
+
+        roll = random.randint(1, 100)
+        if roll < threshold:
+            observer.adjust_relationship(initiator_name, OBSERVER_RELATIONSHIP_DELTA)
+            observer.encourage(OBSERVER_MORALE_DELTA)
+        else:
+            observer.adjust_relationship(initiator_name, -OBSERVER_RELATIONSHIP_DELTA)
+            observer.demoralize(OBSERVER_MORALE_DELTA)
+
+
 # ---------------------------------------------------------------------------
 # Interaction class
 # ---------------------------------------------------------------------------
@@ -371,7 +424,9 @@ class Interaction:
         ----------
         initiator     : Character attempting the interaction.
         target        : Character receiving the interaction.
-        observer_list : Other characters who witness it (ignored in Step 2).
+        observer_list : Bystanders who witness the interaction (PUBLIC only).
+                        0-2 characters, neither initiator nor target.
+                        Robot observers are immune to all effects.
         setting_type  : PERSONAL or PROFESSIONAL.
         privacy_level : PRIVATE or PUBLIC.
 
@@ -381,10 +436,16 @@ class Interaction:
 
         Side-effects
         ------------
-        On success the target's relationship with the initiator is nudged up
-        and their morale is encouraged (non-robots only).
-        On failure the relationship and morale are nudged down (non-robots only).
-        Robotic targets are immune to all relationship and morale changes.
+        Direct target (non-robot):
+          Success → relationship +5, morale +3
+          Failure → relationship −3, morale −2
+
+        Observers (non-robot):
+          React based on their own interaction_liked_by preference.
+          If target succeeded, observers lean positive (+10 threshold bonus).
+          If target failed, observers form independent view (no target influence).
+          Success → relationship +2, morale +1
+          Failure → relationship −2, morale −1
         """
 
         # 1. Choose which interaction type the initiator performs.
@@ -408,7 +469,9 @@ class Interaction:
                 target.adjust_relationship(initiator.name, -RELATIONSHIP_DELTA_FAILURE)
                 target.demoralize(MORALE_DELTA_FAILURE)
 
-        # observer_list intentionally unused here — Step 3 will add observer effects.
+        # 5. Apply secondary effects to observers (PUBLIC interactions only).
+        if observer_list:
+            _resolve_observers(observer_list, interaction_type, initiator.name, success)
 
         return Interaction(
             sentence=sentence,
