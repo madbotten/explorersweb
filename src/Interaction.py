@@ -61,6 +61,11 @@ OBSERVER_MORALE_DELTA         = 1   # vs 3/2 for direct target
 # When the target reacted positively, observers lean positive too.
 TARGET_SUCCESS_OBSERVER_BONUS = 10  # added to observer's success threshold
 
+# Probability that a hated failed interaction escalates into a fight.
+# Triggered only when target is non-robot, the interaction failed, AND
+# the target's interaction_liked_by score <= INTERACTION_HATE_THRESHOLD (-90).
+FIGHT_TRIGGER_CHANCE = 0.35
+
 # ---------------------------------------------------------------------------
 # Object sentence fragment pools
 # ---------------------------------------------------------------------------
@@ -393,17 +398,20 @@ class Interaction:
         interaction_type: str,
         roll: int,
         threshold: int,
+        fight_triggered: bool = False,
     ):
         self.sentence         = sentence
         self.success          = success
         self.interaction_type = interaction_type
         self.roll             = roll
         self.threshold        = threshold
+        self.fight_triggered  = fight_triggered
 
     def __repr__(self) -> str:
         outcome = "success" if self.success else "failure"
+        fight  = ", FIGHT" if self.fight_triggered else ""
         return (
-            f"Interaction(type={self.interaction_type}, {outcome}, "
+            f"Interaction(type={self.interaction_type}, {outcome}{fight}, "
             f"roll={self.roll}, threshold={self.threshold})"
         )
 
@@ -469,7 +477,17 @@ class Interaction:
                 target.adjust_relationship(initiator.name, -RELATIONSHIP_DELTA_FAILURE)
                 target.demoralize(MORALE_DELTA_FAILURE)
 
-        # 5. Apply secondary effects to observers (PUBLIC interactions only).
+        # 5. Check whether the failed interaction triggers a fight.
+        # Conditions: non-robot target, interaction failed, target HATES this type.
+        fight_triggered = False
+        if (
+            not target_is_robot
+            and not success
+            and target.interaction_liked_by.get(interaction_type, 0) <= INTERACTION_HATE_THRESHOLD
+        ):
+            fight_triggered = random.random() < FIGHT_TRIGGER_CHANCE
+
+        # 6. Apply secondary effects to observers (PUBLIC interactions only).
         if observer_list:
             _resolve_observers(observer_list, interaction_type, initiator.name, success)
 
@@ -479,4 +497,5 @@ class Interaction:
             interaction_type=interaction_type,
             roll=roll,
             threshold=threshold,
+            fight_triggered=fight_triggered,
         )

@@ -386,6 +386,56 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
         names = ", ".join(m.name for m in observer_list)
         type_out_text(screen, f"Witnessed by: {names}.", font, CYAN)
 
+    # --- Fight escalation (Step 5) ---
+    if result.fight_triggered:
+        type_out_text(
+            screen,
+            f"{target.name} is furious and starts a fight with {initiator.name}!",
+            font, RED,
+        )
+
+        # Find highest-leadership non-combatant to mediate.
+        eligible = [
+            m for m in team
+            if m is not initiator and m is not target and not m.is_robot()
+        ]
+        mediator = max(eligible, key=lambda m: m.stats.get("leadership", 0)) if eligible else None
+
+        if mediator:
+            type_out_text(screen, f"{mediator.name} steps in to break it up:", font)
+            check_passed = standard_skill_check(
+                mediator, screen, "leadership", "Social Engineering", font, 0
+            )
+            if check_passed:
+                type_out_text(
+                    screen,
+                    f"{mediator.name} manages to calm things down. Their leadership is strengthened.",
+                    font, GREEN,
+                )
+                mediator.increase_stat("leadership", 3)
+                mediator.increase_skill("Social Engineering", 3)
+                mediator.encourage(5)
+            else:
+                type_out_text(
+                    screen,
+                    f"{mediator.name} cannot stop them. The fight breaks out! Both sides take minor injuries.",
+                    font, RED,
+                )
+                initiator.hurt(8, "impact")
+                target.hurt(8, "impact")
+                for m in team:
+                    m.demoralize(3)
+        else:
+            type_out_text(
+                screen,
+                "No one steps in. The brawl breaks out! Both sides take injuries.",
+                font, RED,
+            )
+            initiator.hurt(12, "impact")
+            target.hurt(12, "impact")
+            for m in team:
+                m.demoralize(5)
+
 def calculate_outcome_interaction_private_professional(team, stat_name, skill_name, screen, font):
     """PRIVATE PROFESSIONAL: a quiet work talk in crew quarters."""
     _run_interaction(team, screen, font, PROFESSIONAL, PRIVATE)
