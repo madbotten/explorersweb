@@ -10,6 +10,48 @@ from Battle import BattleAction
 from Utils import *
 from Item import *
 
+# ---------------------------------------------------------------------------
+# Interaction type constants
+# ---------------------------------------------------------------------------
+class InteractionType:
+    FLATTER  = "FLATTER"
+    BRAG     = "BRAG"
+    PERSUADE = "PERSUADE"
+    THREATEN = "THREATEN"
+    DEMAND   = "DEMAND"
+    INFORM   = "INFORM"
+    REQUEST  = "REQUEST"
+    JOKE     = "JOKE"
+
+    ALL = [FLATTER, BRAG, PERSUADE, THREATEN, DEMAND, INFORM, REQUEST, JOKE]
+
+# Thresholds for personality labels
+INTERACTION_LOVE_THRESHOLD =  90
+INTERACTION_HATE_THRESHOLD = -90
+
+# Human-readable labels used in the personality summary line
+# (action the character DOES → label  |  action done TO character → label)
+_DOES_LABELS = {
+    InteractionType.FLATTER:  "Flatterer",
+    InteractionType.BRAG:     "Braggart",
+    InteractionType.PERSUADE: "Persuader",
+    InteractionType.THREATEN: "Intimidator",
+    InteractionType.DEMAND:   "Demander",
+    InteractionType.INFORM:   "Informer",
+    InteractionType.REQUEST:  "Requester",
+    InteractionType.JOKE:     "Jokester",
+}
+_LIKED_BY_LABELS = {
+    InteractionType.FLATTER:  "Egomaniac",
+    InteractionType.BRAG:     "Fan",
+    InteractionType.PERSUADE: "Persuadable",
+    InteractionType.THREATEN: "Pushover",
+    InteractionType.DEMAND:   "Obedient",
+    InteractionType.INFORM:   "Scholar",
+    InteractionType.REQUEST:  "Cooperative",
+    InteractionType.JOKE:     "Cheerful",
+}
+
 # Directory path for character portraits
 portraits_dir = "portraits/"
 TOP_EDGE = 30
@@ -59,6 +101,29 @@ class Character:
         self.team = None
 
         self.morale = 100
+
+        # ---------------------------------------------------------------
+        # Interaction preferences  (score −100 … 100)
+        # interaction_likes   : what this character likes/hates TO DO
+        # interaction_liked_by: what this character likes/hates DONE TO THEM
+        # Robots are emotionally neutral (all scores stay 0).
+        # ---------------------------------------------------------------
+        if type == "robot":
+            self.interaction_likes    = {k: 0 for k in InteractionType.ALL}
+            self.interaction_liked_by = {k: 0 for k in InteractionType.ALL}
+        else:
+            self.interaction_likes    = {
+                k: self._random_interaction_score() for k in InteractionType.ALL
+            }
+            self.interaction_liked_by = {
+                k: self._random_interaction_score() for k in InteractionType.ALL
+            }
+
+        # Relationship scores with other characters, keyed by character name.
+        # Initialised to 0 (neutral) when the character is first generated;
+        # scores are populated and updated during gameplay.
+        # Robots keep all relationships at 0.
+        self.relationships: dict[str, int] = {}
         self.current_health = self.stats["lifelevel"]
 
         self.vetted = False
@@ -101,6 +166,9 @@ class Character:
                     self.psychotic = True
 
             self.history += "\n" + random.choice(self.personality_types)
+            personality_line = self._build_personality_string()
+            if personality_line:
+                self.history += "\n" + personality_line
 
         # Generate and assign major skills
         self.skills = self.assign_skills(self.stats["intelligence"], self.stats["willpower"])
@@ -119,6 +187,63 @@ class Character:
         self.location = (-1, -1)
         self.battle_index = 0
         self.last_action = BattleAction.NONE
+
+    # ------------------------------------------------------------------
+    # Interaction helpers
+    # ------------------------------------------------------------------
+
+    def is_robot(self):
+        """Returns True if this character is a robot."""
+        return self.type == "robot"
+
+    @staticmethod
+    def _random_interaction_score():
+        """Bell-curve score clamped to [−100, 100]."""
+        return max(-100, min(100, int(random.gauss(0, 40))))
+
+    def _build_personality_string(self):
+        """Return 'Personality: Label1, Label2' listing loves and hates, or '' if none."""
+        labels = []
+        for k in InteractionType.ALL:
+            if self.interaction_likes.get(k, 0) >= INTERACTION_LOVE_THRESHOLD:
+                labels.append(_DOES_LABELS[k])
+            if self.interaction_liked_by.get(k, 0) >= INTERACTION_LOVE_THRESHOLD:
+                labels.append(_LIKED_BY_LABELS[k])
+            if self.interaction_likes.get(k, 0) <= INTERACTION_HATE_THRESHOLD:
+                labels.append(f"Anti-{_DOES_LABELS[k]}")
+            if self.interaction_liked_by.get(k, 0) <= INTERACTION_HATE_THRESHOLD:
+                labels.append(f"Anti-{_LIKED_BY_LABELS[k]}")
+        if not labels:
+            return ""
+        return "Personality: " + ", ".join(labels)
+
+    def get_relationship(self, other_name: str) -> int:
+        """Return the relationship score with *other_name* (0 if not yet set)."""
+        return self.relationships.get(other_name, 0)
+
+    def set_relationship(self, other_name: str, score: int):
+        """Set the relationship score with *other_name*, clamped to [−100, 100].
+        Robots silently ignore this call (they stay neutral)."""
+        if self.is_robot():
+            return
+        self.relationships[other_name] = max(-100, min(100, score))
+
+    def adjust_relationship(self, other_name: str, delta: int):
+        """Adjust the relationship score with *other_name* by *delta*.
+        Robots silently ignore this call."""
+        if self.is_robot():
+            return
+        current = self.relationships.get(other_name, 0)
+        self.set_relationship(other_name, current + delta)
+
+    def initialize_relationships(self, team):
+        """Populate the relationships dict with 0 for every team member that is
+        not already present. Call this after team assembly. Robots skip this."""
+        if self.is_robot():
+            return
+        for member in team:
+            if member is not self and member.name not in self.relationships:
+                self.relationships[member.name] = 0
 
     def is_combative_personality(self):
         if any(sub in self.history for sub in ("narcissist", "aggressive")) or self.psychotic:
@@ -916,7 +1041,11 @@ class Character:
             "morale": self.morale,
             # Store each item in equipment as a serializable dictionary without the 'icon' pygame surface
             # Store equipment as a list of dictionaries (Item's `__dict__`).
-            "equipment": [item.to_dict() for item in self.equipment]
+            "equipment": [item.to_dict() for item in self.equipment],
+            # Interaction data
+            "interaction_likes":    self.interaction_likes,
+            "interaction_liked_by": self.interaction_liked_by,
+            "relationships":        self.relationships,
         }
 
     @classmethod
@@ -941,6 +1070,12 @@ class Character:
         if "mission points" in data:
             character.mission_points = data["mission points"]
         character.equipment = [Item.from_dict(item_data) for item_data in data["equipment"]]  # Recreate items
+
+        # Interaction data — use defaults if loading an older save that lacks these keys
+        _neutral = {k: 0 for k in InteractionType.ALL}
+        character.interaction_likes    = data.get("interaction_likes",    _neutral.copy())
+        character.interaction_liked_by = data.get("interaction_liked_by", _neutral.copy())
+        character.relationships        = data.get("relationships",        {})
 
         if data["type"] == "robot":
             portrait_path = resource_path(f"gadgets/{character.occupation}.jpg")
