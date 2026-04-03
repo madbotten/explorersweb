@@ -10,6 +10,7 @@ from Location import *
 from Utils import *
 from Event import *
 from TypeText import *
+from Interaction import Interaction, PRIVATE, PUBLIC, PERSONAL, PROFESSIONAL
 
 # Screen settings
 TEXT_AREA_WIDTH = SCREEN_WIDTH - 100
@@ -131,6 +132,67 @@ def calculate_outcome_training(team, stat_name, skill_name, screen, font):
 def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
+def _interaction_reaction_string(success: bool, score: int, target_name: str) -> str:
+    """Return a UI string describing how the target felt about the interaction."""
+    if success:
+        if score >= 90:
+            return f"{target_name} absolutely loved it."
+        elif score >= 50:
+            return f"{target_name} liked it."
+        else:
+            return f"{target_name} accepted it without complaint."
+    else:
+        if score <= -90:
+            return f"{target_name} absolutely hated it."
+        elif score <= -50:
+            return f"{target_name} disliked it."
+        else:
+            return f"{target_name} was indifferent."
+
+def _run_interaction(team, screen, font, setting_type, privacy_level):
+    """Core logic shared by all four interaction event outcomes."""
+    non_robots = [m for m in team if not m.is_robot()]
+    if len(non_robots) < 2:
+        type_out_text(screen, "The crew keeps to themselves.", font)
+        return
+
+    initiator = random.choice(non_robots)
+    candidates = [m for m in team if m is not initiator]
+    if not candidates:
+        return
+    target = random.choice(candidates)
+
+    result = Interaction.resolve(
+        initiator, target,
+        observer_list=[],
+        setting_type=setting_type,
+        privacy_level=privacy_level,
+    )
+
+    emit_character_image_at_text_offset(initiator, screen)
+    type_out_text(screen, result.sentence, font, WHITE)
+
+    liked_by_score = target.interaction_liked_by.get(result.interaction_type, 0)
+    reaction = _interaction_reaction_string(result.success, liked_by_score, target.name)
+    color = GREEN if result.success else RED
+    type_out_text(screen, reaction, font, color)
+
+def calculate_outcome_interaction_private_professional(team, stat_name, skill_name, screen, font):
+    """PRIVATE PROFESSIONAL: a quiet work talk in crew quarters."""
+    _run_interaction(team, screen, font, PROFESSIONAL, PRIVATE)
+
+def calculate_outcome_interaction_public_professional(team, stat_name, skill_name, screen, font):
+    """PUBLIC PROFESSIONAL: an open exchange on the bridge."""
+    _run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
+
+def calculate_outcome_interaction_private_personal(team, stat_name, skill_name, screen, font):
+    """PRIVATE PERSONAL: a personal conversation behind closed doors."""
+    _run_interaction(team, screen, font, PERSONAL, PRIVATE)
+
+def calculate_outcome_interaction_public_personal(team, stat_name, skill_name, screen, font):
+    """PUBLIC PERSONAL: a candid exchange in the mess hall."""
+    _run_interaction(team, screen, font, PERSONAL, PUBLIC)
+
 def return_voyage(team_data) :
     global max_height
     global locations
@@ -176,6 +238,35 @@ def return_voyage(team_data) :
     # calculate_outcome,
     # all_items
     repeatable_events = [
+        # Interaction events — four setting/privacy combinations
+        Event(
+            "A crew member pulls a teammate aside for a private work discussion.",
+            None,
+            0, None, None, locations["crew quarters"],
+            calculate_outcome_interaction_private_professional,
+            all_items,
+        ),
+        Event(
+            "A crew member addresses a teammate openly on the bridge.",
+            None,
+            0, None, None, locations["bridge"],
+            calculate_outcome_interaction_public_professional,
+            all_items,
+        ),
+        Event(
+            "Two crew members share a private personal exchange in their quarters.",
+            None,
+            0, None, None, locations["quarters"],
+            calculate_outcome_interaction_private_personal,
+            all_items,
+        ),
+        Event(
+            "Two crew members have a candid personal conversation in the mess hall.",
+            None,
+            0, None, None, locations["mess"],
+            calculate_outcome_interaction_public_personal,
+            all_items,
+        ),
         # Empty outcomes
         Event(
             "The team recuperates in their quarters, pondering what comes next.",
