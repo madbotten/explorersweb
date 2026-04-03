@@ -452,6 +452,44 @@ def calculate_outcome_interaction_public_personal(team, stat_name, skill_name, s
     """PUBLIC PERSONAL: a candid exchange in the mess hall."""
     _run_interaction(team, screen, font, PERSONAL, PUBLIC)
 
+def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, font):
+    """Step 6: The highest-leadership non-robot addresses the crew before departure.
+
+    Success: every non-robot crew member gains 5-20 relationship points with
+             every other crew member, and +5 morale.
+    Failure: nothing happens.
+    """
+    non_robots = [m for m in team if not m.is_robot()]
+    if not non_robots:
+        type_out_text(screen, "There is no one suitable to address the crew.", font)
+        return
+
+    leader = max(non_robots, key=lambda m: m.stats.get("leadership", 0))
+    type_out_text(screen, f"{leader.name} addresses the crew before departure:", font)
+
+    check_passed = standard_skill_check(leader, screen, "leadership", "Instruction", font, 0)
+
+    if check_passed:
+        boost = random.randint(5, 20)
+        type_out_text(
+            screen,
+            f"{leader.name}'s words resonate with the crew.\n"
+            f"The team feels inspired to work together toward a common goal.\n"
+            f"(Relationships +{boost}, Morale +5)",
+            font, GREEN,
+        )
+        for member in non_robots:
+            member.encourage(5)
+            for other in non_robots:
+                if other is not member:
+                    member.adjust_relationship(other.name, boost)
+    else:
+        type_out_text(
+            screen,
+            f"{leader.name}'s words fall flat. The crew remains unmoved.",
+            font, RED,
+        )
+
 def voyage(team_data) :
     global max_height
     global locations
@@ -877,6 +915,7 @@ def voyage(team_data) :
 
     events_completed = 0
     max_events_in_voyage = random.randint(25, 32)
+    speech_done = False
     screen.blit(EXIT_TEXT, EXIT_RECT)
     # Event Loop
     running = True
@@ -908,7 +947,14 @@ def voyage(team_data) :
         # Move to next event
         if not waiting:
             location = locations[random.choice(list(locations.keys()))]
-            if events_completed > max_events_in_voyage:
+            if not speech_done:
+                # Always-first event: inspirational speech
+                speech_done = True
+                draw_location(locations["mess"], screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                calculate_outcome_inspirational_speech(team, None, None, screen, DEFAULT_FONT)
+                events_completed += 1
+                day += 1
+            elif events_completed > max_events_in_voyage:
                 type_out_text(screen, "You have arrived at the destination!", DEFAULT_FONT)
                 voyage_complete = True
             else:
