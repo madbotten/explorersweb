@@ -243,6 +243,49 @@ class Item:
     def get_rect(self):
         return self.rect
 
+    # ------------------------------------------------------------------
+    # Semantic predicates — all use item_base_name() so classed items
+    # ("laser rifle B", "carbine S", etc.) resolve correctly.
+    # ------------------------------------------------------------------
+
+    _RIFLE_BASES      = {"blaster rifle", "laser rifle"}
+    _RANGED_BASES     = {"blaster rifle", "laser rifle", "laser pistol",
+                         "carbine", "magnum", "pistol", "stunner"}
+    _MELEE_BASES      = {"slicer", "stun baton"}
+    _ENERGY_BASES     = {"laser rifle", "laser pistol"}
+    _SONIC_BASES      = {"blaster rifle", "stunner", "stun baton"}
+    _PROJECTILE_BASES = {"carbine", "magnum", "pistol"}
+    _NONLETHAL_BASES  = {"stunner", "stun baton"}
+
+    def is_rifle(self) -> bool:
+        """True for blaster rifle and laser rifle (benefits from Sharpshooting)."""
+        return item_base_name(self.name) in self._RIFLE_BASES
+
+    def is_ranged_weapon(self) -> bool:
+        """True for any weapon that fires at range."""
+        return self.type == "weapon" and item_base_name(self.name) in self._RANGED_BASES
+
+    def is_melee_weapon(self) -> bool:
+        """True for any weapon used in close combat."""
+        return self.type == "weapon" and item_base_name(self.name) in self._MELEE_BASES
+
+    def is_energy_weapon(self) -> bool:
+        """True for weapons with energy effect type (laser rifle, laser pistol)."""
+        return self.type == "weapon" and item_base_name(self.name) in self._ENERGY_BASES
+
+    def is_sonic_weapon(self) -> bool:
+        """True for weapons with sonic effect type (blaster rifle, stunner, stun baton)."""
+        return self.type == "weapon" and item_base_name(self.name) in self._SONIC_BASES
+
+    def is_projectile_weapon(self) -> bool:
+        """True for weapons with impact/projectile effect type (carbine, magnum, pistol)."""
+        return self.type == "weapon" and item_base_name(self.name) in self._PROJECTILE_BASES
+
+    def is_lethal(self) -> bool:
+        """True for weapons that can kill. Stunner and stun baton are non-lethal."""
+        return self.type == "weapon" and item_base_name(self.name) not in self._NONLETHAL_BASES
+
+
     @classmethod
     def from_data(cls, name, attributes, icon=None):
         cost, mass, rate, effect, effect_type, hp, item_type, description = attributes
