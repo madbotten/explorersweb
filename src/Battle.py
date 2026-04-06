@@ -91,6 +91,47 @@ def initiative(team, enemies, brazen_bonus=0):
     # Return sorted characters
     return [entry[0] for entry in initiative_rolls]
 
+# Weapon-base sets used by the phase-specific initiative functions
+_RANGED_INITIATIVE_BASES = {"blaster rifle", "laser rifle", "laser pistol",
+                             "carbine", "magnum", "pistol", "stunner"}
+_MELEE_INITIATIVE_BASES = {"slicer", "stun baton"}
+
+def _best_weapon_rate(character, weapon_bases: set) -> int:
+    """Return the highest rate among the character's equipped weapons that
+    belong to *weapon_bases*.  Returns 1 if no matching weapon is found."""
+    best = 1
+    for item in character.equipment:
+        if item.type == "weapon" and item_base_name(item.name) in weapon_bases:
+            if item.rate > best:
+                best = item.rate
+    return best
+
+def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
+    """Build the ranged-phase action list.
+
+    The base initiative order is computed first.  Then, for each extra shot
+    level (2 … 5), every character whose best ranged weapon has rate ≥ that
+    level is appended again in base-order.  Characters with rate 1 appear
+    once; rate 2 twice; rate 5 five times.
+    """
+    base = initiative(team, enemies, brazen_bonus)
+    extended = list(base)
+    for shot in range(2, 6):
+        for character in base:
+            if _best_weapon_rate(character, _RANGED_INITIATIVE_BASES) >= shot:
+                extended.append(character)
+    return extended
+
+def initiative_melee(team, enemies, brazen_bonus=0) -> list:
+    """Build the melee-phase action list using weapon rates of melee weapons."""
+    base = initiative(team, enemies, brazen_bonus)
+    extended = list(base)
+    for shot in range(2, 6):
+        for character in base:
+            if _best_weapon_rate(character, _MELEE_INITIATIVE_BASES) >= shot:
+                extended.append(character)
+    return extended
+
 def battle_display_character(character, context, xloc, yloc):
     character.set_rect(pygame.Rect(xloc, yloc, CHARACTER_COMBAT_WIDTH, CHARACTER_COMBAT_HEIGHT))
     context.screen.blit(character.portrait, character.get_rect())
@@ -258,15 +299,11 @@ class TeamBattle:
         self.context.screen.blit(text_surface, (xloc, yloc))
 
     def choose_battle_action_ranged_phase(self, member):
-        if member.occupation == "assaultbot" or member.occupation == "stunbot":
-            return BattleAction.SHOOT
         if member.has_ranged_weapon():
             return BattleAction.SHOOT
         return BattleAction.EVADE
 
     def choose_battle_action_melee_phase(self, member):
-        if member.occupation == "meleebot" or member.occupation == "batonbot":
-            return BattleAction.MELEE
         if member.has_melee_weapon():
             return BattleAction.MELEE
         return BattleAction.EVADE
@@ -391,17 +428,9 @@ class TeamBattle:
                              "carbine", "magnum", "pistol", "stunner"}
 
     def choose_ranged_weapon(self, character, target):
-        """Return the name of the highest-effect ranged weapon the character carries."""
-        best_item = None
-        for item in character.equipment:
-            if item.type != "weapon":
-                continue
-            base = item_base_name(item.name)
-            if base not in self._RANGED_WEAPON_BASES:
-                continue
-            if best_item is None or item.effect > best_item.effect:
-                best_item = item
-        return best_item.name if best_item else None
+        """Delegate weapon selection to the character's own preference logic."""
+        item = character.choose_ranged_weapon()
+        return item.name if item else None
 
     def weapon_is_rifle(self, weapon):
         return item_base_name(weapon) in {"blaster rifle", "laser rifle"}
@@ -410,16 +439,9 @@ class TeamBattle:
 
     @staticmethod
     def choose_melee_weapon(character, target):
-        """Return the name of the highest-damage melee weapon the character carries."""
-        best_item = None
-        for item in character.equipment:
-            if item.type != "weapon":
-                continue
-            if item_base_name(item.name) not in TeamBattle._MELEE_WEAPON_BASES:
-                continue
-            if best_item is None or item.effect > best_item.effect:
-                best_item = item
-        return best_item.name if best_item else None
+        """Delegate weapon selection to the character's own preference logic."""
+        item = character.choose_melee_weapon()
+        return item.name if item else None
 
     def run_battle_action_shoot(self, character):
         character.last_action = BattleAction.SHOOT
@@ -555,7 +577,6 @@ class TeamBattle:
         clear_announce_bar(self.context.screen)
         pygame.mixer.music.fadeout(2000)
         play_battle_music(pygame)
-        action_order = initiative(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
         draw_location(self.context.location, self.context.screen, LOCATION_LEFT, LOCATION_TOP, self.context.location_font, self.smaller_font)
         self.draw_teams()
         pygame.display.flip()
@@ -564,28 +585,27 @@ class TeamBattle:
         self.round = 1
         while battle_rages:
             clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
-            # RANGED ROUND:
-            for character in action_order:
+            # RANGED PHASE — initiative includes extra shots from weapon rate
+            ranged_order = initiative_ranged(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
+            for character in ranged_order:
                 if character.is_alive():
                     action = self.choose_battle_action_ranged_phase(character)
                     character.last_action = action
-                    # report action on screen
                     self.run_battle_action(character, action)
             time.sleep(1)
 
-            # MELEE ROUND
+            # MELEE PHASE — own initiative roll
             if not self.battle_ended():
                 clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
                 time.sleep(1)
-                for character in action_order:
+                melee_order = initiative_melee(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
+                for character in melee_order:
                     if character.is_alive():
                         action = self.choose_battle_action_melee_phase(character)
-                        # report action on screen
                         self.run_battle_action(character, action)
 
             battle_rages = self.check_battle_ended()
             self.round += 1
-            #self.print_debug(round)
         # click to continue...
         time.sleep(1)
         max_y_offset()

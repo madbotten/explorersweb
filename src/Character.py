@@ -419,6 +419,104 @@ class Character:
 
         return total
 
+    # --- Weapon-base classification constants used by the choosers below ---
+    _RIFLE_BASES      = {"blaster rifle", "laser rifle"}
+    _RANGED_BASES     = {"blaster rifle", "laser rifle", "laser pistol",
+                         "carbine", "magnum", "pistol", "stunner"}
+    _MELEE_BASES      = {"slicer", "stun baton"}
+    _ENERGY_BASES     = {"laser rifle", "laser pistol"}
+    _SONIC_RANGED     = {"blaster rifle", "stunner"}
+    _SONIC_MELEE      = {"stun baton"}
+    _PROJECTILE_BASES = {"carbine", "magnum", "pistol"}
+
+    def choose_ranged_weapon(self) -> "Item | None":
+        """Return the best ranged weapon Item this character should use.
+
+        Priority:
+        1. Sharpshooting skill > 0  → prefer a rifle (blaster rifle / laser rifle)
+        2. Energy Weapons skill > 0 → prefer energy-type ranged weapons
+        3. Sonic Weapons skill > 0  → prefer sonic-type ranged weapons
+        4. Projectile Weapons > 0   → prefer projectile-type ranged weapons
+        5. Fallback: highest effect × rate among all ranged weapons
+        If the preferred pool is empty, fall back to the best overall ranged weapon.
+        """
+        from Item import item_base_name  # avoid circular import at module level
+
+        def _score(item):
+            return item.effect * item.rate
+
+        def _best_in(pool):
+            return max(pool, key=_score) if pool else None
+
+        ranged = [
+            item for item in self.equipment
+            if item.type == "weapon" and item_base_name(item.name) in self._RANGED_BASES
+        ]
+        if not ranged:
+            return None
+
+        # 1. Sharpshooting → rifle
+        if self.get_effective_skill_level("Sharpshooting", learning=False) > 0:
+            rifles = [i for i in ranged if item_base_name(i.name) in self._RIFLE_BASES]
+            if rifles:
+                return _best_in(rifles)
+
+        # 2. Energy Weapons → energy-type
+        if self.get_effective_skill_level("Energy Weapons", learning=False) > 0:
+            energy = [i for i in ranged if item_base_name(i.name) in self._ENERGY_BASES]
+            if energy:
+                return _best_in(energy)
+
+        # 3. Sonic Weapons → sonic-type
+        if self.get_effective_skill_level("Sonic Weapons", learning=False) > 0:
+            sonic = [i for i in ranged if item_base_name(i.name) in self._SONIC_RANGED]
+            if sonic:
+                return _best_in(sonic)
+
+        # 4. Projectile Weapons → projectile-type
+        if self.get_effective_skill_level("Projectile Weapons", learning=False) > 0:
+            proj = [i for i in ranged if item_base_name(i.name) in self._PROJECTILE_BASES]
+            if proj:
+                return _best_in(proj)
+
+        # 5. Fallback: highest throughput
+        return _best_in(ranged)
+
+    def choose_melee_weapon(self) -> "Item | None":
+        """Return the best melee weapon Item this character should use.
+
+        Priority:
+        1. Sonic Weapons skill > 0  → prefer stun baton
+        2. Martial Arts skill > 0   → prefer slicer
+        3. Fallback: highest effect × rate among all melee weapons
+        """
+        from Item import item_base_name  # avoid circular import at module level
+
+        def _score(item):
+            return item.effect * item.rate
+
+        melee = [
+            item for item in self.equipment
+            if item.type == "weapon" and item_base_name(item.name) in self._MELEE_BASES
+        ]
+        if not melee:
+            return None
+
+        # 1. Sonic Weapons → stun baton
+        if self.get_effective_skill_level("Sonic Weapons", learning=False) > 0:
+            sonic = [i for i in melee if item_base_name(i.name) in self._SONIC_MELEE]
+            if sonic:
+                return max(sonic, key=_score)
+
+        # 2. Martial Arts → slicer
+        if self.get_effective_skill_level("Martial Arts", learning=False) > 0:
+            slicers = [i for i in melee if item_base_name(i.name) == "slicer"]
+            if slicers:
+                return max(slicers, key=_score)
+
+        # 3. Fallback: highest throughput
+        return max(melee, key=_score)
+
     # Effective stat level without health ratio (applied in skill check)
     def get_effective_stat_level(self, stat_name):
         if stat_name is None:
