@@ -385,22 +385,17 @@ class TeamBattle:
             print(f"{character.name} chooses target {target.name}")
         return target
 
-    _RANGED_WEAPON_BASES = {"blaster rifle", "launcher", "laser rifle", "laser pistol",
+    _RANGED_WEAPON_BASES = {"blaster rifle", "laser rifle", "laser pistol",
                              "carbine", "magnum", "pistol", "stunner"}
 
     def choose_ranged_weapon(self, character, target):
-        # improve: choose appropriate weapon for a target?
-        # choose weapon based on mission choices (nonlethal)
-        """Return the name of the highest-damage ranged weapon the character carries.
-        Launcher is excluded after round 1. Returns the full item name (e.g. 'laser rifle B')."""
+        """Return the name of the highest-effect ranged weapon the character carries."""
         best_item = None
         for item in character.equipment:
             if item.type != "weapon":
                 continue
             base = item_base_name(item.name)
             if base not in self._RANGED_WEAPON_BASES:
-                continue
-            if base == "launcher" and self.round != 1:
                 continue
             if best_item is None or item.effect > best_item.effect:
                 best_item = item
@@ -485,10 +480,6 @@ class TeamBattle:
             if adjusted_roll < offense:
                 hit = True
 
-        # launcher only fires first round, but always hits
-        if chosen_weapon == "launcher":
-            hit = True
-
         if not character.is_pirate():
             battle_display_character_action_result(character, BattleAction.SHOOT, hit, self.context.screen, self.context.font)
         else:
@@ -516,16 +507,7 @@ class TeamBattle:
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)
 
-        if hit and chosen_weapon == "launcher":
-            print("Launcher hits enemies")
-            if not character.is_pirate():
-                targets = self.context.enemies
-            else:
-                targets = self.context.team
-            for target in targets:
-                self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
-
-        elif hit and target.is_alive():
+        if hit and target.is_alive():
             self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
         return
 

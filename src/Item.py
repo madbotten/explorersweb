@@ -141,12 +141,6 @@ ITEM_ATTRIBUTES = {
     "carbine B": (578,  9, 5, 11, "impact", 53, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
     "carbine A": (605,  9, 5, 11, "impact", 55, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
     "carbine S": (633,  8, 5, 12, "impact", 58, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
-    # ---- launcher ----
-    "launcher":   (600, 10, 1, 30, "impact", 40, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "launcher C": (600, 10, 1, 30, "impact", 40, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "launcher B": (630,  9, 1, 32, "impact", 42, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "launcher A": (660,  9, 1, 33, "impact", 44, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "launcher S": (690,  8, 1, 35, "impact", 46, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
     # ---- laser rifle ----
     "laser rifle":   (700, 10, 1, 50, "energy", 40, "weapon", "A powerful, heavy, expensive laser weapon"),
     "laser rifle C": (700, 10, 1, 50, "energy", 40, "weapon", "A powerful, heavy, expensive laser weapon"),
