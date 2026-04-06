@@ -165,7 +165,8 @@ def roll_string(roll, skill_name, stat_name, difficulty_modifier):
 def determine_best_team_member(team, stat_name, skill_name):
     def score(member):
         stat_score = member.get_effective_stat_level(stat_name)
-        skill_score = member.get_effective_skill_level(skill_name)
+        # learning=False: we're only comparing, not performing the action
+        skill_score = member.get_effective_skill_level(skill_name, learning=False)
         return stat_score + skill_score
 
     best_score = max(score(member) for member in team if member)

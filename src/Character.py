@@ -173,6 +173,9 @@ class Character:
         # Generate and assign major skills
         self.skills = self.assign_skills(self.stats["intelligence"], self.stats["willpower"])
 
+        # Learning progress tracker — one entry per possible skill, starts at 0
+        self.learning_skills_dict: dict[str, int] = {skill: 0 for skill in self.possible_skills}
+
         if type != "robot":
           if type == "team":
             portrait_path = resource_path(f"portraits/character{index}.jpg")
@@ -389,13 +392,28 @@ class Character:
            total_mass += item.mass
        return total_mass
 
-    # Effective stat level without health ratio (applied in skill check)
-    def get_effective_skill_level(self, skill_name):
+    # Effective stat level without health ratio (applied in skill check).
+    # learning=True (the default) records one use in learning_skills_dict and
+    # promotes the skill when enough uses have accumulated.
+    # Pass learning=False when the call is only for comparison/selection
+    # (e.g. determine_best_team_member) and no actual action will be taken.
+    def get_effective_skill_level(self, skill_name, learning=True):
         if skill_name is None:
             return 1
         total = 0
         if self.has_skill(skill_name):
             total += self.skills[skill_name]
+
+        # --- learning system ---
+        if learning and not self.is_robot() and skill_name in self.learning_skills_dict:
+            self.learning_skills_dict[skill_name] += 1
+            current_level = self.skills.get(skill_name, 0)
+            threshold = max(1, current_level // 10)
+            if self.learning_skills_dict[skill_name] >= threshold:
+                self.learning_skills_dict[skill_name] = 0
+                self.skills[skill_name] = current_level + 1
+                total += 1  # reflect the just-earned point in this return value
+
         return total
 
     # Effective stat level without health ratio (applied in skill check)
@@ -1046,6 +1064,8 @@ class Character:
             "interaction_likes":    self.interaction_likes,
             "interaction_liked_by": self.interaction_liked_by,
             "relationships":        self.relationships,
+            # Skills learning system
+            "learning_skills_dict": self.learning_skills_dict,
         }
 
     @classmethod
@@ -1076,6 +1096,12 @@ class Character:
         character.interaction_likes    = data.get("interaction_likes",    _neutral.copy())
         character.interaction_liked_by = data.get("interaction_liked_by", _neutral.copy())
         character.relationships        = data.get("relationships",        {})
+
+        # Skills learning system — fall back to all-zeros for older saves
+        _zero_learning = {skill: 0 for skill in cls.possible_skills}
+        saved_learning  = data.get("learning_skills_dict", {})
+        _zero_learning.update(saved_learning)          # keep any extra skills that may exist in the save
+        character.learning_skills_dict = _zero_learning
 
         if data["type"] == "robot":
             portrait_path = resource_path(f"gadgets/{character.occupation}.jpg")
