@@ -703,6 +703,9 @@ class Character:
         "Exoskeleton Systems": "Skill in the use of powered exoskeletons and armor",
         "Resource Extraction": "Ability to efficiently gather resources from environments",
         "Detection": "Skill in noticing hidden details or signs of danger",
+        "Weaponsmithing": "Ability to upgrade and improve the quality of weapons",
+        "Armorsmithing": "Ability to upgrade and improve the quality of armor",
+        "Tinkering": "Ability to upgrade and improve the quality of miscellaneous gear",
     }
 
     def draw(self, screen):

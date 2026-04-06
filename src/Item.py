@@ -17,6 +17,36 @@ def item_class(item_name: str) -> str | None:
         return parts[1]
     return None
 
+# Next-class map: bare/None items without a suffix are treated as pre-C (upgrade to B)
+_NEXT_CLASS = {None: "B", "C": "B", "B": "A", "A": "S", "S": None}
+
+def upgrade_item_class(item, all_items: dict):
+    """Return the next-tier Item for *item* (C→B→A→S), or None if already S or unknown.
+
+    Looks up the upgraded name in *all_items* first; falls back to ALL_ATTRIBUTES.
+    all_items is a dict of name -> Item (e.g. from load_items()).
+    """
+    next_cls = _NEXT_CLASS.get(item_class(item.name))
+    if next_cls is None:
+        return None
+    upgraded_name = f"{item_base_name(item.name)} {next_cls}"
+    if upgraded_name in all_items:
+        return all_items[upgraded_name]
+    # Lazy fallback: build directly from the attribute table
+    if upgraded_name in ALL_ATTRIBUTES:
+        return Item.from_data(upgraded_name, ALL_ATTRIBUTES[upgraded_name])
+    return None
+
+def replace_item_in_inventory(member, old_item, new_item) -> bool:
+    """Swap *old_item* for *new_item* in *member*.equipment in-place.
+    Returns True if the swap was performed.
+    """
+    for i, it in enumerate(member.equipment):
+        if it is old_item:
+            member.equipment[i] = new_item
+            return True
+    return False
+
 # Item attributes: cost, mass, rate, effect, effect_type, hp, item_type, description
 # Stats scale per tier: cost +5%, mass -5% (floor, min 0), effect +5%, hp +5%.
 # Robots are in ROBOT_ATTRIBUTES and have no quality tiers.

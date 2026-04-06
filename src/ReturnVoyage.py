@@ -132,6 +132,99 @@ def calculate_outcome_training(team, stat_name, skill_name, screen, font):
 def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
+def calculate_outcome_weaponsmithing(team, stat_name, skill_name, screen, font):
+    """A skilled team member tries to upgrade the class of a weapon."""
+    all_items = load_items()
+    candidates = [
+        (member, item)
+        for member in team if not member.is_robot()
+        for item in member.equipment
+        if item.type == "weapon" and item_class(item.name) != "S"
+    ]
+    if not candidates:
+        type_out_text(screen, "The team has no weapons that can be improved further.", font)
+        return
+    member = determine_best_team_member(team, stat_name, skill_name)
+    if not member:
+        type_out_text(screen, "No one on the team has Weaponsmithing skill to attempt an upgrade.", font)
+        return
+    _, target_item = max(candidates, key=lambda x: x[1].effect)
+    owner = next(m for m, i in candidates if i is target_item)
+    type_out_text(screen, f"{member.name} sets to work in the engineering bay, attempting to upgrade {owner.name}'s {target_item.name}:", font)
+    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    if check_passed:
+        upgraded = upgrade_item_class(target_item, all_items)
+        if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
+            type_out_text(screen, f"Success! The weapon has been upgraded to {upgraded.name}. {member.name}'s Weaponsmithing skill increases.", font, GREEN)
+            member.increase_skill(skill_name, 5)
+            member.encourage(3)
+        else:
+            type_out_text(screen, f"{member.name} worked diligently, but the weapon is already at its peak quality.", font)
+    else:
+        type_out_text(screen, f"{member.name} worked hard but couldn't achieve the desired improvement. The weapon is unchanged.", font, RED)
+
+def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
+    """A skilled team member tries to upgrade the class of an armor item."""
+    all_items = load_items()
+    candidates = [
+        (member, item)
+        for member in team if not member.is_robot()
+        for item in member.equipment
+        if item.type == "armor" and item_class(item.name) != "S"
+    ]
+    if not candidates:
+        type_out_text(screen, "The team has no armor that can be improved further.", font)
+        return
+    member = determine_best_team_member(team, stat_name, skill_name)
+    if not member:
+        type_out_text(screen, "No one on the team has Armorsmithing skill to attempt an upgrade.", font)
+        return
+    _, target_item = max(candidates, key=lambda x: x[1].effect)
+    owner = next(m for m, i in candidates if i is target_item)
+    type_out_text(screen, f"{member.name} carefully examines {owner.name}'s {target_item.name} and begins reworking it:", font)
+    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    if check_passed:
+        upgraded = upgrade_item_class(target_item, all_items)
+        if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
+            type_out_text(screen, f"Success! The armor has been upgraded to {upgraded.name}. {member.name}'s Armorsmithing skill increases.", font, GREEN)
+            member.increase_skill(skill_name, 5)
+            member.encourage(3)
+        else:
+            type_out_text(screen, f"{member.name} worked carefully, but the armor is already peak quality.", font)
+    else:
+        type_out_text(screen, f"{member.name} gave it their best effort but couldn't achieve an improvement. The armor is unchanged.", font, RED)
+
+def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
+    """A skilled team member tries to upgrade the class of a misc item."""
+    all_items = load_items()
+    candidates = [
+        (member, item)
+        for member in team if not member.is_robot()
+        for item in member.equipment
+        if item.type == "misc" and item_class(item.name) != "S"
+    ]
+    if not candidates:
+        type_out_text(screen, "The team has no misc items that can be tinkered with further.", font)
+        return
+    member = determine_best_team_member(team, stat_name, skill_name)
+    if not member:
+        type_out_text(screen, "No one on the team has Tinkering skill to attempt an upgrade.", font)
+        return
+    _, target_item = max(candidates, key=lambda x: x[1].effect)
+    owner = next(m for m, i in candidates if i is target_item)
+    type_out_text(screen, f"{member.name} pulls out tools and starts tinkering with {owner.name}'s {target_item.name}:", font)
+    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    if check_passed:
+        upgraded = upgrade_item_class(target_item, all_items)
+        if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
+            type_out_text(screen, f"Success! The item has been upgraded to {upgraded.name}. {member.name}'s Tinkering skill increases.", font, GREEN)
+            member.increase_skill(skill_name, 5)
+            member.encourage(3)
+        else:
+            type_out_text(screen, f"{member.name} couldn't find a way to improve it further — the item is already at peak quality.", font)
+    else:
+        type_out_text(screen, f"{member.name} tinkered away but couldn't figure out the right approach. The item is unchanged.", font, RED)
+
 def _interaction_reaction_string(success: bool, score: int, target_name: str) -> str:
     """Return a UI string describing how the target felt about the interaction."""
     if success:
@@ -625,6 +718,28 @@ def return_voyage(team_data) :
             None,
             0, None, "Detection", locations["holo room"],
             calculate_outcome_training,
+            all_items,
+        ),
+        # Crafting events
+        Event(
+            "A team member heads to the engineering bay to try upgrading a weapon.",
+            "The work session ends.",
+            0, None, "Weaponsmithing", locations["engineering"],
+            calculate_outcome_weaponsmithing,
+            all_items,
+        ),
+        Event(
+            "A team member spends time in the workshop attempting to improve a piece of armor.",
+            "The work session ends.",
+            0, None, "Armorsmithing", locations["engineering"],
+            calculate_outcome_armorsmithing,
+            all_items,
+        ),
+        Event(
+            "A team member retreats to the tech lab to tinker with a piece of gear.",
+            "The tinkering session wraps up.",
+            0, None, "Tinkering", locations["tech lab"],
+            calculate_outcome_tinkering,
             all_items,
         ),
     ]
