@@ -356,12 +356,14 @@ class TeamBattle:
 
         # If hit calculate damage
         adjusted_damage = 0
+        # Determine which melee skill applies
+        melee_skill = "Sonic Weapons" if effect_type == "sonic" else "Martial Arts"
         if hit:
             adjusted_damage = random.randint(1, base_weapon_effect)
             adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
-            if character.get_effective_skill_level("Martial Arts") > 75:
+            if character.get_effective_skill_level(melee_skill) > 75:
                 adjusted_damage += 20
-            elif character.get_effective_skill_level("Martial Arts") > 50:
+            elif character.get_effective_skill_level(melee_skill) > 50:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
@@ -463,7 +465,7 @@ class TeamBattle:
             elif effect_type == "energy":
                 skill = "Energy Weapons"
             elif effect_type == "sonic":
-                skill = "Energy Weapons"
+                skill = "Sonic Weapons"
 
             # if target evades, add 10 + evasion/10 to attacker's ranged roll
             if target.last_action == BattleAction.EVADE:

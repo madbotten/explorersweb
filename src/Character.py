@@ -583,7 +583,7 @@ class Character:
         "Military Science", "Explosives", "Cybernetics", "Xenobiology", "Survival",
         "Diplomacy", "Navigation", "Interrogation", "Robot Repair", "Social Engineering",
         "Ships Systems", "Espionage", "Fabrication", "Instruction",
-        "Energy Weapons", "Physics", "Projectile Weapons", "Artifact Analysis", "Squad Tactics", "Mech Combat",
+        "Energy Weapons", "Sonic Weapons", "Physics", "Projectile Weapons", "Artifact Analysis", "Squad Tactics", "Mech Combat",
         "Exoskeleton Systems", "Resource Extraction", "Detection"
     ]
     prefixes = ["Agn", "Abb", "Bann", "Bor", "Cer", "Can", "Dan", "Drax", "Eol", "End", "Fet", "Gal", "Han", "Ill",
