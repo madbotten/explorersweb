@@ -285,20 +285,23 @@ class Character:
             self.morale = 100
 
     # Apply the pain and return True if they died
-    def hurt(self, damage, damage_type):
-        # Damage type → index in ARMOR_ATTRIBUTES tuple
+    def hurt(self, damage, effect_type):
+        # effect_type → index in ARMOR_ATTRIBUTES multiplier tuple
         # (energy, sonic, impact, slash, pierce, concussion, electric)
-        DAMAGE_TYPE_INDEX = {
+        EFFECT_TYPE_INDEX = {
             "energy": 0, "sonic": 1, "impact": 2,
             "slash": 3, "pierce": 4, "concussion": 5, "electric": 6,
         }
-        damage_index = DAMAGE_TYPE_INDEX.get(damage_type, -1)
+        idx = EFFECT_TYPE_INDEX.get(effect_type, -1)
 
-        # Sum protection from all equipped armor items via ARMOR_ATTRIBUTES
-        if damage_index >= 0:
+        # Sum protection from all equipped armor items:
+        #   protection = round(armor.effect * type_multiplier)
+        if idx >= 0:
             for item in self.equipment:
-                if item.name in ARMOR_ATTRIBUTES:
-                    damage -= ARMOR_ATTRIBUTES[item.name][damage_index]
+                base = item_base_name(item.name)
+                if base in ARMOR_ATTRIBUTES:
+                    modifier = ARMOR_ATTRIBUTES[base][idx]
+                    damage -= round(item.effect * modifier)
 
         # always do at least 1 point on hit
         damage = max(1, damage)

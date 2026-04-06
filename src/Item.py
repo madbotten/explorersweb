@@ -3,104 +3,90 @@ import random
 
 from Utils import *
 
-# ---------------------------------------------------------------------------
-# Item quality classes
-# ---------------------------------------------------------------------------
 ITEM_CLASSES = ["C", "B", "A", "S"]
 
 def item_base_name(item_name: str) -> str:
-    """Strip the trailing class suffix (' C'/' B'/' A'/' S') if present.
-    Examples:  'laser pistol B' -> 'laser pistol'
-               'assaultbot'     -> 'assaultbot'
-    """
     parts = item_name.rsplit(" ", 1)
     if len(parts) == 2 and parts[1] in ITEM_CLASSES:
         return parts[0]
     return item_name
 
 def item_class(item_name: str) -> str | None:
-    """Return the quality class letter, or None for unclassed items (robots, bare names)."""
     parts = item_name.rsplit(" ", 1)
     if len(parts) == 2 and parts[1] in ITEM_CLASSES:
         return parts[1]
     return None
 
-# ---------------------------------------------------------------------------
-# Item attributes: cost, mass, rate, damage, damage_type, hp, item_type, description
-#
-# Each non-robot item has four entries: bare (= C stats, kept for compat),
-# plus explicit C / B / A / S entries.
-# Stats scale per tier: cost +5%, mass -5% (floor, min 0), damage +5%, hp +5%.
-# Rate is never scaled.
+# Item attributes: cost, mass, rate, effect, effect_type, hp, item_type, description
+# Stats scale per tier: cost +5%, mass -5% (floor, min 0), effect +5%, hp +5%.
 # Robots are in ROBOT_ATTRIBUTES and have no quality tiers.
-# ---------------------------------------------------------------------------
 ITEM_ATTRIBUTES = {
-    # ---- power shield ----
-    "power shield":   (200, 15, 1,  1, "impact",  50, "armor",  "A protective item that can absorb some damage from energy attacks"),
-    "power shield C": (200, 15, 1,  1, "impact",  50, "armor",  "A protective item that can absorb some damage from energy attacks"),
-    "power shield B": (210, 14, 1,  1, "impact",  53, "armor",  "A protective item that can absorb some damage from energy attacks"),
-    "power shield A": (220, 13, 1,  1, "impact",  55, "armor",  "A protective item that can absorb some damage from energy attacks"),
-    "power shield S": (230, 12, 1,  1, "impact",  58, "armor",  "A protective item that can absorb some damage from energy attacks"),
-    # ---- veer suit ----
-    "veer suit":   (200, 7, 1, 1, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    "veer suit C": (200, 7, 1, 1, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    "veer suit B": (210, 6, 1, 1, "impact", 105, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    "veer suit A": (220, 6, 1, 1, "impact", 110, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    "veer suit S": (230, 5, 1, 1, "impact", 115, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    # ---- exoskeleton ----
-    "exoskeleton":   (250, 1, 2, 20, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton C": (250, 1, 2, 20, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton B": (263, 0, 2, 21, "impact", 158, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton A": (275, 0, 2, 22, "impact", 165, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton S": (288, 0, 2, 23, "impact", 173, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    # ---- holofier ----
-    "holofier":   (400, 10, 1, 50, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    "holofier C": (400, 10, 1, 50, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    "holofier B": (420,  9, 1, 53, "impact", 42, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    "holofier A": (440,  9, 1, 55, "impact", 44, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    "holofier S": (460,  8, 1, 58, "impact", 46, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    # ---- powered armor ----
-    "powered armor":   (750, 0, 1, 50, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
-    "powered armor C": (750, 0, 1, 50, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
-    "powered armor B": (788, 0, 1, 53, "impact", 210, "armor", "Elite shock troop armor that eliminates encumbrance"),
-    "powered armor A": (825, 0, 1, 55, "impact", 220, "armor", "Elite shock troop armor that eliminates encumbrance"),
-    "powered armor S": (863, 0, 1, 58, "impact", 230, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    # ---- power shield (effect = base protection; strong vs energy) ----
+    "power shield":   (200, 15, 1, 30, "impact",  50, "armor", "A protective item that can absorb some damage from energy attacks"),
+    "power shield C": (200, 15, 1, 30, "impact",  50, "armor", "A protective item that can absorb some damage from energy attacks"),
+    "power shield B": (210, 14, 1, 32, "impact",  53, "armor", "A protective item that can absorb some damage from energy attacks"),
+    "power shield A": (220, 13, 1, 33, "impact",  55, "armor", "A protective item that can absorb some damage from energy attacks"),
+    "power shield S": (230, 12, 1, 35, "impact",  58, "armor", "A protective item that can absorb some damage from energy attacks"),
+    # ---- veer suit (moderate all-round protection) ----
+    "veer suit":   (200, 7, 1, 20, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit C": (200, 7, 1, 20, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit B": (210, 6, 1, 21, "impact", 105, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit A": (220, 6, 1, 22, "impact", 110, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit S": (230, 5, 1, 23, "impact", 115, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    # ---- exoskeleton (good vs impact; adds strength) ----
+    "exoskeleton":   (250, 1, 2, 25, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton C": (250, 1, 2, 25, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton B": (263, 0, 2, 26, "impact", 158, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton A": (275, 0, 2, 28, "impact", 165, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton S": (288, 0, 2, 29, "impact", 173, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    # ---- holofier (effect = miss-chance roll penalty applied to attackers) ----
+    "holofier":   (400, 10, 1, 25, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier C": (400, 10, 1, 25, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier B": (420,  9, 1, 26, "impact", 42, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier A": (440,  9, 1, 28, "impact", 44, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier S": (460,  8, 1, 29, "impact", 46, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    # ---- powered armor (elite; full impact coverage) ----
+    "powered armor":   (750, 0, 1, 40, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor C": (750, 0, 1, 40, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor B": (788, 0, 1, 42, "impact", 210, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor A": (825, 0, 1, 44, "impact", 220, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor S": (863, 0, 1, 46, "impact", 230, "armor", "Elite shock troop armor that eliminates encumbrance"),
     # ---- scanner ----
-    "scanner":   (100, 4, 1, 1, "impact", 30, "misc", "An item that helps identify unknown objects"),
-    "scanner C": (100, 4, 1, 1, "impact", 30, "misc", "An item that helps identify unknown objects"),
-    "scanner B": (105, 3, 1, 1, "impact", 32, "misc", "An item that helps identify unknown objects"),
-    "scanner A": (110, 3, 1, 1, "impact", 33, "misc", "An item that helps identify unknown objects"),
-    "scanner S": (115, 3, 1, 1, "impact", 35, "misc", "An item that helps identify unknown objects"),
-    # ---- medikit ----
-    "medikit":   (150, 5, 1, 1, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
-    "medikit C": (150, 5, 1, 1, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
-    "medikit B": (158, 4, 1, 1, "impact", 42, "misc", "A medical kit that helps team members heal injuries"),
-    "medikit A": (165, 4, 1, 1, "impact", 44, "misc", "A medical kit that helps team members heal injuries"),
-    "medikit S": (173, 4, 1, 1, "impact", 46, "misc", "A medical kit that helps team members heal injuries"),
+    "scanner":   (100, 4, 1, 20, "impact", 30, "misc", "An item that helps identify unknown objects"),
+    "scanner C": (100, 4, 1, 20, "impact", 30, "misc", "An item that helps identify unknown objects"),
+    "scanner B": (105, 3, 1, 21, "impact", 32, "misc", "An item that helps identify unknown objects"),
+    "scanner A": (110, 3, 1, 22, "impact", 33, "misc", "An item that helps identify unknown objects"),
+    "scanner S": (115, 3, 1, 23, "impact", 35, "misc", "An item that helps identify unknown objects"),
+    # ---- medikit (effect = healing power) ----
+    "medikit":   (150, 5, 1, 60, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit C": (150, 5, 1, 60, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit B": (158, 4, 1, 63, "impact", 42, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit A": (165, 4, 1, 66, "impact", 44, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit S": (173, 4, 1, 69, "impact", 46, "misc", "A medical kit that helps team members heal injuries"),
     # ---- stimulant ----
-    "stimulant":   (100, 1, 1, 1, "impact",  10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
-    "stimulant C": (100, 1, 1, 1, "impact",  10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
-    "stimulant B": (105, 0, 1, 1, "impact",  11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
-    "stimulant A": (110, 0, 1, 1, "impact",  11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
-    "stimulant S": (115, 0, 1, 1, "impact",  12, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant":   (100, 1, 1, 25, "impact", 10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant C": (100, 1, 1, 25, "impact", 10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant B": (105, 0, 1, 26, "impact", 11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant A": (110, 0, 1, 28, "impact", 11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant S": (115, 0, 1, 29, "impact", 12, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
     # ---- cutter ----
-    "cutter":   (125, 8, 1, 5, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
-    "cutter C": (125, 8, 1, 5, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
-    "cutter B": (131, 7, 1, 5, "impact", 53, "misc", "A tool used to cut through bulkheads and locked portals"),
-    "cutter A": (138, 7, 1, 6, "impact", 55, "misc", "A tool used to cut through bulkheads and locked portals"),
-    "cutter S": (144, 6, 1, 6, "impact", 58, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter":   (125, 8, 1, 30, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter C": (125, 8, 1, 30, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter B": (131, 7, 1, 32, "impact", 53, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter A": (138, 7, 1, 33, "impact", 55, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter S": (144, 6, 1, 35, "impact", 58, "misc", "A tool used to cut through bulkheads and locked portals"),
     # ---- bio container ----
-    "bio container":   (75, 3, 1, 1, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
-    "bio container C": (75, 3, 1, 1, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
-    "bio container B": (79, 2, 1, 1, "impact", 53, "misc", "A rugged container suitable for carrying isolated biological samples"),
-    "bio container A": (83, 2, 1, 1, "impact", 55, "misc", "A rugged container suitable for carrying isolated biological samples"),
-    "bio container S": (86, 2, 1, 1, "impact", 58, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container":   (75, 3, 1, 10, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container C": (75, 3, 1, 10, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container B": (79, 2, 1, 11, "impact", 53, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container A": (83, 2, 1, 11, "impact", 55, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container S": (86, 2, 1, 12, "impact", 58, "misc", "A rugged container suitable for carrying isolated biological samples"),
     # ---- stealth orb ----
-    "stealth orb":   (400, 10, 2, 50, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
-    "stealth orb C": (400, 10, 2, 50, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
-    "stealth orb B": (420,  9, 2, 53, "impact", 53, "misc", "Blurs image of the wearer and suppresses noise"),
-    "stealth orb A": (440,  9, 2, 55, "impact", 55, "misc", "Blurs image of the wearer and suppresses noise"),
-    "stealth orb S": (460,  8, 2, 58, "impact", 58, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb":   (400, 10, 2, 40, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb C": (400, 10, 2, 40, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb B": (420,  9, 2, 42, "impact", 53, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb A": (440,  9, 2, 44, "impact", 55, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb S": (460,  8, 2, 46, "impact", 58, "misc", "Blurs image of the wearer and suppresses noise"),
     # ---- pacifier ----
     "pacifier":   (650, 10, 5, 50, "impact", 40, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
     "pacifier C": (650, 10, 5, 50, "impact", 40, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
@@ -181,7 +167,6 @@ ITEM_ATTRIBUTES = {
     "stun baton S": (288, 3, 2, 23, "sonic", 230, "weapon", "A nonlethal melee weapon"),
 }
 
-# Robot attributes — no quality tiers
 ROBOT_ATTRIBUTES = {
     "assaultbot": (500, 0, 3, 20, "impact", 200, "robot", "A fearless humanoid combat robot that can lead chamber breaches and fight enemies with the team"),
     "techbot":    (350, 0, 1,  1, "impact",  50, "robot", "A tech robot that can repair electronics and small misc items"),
@@ -195,38 +180,38 @@ ROBOT_ATTRIBUTES = {
     "batonbot":   (250, 0, 2, 20, "impact", 200, "robot", "A melee robot with nonlethal stun batons"),
 }
 
-# Combined lookup for any code that needs to find any name regardless of category
 ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
 
-# protection vs energy, sonic, impact, slash, pierce, concussion, electric
+# Armor protection multipliers per effect_type:
+#   (energy, sonic, impact, slash, pierce, concussion, electric)
+# Protection applied = round(armor.effect * multiplier)
 ARMOR_ATTRIBUTES = {
-    "power shield": (8,  0,  0,  0,  0,  0, 3),
-    "veer suit":    (5,  5,  5,  5,  5,  5, 5),
-    "exoskeleton":  (3,  3,  3,  3,  3,  5, 5),
-    "holofield":    (0,  0,  0,  0,  0,  0, 0),
-    "powered armor":(8, 10, 10, 10,  8, 10, 8),
+    "power shield":  (1.0, 0.0, 0.05, 0.05, 0.05, 0.10, 0.50),  # excellent vs energy; near-zero vs physical
+    "veer suit":     (0.3, 0.3, 0.50, 0.50, 0.50, 0.40, 0.30),  # moderate all-round
+    "exoskeleton":   (0.2, 0.2, 0.60, 0.50, 0.40, 0.50, 0.30),  # strong vs impact/concussion
+    "holofier":      (0.0, 0.0, 0.00, 0.00, 0.00, 0.00, 0.00),  # miss-chance only; no flat reduction
+    "powered armor": (0.5, 0.5, 1.00, 0.80, 0.70, 0.80, 0.50),  # elite: full impact, strong elsewhere
 }
 
-# Tab names and types shown in the store
 TABS = ["weapons", "armor", "robots", "misc"]
 
 
 class Item:
-    def __init__(self, name, item_type, cost, mass, rate, damage, damage_type, hp, description, icon=None, rect=None):
+    def __init__(self, name, item_type, cost, mass, rate, effect, effect_type, hp, description, icon=None, rect=None):
         self.name = name
         self.type = item_type
         self.cost = cost
         self.mass = mass
         self.rate = rate
-        self.damage = damage
-        self.damage_type = damage_type
+        self.effect = effect
+        self.effect_type = effect_type
         self.hp = hp
         self.description = description
         self.icon = icon
         self.rect = rect if rect else pygame.Rect(0, 0, 50, 50)
 
     def __repr__(self):
-        return f"Item(name={self.name}, type={self.type}, cost={self.cost}, mass={self.mass}, rate={self.rate}, damage={self.damage}, hp={self.hp})"
+        return f"Item(name={self.name}, type={self.type}, cost={self.cost}, mass={self.mass}, rate={self.rate}, effect={self.effect}, hp={self.hp})"
 
     def set_rect(self, rect):
         self.rect = rect
@@ -236,34 +221,31 @@ class Item:
 
     @classmethod
     def from_data(cls, name, attributes, icon=None):
-        cost, mass, rate, damage, damage_type, hp, item_type, description = attributes
+        cost, mass, rate, effect, effect_type, hp, item_type, description = attributes
         rect = pygame.Rect(0, 0, 50, 50)
-        return cls(name, item_type, cost, mass, rate, damage, damage_type, hp, description, icon, rect)
+        return cls(name, item_type, cost, mass, rate, effect, effect_type, hp, description, icon, rect)
 
     def to_dict(self):
-        """Converts the Item to a serializable dictionary."""
         return {
             "name": self.name,
             "type": self.type,
             "cost": self.cost,
             "mass": self.mass,
             "rate": self.rate,
-            "damage": self.damage,
-            "damage_type": self.damage_type,
+            "effect": self.effect,
+            "effect_type": self.effect_type,
             "hp": self.hp,
-            "description": self.description
-            # Exclude 'icon' — not serializable
+            "description": self.description,
         }
 
     @classmethod
     def load_icon(cls, item_name, size=(50, 50)):
-        """Load the .jpg icon for item_name, stripping any class suffix first."""
+        """Load icon, stripping any class suffix before building the filename."""
         base = item_base_name(item_name)
         icon_path = resource_path(f"gadgets/{base}.jpg")
         try:
             icon = pygame.image.load(icon_path)
-            icon = pygame.transform.scale(icon, size)
-            return icon
+            return pygame.transform.scale(icon, size)
         except pygame.error:
             print(f"Failed to load icon for '{item_name}' (tried '{base}.jpg').")
             return None
@@ -271,41 +253,32 @@ class Item:
     @classmethod
     def from_dict(cls, data):
         icon = cls.load_icon(data["name"])
+        # Support saves that used the old 'damage'/'damage_type' keys
+        effect = data.get("effect", data.get("damage", 1))
+        effect_type = data.get("effect_type", data.get("damage_type", "impact"))
         return cls(
             name=data["name"],
             item_type=data["type"],
             cost=data["cost"],
             mass=data["mass"],
             rate=data["rate"],
-            damage=data["damage"],
-            damage_type=data["damage_type"],
+            effect=effect,
+            effect_type=effect_type,
             hp=data["hp"],
             description=data["description"],
-            icon=icon
+            icon=icon,
         )
 
     def copy(self):
         return Item(
-            self.name,
-            self.type,
-            self.cost,
-            self.mass,
-            self.rate,
-            self.damage,
-            self.damage_type,
-            self.hp,
-            self.description,
-            self.icon,
-            self.rect.copy() if self.rect else None
+            self.name, self.type, self.cost, self.mass, self.rate,
+            self.effect, self.effect_type, self.hp, self.description,
+            self.icon, self.rect.copy() if self.rect else None,
         )
 
 
 def _build_items(icon_size: tuple) -> dict:
-    """Build an Item dict from ITEM_ATTRIBUTES + ROBOT_ATTRIBUTES.
-    Icons are loaded by stripping the class suffix so all tiers share one image file.
-    """
     items = {}
-    # Cache icons keyed by base name to avoid redundant disk loads
     _icon_cache: dict = {}
 
     def get_icon(base_name: str):
@@ -320,12 +293,10 @@ def _build_items(icon_size: tuple) -> dict:
         return _icon_cache[base_name]
 
     for name, attrs in ITEM_ATTRIBUTES.items():
-        icon = get_icon(item_base_name(name))
-        items[name] = Item.from_data(name, attrs, icon)
+        items[name] = Item.from_data(name, attrs, get_icon(item_base_name(name)))
 
     for name, attrs in ROBOT_ATTRIBUTES.items():
-        icon = get_icon(name)   # robots have no suffix to strip
-        items[name] = Item.from_data(name, attrs, icon)
+        items[name] = Item.from_data(name, attrs, get_icon(name))
 
     return items
 
@@ -339,24 +310,16 @@ def load_items_battle() -> dict:
 
 
 def load_item_tabs() -> dict:
-    """Return items grouped by store tab.
-    Only class-C (or bare-named) items are included for purchasable gear;
-    robots are always included.
-    """
+    """Return store items grouped by tab. Only class-C non-robot items are shown."""
     items_by_tab = {tab: [] for tab in TABS}
-    all_items = load_items()
-    for name, item in all_items.items():
+    for name, item in load_items().items():
         if item.type == "robot":
             items_by_tab["robots"].append(item)
-            continue
-        # Only show class-C items in the store (skip bare and B/A/S variants)
-        if item_class(name) != "C":
-            continue
-        if item.type == "weapon":
-            items_by_tab["weapons"].append(item)
-        elif item.type == "armor":
-            items_by_tab["armor"].append(item)
-        else:
-            items_by_tab["misc"].append(item)
-
+        elif item_class(name) == "C":
+            if item.type == "weapon":
+                items_by_tab["weapons"].append(item)
+            elif item.type == "armor":
+                items_by_tab["armor"].append(item)
+            else:
+                items_by_tab["misc"].append(item)
     return items_by_tab

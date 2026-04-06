@@ -106,24 +106,32 @@ def team_heals(team, screen, font):
     # It's okay to skill check against dead members, b/c that check always returns False
     healing_successful = team_skill_check(team, "Medicine", 0)
 
+    # Find the best medikit carried by any team member
+    best_medikit = None
+    for member in team:
+        for item in member.equipment:
+            if item_base_name(item.name) == "medikit":
+                if best_medikit is None or item.effect > best_medikit.effect:
+                    best_medikit = item
+
     # Determine base healing amounts
     if healing_successful:
         type_out_text(screen, "Medical skills improved the results.", font)
         base_heal = 50
-        medikit_heal = 60
+        medikit_heal = best_medikit.effect if best_medikit else 0
     else:
         base_heal = 25
-        medikit_heal = 30
+        medikit_heal = (best_medikit.effect // 2) if best_medikit else 0
 
     # Check if a medikit is available
-    has_medikit = team_has_item(team, "medikit") or team_has_item(team, "medibot")
+    has_medikit = best_medikit is not None or team_has_item(team, "medibot")
 
     # Remove one medikit if available
     if has_medikit:
         type_out_text(screen, "A medikit had to be consumed to patch everyone up.", font)
         for member in team:
             for item in member.equipment:
-                if item.name == "medikit":
+                if item_base_name(item.name) == "medikit":
                     member.equipment.remove(item)
                     break
             else:
@@ -155,10 +163,10 @@ def jalorith(items):
     pirate.name = "Jalorith"
 
     # Assign a random weapon
-    pirate.add_item(items["laser rifle"])
-    pirate.add_item(items["powered armor"])
-    pirate.add_item(items["offense implant"])
-    pirate.add_item(items["slicer"])
+    pirate.add_item(items["laser rifle A"])
+    pirate.add_item(items["powered armor A"])
+    pirate.add_item(items["offense implant C"])
+    pirate.add_item(items["slicer S"])
     return pirate
 
 def pirate_enemy(i, weapon_items, armor_items, non_weapon_items, all_items):

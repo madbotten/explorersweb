@@ -310,8 +310,8 @@ class TeamBattle:
         if chosen_weapon is None:
             print(f"{character.name} Finds no weapon!")
             return
-        base_weapon_damage = self.context.all_items[chosen_weapon].damage
-        damage_type = self.context.all_items[chosen_weapon].damage_type
+        base_weapon_effect = self.context.all_items[chosen_weapon].effect
+        effect_type = self.context.all_items[chosen_weapon].effect_type
 
         announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
 
@@ -337,7 +337,8 @@ class TeamBattle:
             if target.last_action == BattleAction.EVADE:
                 adjusted_roll += 10 + (target_evasion / 10)
             if target.has_item("holofier"):
-                adjusted_roll += 15
+                holofier_item = target.get_item("holofier")
+                adjusted_roll += round(holofier_item.effect * 0.6) if holofier_item else 15
             if character.get_effective_skill_level("Martial Arts") > 0:
                 adjusted_roll -= 10 + (character.get_effective_skill_level("Martial Arts") / 10)
             adjusted_roll = adjusted_roll * target_melee/melee
@@ -356,7 +357,7 @@ class TeamBattle:
         # If hit calculate damage
         adjusted_damage = 0
         if hit:
-            adjusted_damage = random.randint(1, base_weapon_damage)
+            adjusted_damage = random.randint(1, base_weapon_effect)
             adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
             if character.get_effective_skill_level("Martial Arts") > 75:
                 adjusted_damage += 20
@@ -364,13 +365,13 @@ class TeamBattle:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
-            target.hurt(adjusted_damage, damage_type)
+            target.hurt(adjusted_damage, effect_type)
             draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
 
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)
         if hit and target.is_alive():
-            target.hurt(adjusted_damage, "impact")
+            target.hurt(adjusted_damage, effect_type)
             draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
             battle_display_action_damage(character, BattleAction.MELEE, adjusted_damage, self.context.screen, self.context.font)
             battle_display_character_hit(target, self.context.screen)
@@ -388,6 +389,8 @@ class TeamBattle:
                              "carbine", "magnum", "pistol", "stunner"}
 
     def choose_ranged_weapon(self, character, target):
+        # improve: choose appropriate weapon for a target?
+        # choose weapon based on mission choices (nonlethal)
         """Return the name of the highest-damage ranged weapon the character carries.
         Launcher is excluded after round 1. Returns the full item name (e.g. 'laser rifle B')."""
         best_item = None
@@ -399,7 +402,7 @@ class TeamBattle:
                 continue
             if base == "launcher" and self.round != 1:
                 continue
-            if best_item is None or item.damage > best_item.damage:
+            if best_item is None or item.effect > best_item.effect:
                 best_item = item
         return best_item.name if best_item else None
 
@@ -417,7 +420,7 @@ class TeamBattle:
                 continue
             if item_base_name(item.name) not in TeamBattle._MELEE_WEAPON_BASES:
                 continue
-            if best_item is None or item.damage > best_item.damage:
+            if best_item is None or item.effect > best_item.effect:
                 best_item = item
         return best_item.name if best_item else None
 
@@ -437,8 +440,8 @@ class TeamBattle:
         if chosen_weapon is None:
             print(f"{character.name} Finds no weapon!")
             return
-        base_weapon_damage = self.context.all_items[chosen_weapon].damage
-        damage_type = self.context.all_items[chosen_weapon].damage_type
+        base_weapon_effect = self.context.all_items[chosen_weapon].effect
+        effect_type = self.context.all_items[chosen_weapon].effect_type
 
         announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
 
@@ -460,19 +463,20 @@ class TeamBattle:
             target_evasion = target.get_effective_combat_evasion()
             
             adjusted_roll = roll
-            if damage_type == "impact":
+            if effect_type == "impact":
                 skill = "Projectile Weapons"
-            elif damage_type == "energy":
+            elif effect_type == "energy":
                 skill = "Energy Weapons"
-            elif damage_type == "sonic":
+            elif effect_type == "sonic":
                 skill = "Energy Weapons"
 
             # if target evades, add 10 + evasion/10 to attacker's ranged roll
             if target.last_action == BattleAction.EVADE:
                 adjusted_roll += 10 + (target_evasion / 10)
-            # if target has holofier, add 25 to attacker's ranged roll
+            # if target has holofier, add its effect value to attacker's ranged roll
             if target.has_item("holofier"):
-                adjusted_roll += 25
+                holofier_item = target.get_item("holofier")
+                adjusted_roll += holofier_item.effect if holofier_item else 25
             adjusted_roll -= character.get_effective_skill_level(skill)/10
             if self.weapon_is_rifle(chosen_weapon):
                 adjusted_roll -= character.get_effective_skill_level("Sharpshooting") / 10
@@ -497,7 +501,7 @@ class TeamBattle:
         # If hit calculate damage
         adjusted_damage = 0
         if hit:
-            adjusted_damage = random.randint(1, base_weapon_damage)
+            adjusted_damage = random.randint(1, base_weapon_effect)
             adjusted_damage = (adjusted_damage *
                                (character.get_effective_combat_offense() / target.get_effective_combat_defense()))
             if character.get_effective_skill_level(skill) > 75:
@@ -506,7 +510,7 @@ class TeamBattle:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
-            target.hurt(adjusted_damage, "impact")
+            target.hurt(adjusted_damage, effect_type)
             draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
 
         # Round and apply damage
@@ -519,15 +523,15 @@ class TeamBattle:
             else:
                 targets = self.context.team
             for target in targets:
-                self.damage_target(character, target, adjusted_damage, damage_type, self.context.screen, self.context.font)
+                self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
 
         elif hit and target.is_alive():
-            self.damage_target(character, target, adjusted_damage, damage_type, self.context.screen, self.context.font)
+            self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
         return
 
     @staticmethod
-    def damage_target(character, target, adjusted_damage, damage_type, screen, font):
-        target.hurt(adjusted_damage, damage_type)
+    def damage_target(character, target, adjusted_damage, effect_type, screen, font):
+        target.hurt(adjusted_damage, effect_type)
         draw_life_bar(target, screen, target.rect.left, target.rect.top)
         battle_display_action_damage(character, BattleAction.SHOOT, adjusted_damage, screen, font)
         battle_display_character_hit(target, screen)
