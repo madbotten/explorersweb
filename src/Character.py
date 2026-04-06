@@ -584,7 +584,8 @@ class Character:
         "Diplomacy", "Navigation", "Interrogation", "Robot Repair", "Social Engineering",
         "Ships Systems", "Espionage", "Fabrication", "Instruction",
         "Energy Weapons", "Sonic Weapons", "Physics", "Projectile Weapons", "Artifact Analysis", "Squad Tactics", "Mech Combat",
-        "Exoskeleton Systems", "Resource Extraction", "Detection"
+        "Exoskeleton Systems", "Resource Extraction", "Detection",
+        "Weaponsmithing", "Armorsmithing", "Tinkering"
     ]
     prefixes = ["Agn", "Abb", "Bann", "Bor", "Cer", "Can", "Dan", "Drax", "Eol", "End", "Fet", "Gal", "Han", "Ill",
                 "Jak", "Kalor", "Kor", "Lan",
