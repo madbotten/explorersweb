@@ -148,6 +148,7 @@ def play_battle_music(pygame):
     else:
         print("Background music file not found.")
 
+# positive difficulty modifiers are easier
 def roll_string(roll, skill_name, stat_name, difficulty_modifier):
     result = f"Roll: {roll} vs "
     if skill_name is not None and stat_name is not None:
@@ -157,9 +158,9 @@ def roll_string(roll, skill_name, stat_name, difficulty_modifier):
     elif stat_name is not None:
         result += f"{stat_name} "
     if difficulty_modifier < 0:
-        result += f" + {abs(difficulty_modifier)}"
+        result += f" (difficulty {abs(difficulty_modifier)}"
     elif difficulty_modifier > 0:
-        result += f" - {difficulty_modifier}"
+        result += f" (difficulty -{difficulty_modifier}"
     return result
 
 def determine_best_team_member(team, stat_name, skill_name):

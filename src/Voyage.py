@@ -359,13 +359,14 @@ def calculate_outcome_weaponsmithing(team, stat_name, skill_name, screen, font):
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The weapon has been upgraded to {upgraded.name}. {member.name}'s Weaponsmithing skill increases.", font, GREEN)
+            type_out_text(screen, f"Success! The weapon has been upgraded to {upgraded.name}.", font, GREEN)
+            type_out_text(screen, f"{member.name}'s Weaponsmithing skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} worked diligently, but the weapon is already at its peak quality.", font)
+            type_out_text(screen, f"{member.name} worked diligently, but the weapon is already at its peak quality.\nThe weapon is unchanged.", font)
     else:
-        type_out_text(screen, f"{member.name} worked hard but couldn't achieve the desired improvement. The weapon is unchanged.", font, RED)
+        type_out_text(screen, f"{member.name} worked hard but couldn't achieve the desired improvement.\nThe weapon is unchanged.", font, RED)
 
 def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
     """A skilled team member tries to upgrade the class of an armor item."""
@@ -394,13 +395,13 @@ def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The armor has been upgraded to {upgraded.name}. {member.name}'s Armorsmithing skill increases.", font, GREEN)
+            type_out_text(screen, f"Success! The armor has been upgraded to {upgraded.name}.\n{member.name}'s Armorsmithing skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} worked carefully, but the armor is already peak quality.", font)
+            type_out_text(screen, f"{member.name} worked carefully, but the armor is already peak quality.\nThe armor is unchanged.", font)
     else:
-        type_out_text(screen, f"{member.name} gave it their best effort but couldn't achieve an improvement. The armor is unchanged.", font, RED)
+        type_out_text(screen, f"{member.name} gave it their best effort but couldn't achieve an improvement.\nThe armor is unchanged.", font, RED)
 
 def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
     """A skilled team member tries to upgrade the class of a misc item."""
@@ -429,13 +430,13 @@ def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The item has been upgraded to {upgraded.name}. {member.name}'s Tinkering skill increases.", font, GREEN)
+            type_out_text(screen, f"Success! The item has been upgraded to {upgraded.name}.\n{member.name}'s Tinkering skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} couldn't find a way to improve it further — the item is already at peak quality.", font)
+            type_out_text(screen, f"{member.name} couldn't find a way to improve it further — the item is already at peak quality.\nThe item is unchanged.", font)
     else:
-        type_out_text(screen, f"{member.name} tinkered away but couldn't figure out the right approach. The item is unchanged.", font, RED)
+        type_out_text(screen, f"{member.name} tinkered away but couldn't figure out the right approach.\nThe item is unchanged.", font, RED)
 
 def _interaction_reaction_string(success: bool, score: int, target_name: str) -> str:
     """Return a UI string describing how the target felt about the interaction."""
@@ -1021,7 +1022,7 @@ def voyage(team_data) :
         " the team debates whether or not life is a simulation.",
         " despite the best life support, the air in the ship is stale.",
         " data drops from the frontier become fewer and far between.",
-        " the crew hypothesizes about the source of that intermittent creaking sound in the bulkhead.",
+        " the crew hypothesizes about that intermittent creaking sound in the bulkhead.",
         f" {team[random.randint(0, len(team) - 1)].name} regales the crew with tales of past glory.",
         " the Knacknarpia has become home for the team until they reach the mission point.",
         " the team starts to doubt if their mission can be accomplished.",

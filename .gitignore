@@ -1,7 +1,5 @@
 # Virtual environment
-#.venv/
-venv/
-env/
+#.venv/ do NOT add this, it causes problems with agent access to code
 
 # Python cache
 __pycache__/

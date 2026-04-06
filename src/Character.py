@@ -420,6 +420,10 @@ class Character:
                 self.skills[skill_name] = current_level + 1
                 total += 1  # reflect the just-earned point in this return value
 
+        if self.has_item("neural trainer"):
+          if total < 10:
+            total += 10
+
         return total
 
     # --- Weapon-base classification constants used by the choosers below ---

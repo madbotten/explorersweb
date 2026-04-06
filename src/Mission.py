@@ -490,8 +490,8 @@ def go_mission(team_data) :
         ),
         # Empty outcomes
         Event(
-            "Three pirates attempt to ambush the team in a corridor.",
-            "The ambush is over.",
+            "Three pirates face the team in a corridor.",
+            "The pirates are neutralized.",
             3, None, None, locations["corridor"],
             empty_outcome,
             all_items,

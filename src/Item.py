@@ -130,11 +130,11 @@ ITEM_ATTRIBUTES = {
     "offense implant A": (715, 0, 1, 55, "impact", 110, "misc", "Provides superhuman combat efficiency and accuracy"),
     "offense implant S": (748, 0, 1, 58, "impact", 115, "misc", "Provides superhuman combat efficiency and accuracy"),
     # ---- neural trainer ----
-    "neural trainer":   (650, 1, 1, 50, "impact", 100, "misc", "Endows recipient with at least 10 in all skills"),
-    "neural trainer C": (650, 1, 1, 50, "impact", 100, "misc", "Endows recipient with at least 10 in all skills"),
-    "neural trainer B": (683, 0, 1, 53, "impact", 105, "misc", "Endows recipient with at least 10 in all skills"),
-    "neural trainer A": (715, 0, 1, 55, "impact", 110, "misc", "Endows recipient with at least 10 in all skills"),
-    "neural trainer S": (748, 0, 1, 58, "impact", 115, "misc", "Endows recipient with at least 10 in all skills"),
+    "neural trainer":   (650, 1, 1, 6, "impact", 100, "misc", "Temporarily endows recipient with low skill in untrained skills"),
+    "neural trainer C": (650, 1, 1, 7, "impact", 100, "misc", "Temporarily endows recipient with low skill in untrained skills"),
+    "neural trainer B": (683, 0, 1, 8, "impact", 105, "misc", "Temporarily endows recipient with low skill in untrained skills"),
+    "neural trainer A": (715, 0, 1, 9, "impact", 110, "misc", "Temporarily endows recipient with low skill in untrained skills"),
+    "neural trainer S": (748, 0, 1, 10, "impact", 115, "misc", "Temporarily endows recipient with low skill in untrained skills"),
     # ---- magnum ----
     "magnum":   (300, 4, 1, 30, "impact", 40, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
     "magnum C": (300, 4, 1, 30, "impact", 40, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
