@@ -190,6 +190,9 @@ class Character:
         self.location = (-1, -1)
         self.battle_index = 0
         self.last_action = BattleAction.NONE
+        # Transient combat fields — set at the start of each battle, not persisted.
+        self.chosen_ranged_weapon = None   # Item | None
+        self.chosen_melee_weapon  = None   # Item | None
 
     # ------------------------------------------------------------------
     # Interaction helpers

@@ -96,21 +96,18 @@ _RANGED_INITIATIVE_BASES = {"blaster rifle", "laser rifle", "laser pistol",
                              "carbine", "magnum", "pistol", "stunner"}
 _MELEE_INITIATIVE_BASES = {"slicer", "stun baton"}
 
-def _best_weapon_rate(character, weapon_bases: set) -> int:
-    """Return the highest rate among the character's equipped weapons that
-    belong to *weapon_bases*.  Returns 1 if no matching weapon is found."""
-    best = 1
-    for item in character.equipment:
-        if item.type == "weapon" and item_base_name(item.name) in weapon_bases:
-            if item.rate > best:
-                best = item.rate
-    return best
+def _best_weapon_rate(character, phase: str) -> int:
+    """Return the rate of the character's pre-chosen weapon for *phase*
+    ('ranged' or 'melee').  Returns 1 if no weapon was chosen."""
+    item = (character.chosen_ranged_weapon if phase == "ranged"
+            else character.chosen_melee_weapon)
+    return item.rate if item is not None else 1
 
 def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
     """Build the ranged-phase action list.
 
     The base initiative order is computed first.  Then, for each extra shot
-    level (2 … 5), every character whose best ranged weapon has rate ≥ that
+    level (2 … 5), every character whose chosen ranged weapon has rate ≥ that
     level is appended again in base-order.  Characters with rate 1 appear
     once; rate 2 twice; rate 5 five times.
     """
@@ -118,17 +115,17 @@ def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
     extended = list(base)
     for shot in range(2, 6):
         for character in base:
-            if _best_weapon_rate(character, _RANGED_INITIATIVE_BASES) >= shot:
+            if _best_weapon_rate(character, "ranged") >= shot:
                 extended.append(character)
     return extended
 
 def initiative_melee(team, enemies, brazen_bonus=0) -> list:
-    """Build the melee-phase action list using weapon rates of melee weapons."""
+    """Build the melee-phase action list using the character's chosen melee weapon rate."""
     base = initiative(team, enemies, brazen_bonus)
     extended = list(base)
     for shot in range(2, 6):
         for character in base:
-            if _best_weapon_rate(character, _MELEE_INITIATIVE_BASES) >= shot:
+            if _best_weapon_rate(character, "melee") >= shot:
                 extended.append(character)
     return extended
 
@@ -428,8 +425,8 @@ class TeamBattle:
                              "carbine", "magnum", "pistol", "stunner"}
 
     def choose_ranged_weapon(self, character, target):
-        """Delegate weapon selection to the character's own preference logic."""
-        item = character.choose_ranged_weapon()
+        """Return the name of the character's pre-chosen ranged weapon."""
+        item = character.chosen_ranged_weapon
         return item.name if item else None
 
     def weapon_is_rifle(self, weapon):
@@ -439,8 +436,8 @@ class TeamBattle:
 
     @staticmethod
     def choose_melee_weapon(character, target):
-        """Delegate weapon selection to the character's own preference logic."""
-        item = character.choose_melee_weapon()
+        """Return the name of the character's pre-chosen melee weapon."""
+        item = character.chosen_melee_weapon
         return item.name if item else None
 
     def run_battle_action_shoot(self, character):
@@ -573,6 +570,14 @@ class TeamBattle:
             return False
         return True
 
+    def _prepare_weapons(self):
+        """Pre-select each combatant's ranged and melee weapon for this battle.
+        Called once at the start of run_battle before any initiative rolls.
+        """
+        for character in self.context.team + self.context.enemies:
+            character.chosen_ranged_weapon = character.choose_ranged_weapon()
+            character.chosen_melee_weapon  = character.choose_melee_weapon()
+
     def run_battle(self):
         clear_announce_bar(self.context.screen)
         pygame.mixer.music.fadeout(2000)
@@ -581,6 +586,7 @@ class TeamBattle:
         self.draw_teams()
         pygame.display.flip()
         time.sleep(1)
+        self._prepare_weapons()
         battle_rages = True
         self.round = 1
         while battle_rages:
