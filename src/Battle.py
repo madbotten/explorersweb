@@ -5,6 +5,7 @@ from enum import Enum
 from TypeText import max_y_offset
 from Utils import *
 from Character import *
+from Item import *
 from Location import *
 
 class BattleAction(Enum):
@@ -71,7 +72,7 @@ def initiative(team, enemies, brazen_bonus=0):
     # Calculate squad tactics bonus for the team
     member = determine_best_team_member(team, None, "Squad Tactics")
     if member:
-        squad_tactics_bonus = member.get_effective_skill("Squad Tactics") / 10
+        squad_tactics_bonus = member.get_effective_skill_level("Squad Tactics") / 10
     else:
         squad_tactics_bonus = 0
 
@@ -262,7 +263,7 @@ class TeamBattle:
         index = 1
         for member in self.context.team:
             if member.is_alive():
-                member.set_rect(pygame.Rect(TEAM_LEFT, 50 + offset, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT))
+                member.set_rect(pygame.Rect(TEAM_LEFT, 50 + offset, CHARACTER_COMBAT_WIDTH, CHARACTER_COMBAT_HEIGHT))
                 member.battle_index = index
                 battle_display_character(member, self.context, member.rect.left, member.rect.top)
                 offset += 75
@@ -364,8 +365,8 @@ class TeamBattle:
         else:
             melee = character.get_effective_combat_melee()
             target_melee = target.get_effective_combat_melee()
-            target_evasion = target.get_effective_stat("evasion")
-            offense = character.get_effective_stat("offense")
+            target_evasion = target.get_effective_stat_level("evasion")
+            offense = character.get_effective_stat_level("offense")
             
             adjusted_roll = roll
             if target.last_action == BattleAction.EVADE:

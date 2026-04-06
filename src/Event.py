@@ -8,12 +8,13 @@ from Character import *
 
 enemies_present_statements = [
     "Enemies are present! A battle breaks out.",
-    "Pirates ambush the team from the shadows, weapons drawn!",
+    "Enemies are present, weapons drawn!",
     "An alarm blares, and enemy forces rush into the room from a far door!",
-    "The team encounters hostile guards!",
-    "Enforcers blocks the team’s path!",
-    "A firefight erupts!",
-    "The team finds themselves face-to-face with a heavily armed pirate group!"
+    "The team encounters hostiles!",
+    "Enemies block the team's path!",
+    "Combat commences!"
+    "A fight erupts!",
+    "The team finds themselves face-to-face with a group of hostiles!"
 ]
 
 def team_evades_notice(team):
@@ -247,11 +248,11 @@ class Event:
                 return  # skip combat entirely
             else:
                 type_out_text(self.context.screen, "The team is spotted! Combat ensues.", self.context.font)
-        elif methods == "brazen":
+        type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
+
+        if methods == "brazen":
             self.context.brazen_bonus = 25
             type_out_text(self.context.screen, "The team catches the enemy by surprise!", self.context.font)
-
-        type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
         pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         event_battle = TeamBattle(self.context)
         event_battle.run_battle()

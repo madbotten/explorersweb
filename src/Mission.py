@@ -54,49 +54,48 @@ def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
 
     # try hacking
     member = determine_best_team_member(team, None, "Hacking")
-    type_out_text(screen, f"{member.name} tries to hack the controller:", font)
-
-    check_passed = standard_skill_check(member, screen, None, "Hacking", font, 0)
-
-    if check_passed:
-        result_text = f"{member.name} gets access and opens the portal.\nTheir skill has been strengthened."
-        type_out_text(screen, result_text, font, WHITE)
-        member.mission_points += 5
-        member.increase_skill("Hacking", 1)
-        return
-    else:
-        result_text = f"{member.name} could not break in."
-        type_out_text(screen, result_text, font, WHITE)
+    if member:
+        type_out_text(screen, f"{member.name} tries to hack the controller:", font)
+        check_passed = standard_skill_check(member, screen, None, "Hacking", font, 0)
+        if check_passed:
+            result_text = f"{member.name} gets access and opens the portal.\nTheir skill has been strengthened."
+            type_out_text(screen, result_text, font, WHITE)
+            member.mission_points += 5
+            member.increase_skill("Hacking", 1)
+            return
+        else:
+            result_text = f"{member.name} could not break in."
+            type_out_text(screen, result_text, font, WHITE)
 
     # try rerouting the portal control
     member = determine_best_team_member(team, None, "Ships Systems")
-    type_out_text(screen, f"{member.name} tries to route around the portal controller:", font)
-    check_passed = standard_skill_check(member, screen, None, "Ships Systems", font, 0)
-
-    if check_passed:
-        result_text = f"{member.name} gets opens the portal.\nTheir skill has been strengthened."
-        type_out_text(screen, result_text, font, WHITE)
-        member.mission_points += 5
-        member.increase_skill("Ships Systems", 1)
-        return
-    else:
-        result_text = f"{member.name} could not reroute the control."
-        type_out_text(screen, result_text, font, WHITE)
+    if member:
+        type_out_text(screen, f"{member.name} tries to route around the portal controller:", font)
+        check_passed = standard_skill_check(member, screen, None, "Ships Systems", font, 0)
+        if check_passed:
+            result_text = f"{member.name} gets opens the portal.\nTheir skill has been strengthened."
+            type_out_text(screen, result_text, font, WHITE)
+            member.mission_points += 5
+            member.increase_skill("Ships Systems", 1)
+            return
+        else:
+            result_text = f"{member.name} could not reroute the control."
+            type_out_text(screen, result_text, font, WHITE)
 
     # try to blow up the lock
     member = determine_best_team_member(team, None, "Explosives")
-    type_out_text(screen, f"{member.name} prepares a small charge to blow out the lock:", font)
-    check_passed = standard_skill_check(member, screen, None, "Explosives", font, 0)
-
-    if check_passed:
-        result_text = f"{member.name} gets the portal open.\nTheir skill has been strengthened."
-        type_out_text(screen, result_text, font, WHITE)
-        member.mission_points += 5
-        member.increase_skill("Explosives", 1)
-        return
-    else:
-        result_text = f"{member.name} could not blow out the lock."
-        type_out_text(screen, result_text, font, WHITE)
+    if member:
+        type_out_text(screen, f"{member.name} prepares a small charge to blow out the lock:", font)
+        check_passed = standard_skill_check(member, screen, None, "Explosives", font, 0)
+        if check_passed:
+            result_text = f"{member.name} gets the portal open.\nTheir skill has been strengthened."
+            type_out_text(screen, result_text, font, WHITE)
+            member.mission_points += 5
+            member.increase_skill("Explosives", 1)
+            return
+        else:
+            result_text = f"{member.name} could not blow out the lock."
+            type_out_text(screen, result_text, font, WHITE)
 
     rooms_to_goal += 5
     type_out_text(screen, "The portal remains locked, the team must take another route", font, WHITE)
