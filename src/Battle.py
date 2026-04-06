@@ -315,8 +315,8 @@ class TeamBattle:
 
         announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
 
-        # play sound
-        play_weapon_sound(chosen_weapon)
+        # play sound (strip class suffix for sound lookup)
+        play_weapon_sound(item_base_name(chosen_weapon))
 
         battle_display_action(character, BattleAction.MELEE, self.context.screen, self.context.font)
 
@@ -356,10 +356,6 @@ class TeamBattle:
         # If hit calculate damage
         adjusted_damage = 0
         if hit:
-            if character.has_item("slicer"):
-                base_weapon_damage = self.context.all_items["slicer"].damage
-            elif character.get_item("stun baton"):
-                base_weapon_damage = self.context.all_items["stun baton"].damage
             adjusted_damage = random.randint(1, base_weapon_damage)
             adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
             if character.get_effective_skill_level("Martial Arts") > 75:
@@ -388,42 +384,42 @@ class TeamBattle:
             print(f"{character.name} chooses target {target.name}")
         return target
 
+    _RANGED_WEAPON_BASES = {"blaster rifle", "launcher", "laser rifle", "laser pistol",
+                             "carbine", "magnum", "pistol", "stunner"}
+
     def choose_ranged_weapon(self, character, target):
-        # improve: choose appropriate weapon for a target?
-        # choose weapon based on mission choices (nonlethal)
-        if character.has_item("blaster rifle"):
-            return "blaster rifle"
-        elif character.has_item("launcher") and self.round == 1:
-            return "launcher"
-        elif character.has_item("laser rifle"):
-            return "laser rifle"
-        elif character.has_item("laser pistol"):
-            return "laser pistol"
-        elif character.has_item("carbine"):
-            return "carbine"
-        elif character.has_item("magnum"):
-            return "magnum"
-        elif character.has_item("pistol"):
-            return "pistol"
-        elif character.has_item("stunner"):
-            return "stunner"
-        return None
+        """Return the name of the highest-damage ranged weapon the character carries.
+        Launcher is excluded after round 1. Returns the full item name (e.g. 'laser rifle B')."""
+        best_item = None
+        for item in character.equipment:
+            if item.type != "weapon":
+                continue
+            base = item_base_name(item.name)
+            if base not in self._RANGED_WEAPON_BASES:
+                continue
+            if base == "launcher" and self.round != 1:
+                continue
+            if best_item is None or item.damage > best_item.damage:
+                best_item = item
+        return best_item.name if best_item else None
 
     def weapon_is_rifle(self, weapon):
-        if weapon == "blaster rifle":
-            return True
-        elif weapon == "laser rifle":
-            return True
-        return False
+        return item_base_name(weapon) in {"blaster rifle", "laser rifle"}
+
+    _MELEE_WEAPON_BASES = {"slicer", "stun baton"}
 
     @staticmethod
     def choose_melee_weapon(character, target):
-        # improve: choose appropriate weapon for a target?
-        if character.has_item("slicer"):
-            return "slicer"
-        elif character.has_item("stun baton"):
-            return "stun baton"
-        return None
+        """Return the name of the highest-damage melee weapon the character carries."""
+        best_item = None
+        for item in character.equipment:
+            if item.type != "weapon":
+                continue
+            if item_base_name(item.name) not in TeamBattle._MELEE_WEAPON_BASES:
+                continue
+            if best_item is None or item.damage > best_item.damage:
+                best_item = item
+        return best_item.name if best_item else None
 
     def run_battle_action_shoot(self, character):
         character.last_action = BattleAction.SHOOT
@@ -446,8 +442,8 @@ class TeamBattle:
 
         announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
 
-        # play sound
-        play_weapon_sound(chosen_weapon)
+        # play sound (strip class suffix for sound lookup)
+        play_weapon_sound(item_base_name(chosen_weapon))
 
         battle_display_action(character, BattleAction.SHOOT, self.context.screen, self.context.font)
 

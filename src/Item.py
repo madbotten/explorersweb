@@ -3,64 +3,213 @@ import random
 
 from Utils import *
 
-# Item attributes: cost, mass, rate, damage, damage type, hp, type, description
-# NOTE: robots are in ROBOT_ATTRIBUTES below to keep them separate for the quality system.
+# ---------------------------------------------------------------------------
+# Item quality classes
+# ---------------------------------------------------------------------------
+ITEM_CLASSES = ["C", "B", "A", "S"]
+
+def item_base_name(item_name: str) -> str:
+    """Strip the trailing class suffix (' C'/' B'/' A'/' S') if present.
+    Examples:  'laser pistol B' -> 'laser pistol'
+               'assaultbot'     -> 'assaultbot'
+    """
+    parts = item_name.rsplit(" ", 1)
+    if len(parts) == 2 and parts[1] in ITEM_CLASSES:
+        return parts[0]
+    return item_name
+
+def item_class(item_name: str) -> str | None:
+    """Return the quality class letter, or None for unclassed items (robots, bare names)."""
+    parts = item_name.rsplit(" ", 1)
+    if len(parts) == 2 and parts[1] in ITEM_CLASSES:
+        return parts[1]
+    return None
+
+# ---------------------------------------------------------------------------
+# Item attributes: cost, mass, rate, damage, damage_type, hp, item_type, description
+#
+# Each non-robot item has four entries: bare (= C stats, kept for compat),
+# plus explicit C / B / A / S entries.
+# Stats scale per tier: cost +5%, mass -5% (floor, min 0), damage +5%, hp +5%.
+# Rate is never scaled.
+# Robots are in ROBOT_ATTRIBUTES and have no quality tiers.
+# ---------------------------------------------------------------------------
 ITEM_ATTRIBUTES = {
-    "power shield":   (200, 15, 1, 1,  "impact", 50,  "armor",  "A protective item that can absorb some damage from energy attacks"),
-    "veer suit":      (200, 7,  1, 1,  "impact", 100, "armor",  "A protective suit that protects against ballistic and melee impacts"),
-    "exoskeleton":    (250, 1,  2, 20, "impact", 150, "armor",  "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "holofier":       (400, 10, 1, 50, "impact", 40,  "armor",  "Projects holograms of the wearer, causing some attacks to miss"),
-    "powered armor":  (750, 0,  1, 50, "impact", 200, "armor",  "Elite shock troop armor that eliminates encumbrance"),
-    "scanner":        (100, 4,  1, 1,  "impact", 30,  "misc",   "An item that helps identify unknown objects"),
-    "medikit":        (150, 5,  1, 1,  "impact", 40,  "misc",   "A medical kit that helps team members heal injuries"),
-    "stimulant":      (100, 1,  1, 1,  "impact", 10,  "misc",   "A powerful stimulant that allows for overhealing beyond base life level"),
-    "cutter":         (125, 8,  1, 5,  "impact", 50,  "misc",   "A tool used to cut through bulkheads and locked portals"),
-    "bio container":  (75,  3,  1, 1,  "impact", 50,  "misc",   "A rugged container suitable for carrying isolated biological samples"),
-    "stealth orb":    (400, 10, 2, 50, "impact", 50,  "misc",   "Blurs image of the wearer and suppresses noise"),
-    "pacifier":       (650, 10, 5, 50, "impact", 40,  "misc",   "Used to incapacitate a humanoid, useful for capturing mission targets"),
-    "offense implant":(650, 1,  1, 50, "impact", 100, "misc",   "Provides superhuman combat efficiency and accuracy"),
-    "neural trainer": (650, 1,  1, 50, "impact", 100, "misc",   "Endows recipient with at least 10 in all skills"),
-    "magnum":         (300, 4,  1, 30, "impact", 40,  "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
-    "laser pistol":   (500, 3,  2, 20, "energy", 40,  "weapon", "A precise energy weapon"),
-    "pistol":         (100, 2,  3, 10, "impact", 40,  "weapon", "A projectile weapon with high rate of fire and low accuracy"),
-    "slicer":         (350, 6,  2, 30, "impact", 50,  "weapon", "A powered melee weapon"),
-    "stunner":        (200, 3,  1, 20, "sonic",  40,  "weapon", "A nonlethal weapon that disables humanoids"),
-    "carbine":        (550, 10, 5, 10, "impact", 50,  "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
-    "launcher":       (600, 10, 1, 30, "impact", 40,  "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "laser rifle":    (700, 10, 1, 50, "energy", 40,  "weapon", "A powerful, heavy, expensive laser weapon"),
-    "blaster rifle":  (500, 10, 1, 50, "sonic",  40,  "weapon", "A powerful sonic rifle, but useless against robots"),
-    "stun baton":     (250, 4,  2, 20, "sonic",  200, "weapon", "A nonlethal melee weapon"),
+    # ---- power shield ----
+    "power shield":   (200, 15, 1,  1, "impact",  50, "armor",  "A protective item that can absorb some damage from energy attacks"),
+    "power shield C": (200, 15, 1,  1, "impact",  50, "armor",  "A protective item that can absorb some damage from energy attacks"),
+    "power shield B": (210, 14, 1,  1, "impact",  53, "armor",  "A protective item that can absorb some damage from energy attacks"),
+    "power shield A": (220, 13, 1,  1, "impact",  55, "armor",  "A protective item that can absorb some damage from energy attacks"),
+    "power shield S": (230, 12, 1,  1, "impact",  58, "armor",  "A protective item that can absorb some damage from energy attacks"),
+    # ---- veer suit ----
+    "veer suit":   (200, 7, 1, 1, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit C": (200, 7, 1, 1, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit B": (210, 6, 1, 1, "impact", 105, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit A": (220, 6, 1, 1, "impact", 110, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    "veer suit S": (230, 5, 1, 1, "impact", 115, "armor", "A protective suit that protects against ballistic and melee impacts"),
+    # ---- exoskeleton ----
+    "exoskeleton":   (250, 1, 2, 20, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton C": (250, 1, 2, 20, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton B": (263, 0, 2, 21, "impact", 158, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton A": (275, 0, 2, 22, "impact", 165, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton S": (288, 0, 2, 23, "impact", 173, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    # ---- holofier ----
+    "holofier":   (400, 10, 1, 50, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier C": (400, 10, 1, 50, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier B": (420,  9, 1, 53, "impact", 42, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier A": (440,  9, 1, 55, "impact", 44, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    "holofier S": (460,  8, 1, 58, "impact", 46, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
+    # ---- powered armor ----
+    "powered armor":   (750, 0, 1, 50, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor C": (750, 0, 1, 50, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor B": (788, 0, 1, 53, "impact", 210, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor A": (825, 0, 1, 55, "impact", 220, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    "powered armor S": (863, 0, 1, 58, "impact", 230, "armor", "Elite shock troop armor that eliminates encumbrance"),
+    # ---- scanner ----
+    "scanner":   (100, 4, 1, 1, "impact", 30, "misc", "An item that helps identify unknown objects"),
+    "scanner C": (100, 4, 1, 1, "impact", 30, "misc", "An item that helps identify unknown objects"),
+    "scanner B": (105, 3, 1, 1, "impact", 32, "misc", "An item that helps identify unknown objects"),
+    "scanner A": (110, 3, 1, 1, "impact", 33, "misc", "An item that helps identify unknown objects"),
+    "scanner S": (115, 3, 1, 1, "impact", 35, "misc", "An item that helps identify unknown objects"),
+    # ---- medikit ----
+    "medikit":   (150, 5, 1, 1, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit C": (150, 5, 1, 1, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit B": (158, 4, 1, 1, "impact", 42, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit A": (165, 4, 1, 1, "impact", 44, "misc", "A medical kit that helps team members heal injuries"),
+    "medikit S": (173, 4, 1, 1, "impact", 46, "misc", "A medical kit that helps team members heal injuries"),
+    # ---- stimulant ----
+    "stimulant":   (100, 1, 1, 1, "impact",  10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant C": (100, 1, 1, 1, "impact",  10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant B": (105, 0, 1, 1, "impact",  11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant A": (110, 0, 1, 1, "impact",  11, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    "stimulant S": (115, 0, 1, 1, "impact",  12, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
+    # ---- cutter ----
+    "cutter":   (125, 8, 1, 5, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter C": (125, 8, 1, 5, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter B": (131, 7, 1, 5, "impact", 53, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter A": (138, 7, 1, 6, "impact", 55, "misc", "A tool used to cut through bulkheads and locked portals"),
+    "cutter S": (144, 6, 1, 6, "impact", 58, "misc", "A tool used to cut through bulkheads and locked portals"),
+    # ---- bio container ----
+    "bio container":   (75, 3, 1, 1, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container C": (75, 3, 1, 1, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container B": (79, 2, 1, 1, "impact", 53, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container A": (83, 2, 1, 1, "impact", 55, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    "bio container S": (86, 2, 1, 1, "impact", 58, "misc", "A rugged container suitable for carrying isolated biological samples"),
+    # ---- stealth orb ----
+    "stealth orb":   (400, 10, 2, 50, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb C": (400, 10, 2, 50, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb B": (420,  9, 2, 53, "impact", 53, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb A": (440,  9, 2, 55, "impact", 55, "misc", "Blurs image of the wearer and suppresses noise"),
+    "stealth orb S": (460,  8, 2, 58, "impact", 58, "misc", "Blurs image of the wearer and suppresses noise"),
+    # ---- pacifier ----
+    "pacifier":   (650, 10, 5, 50, "impact", 40, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    "pacifier C": (650, 10, 5, 50, "impact", 40, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    "pacifier B": (683,  9, 5, 53, "impact", 42, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    "pacifier A": (715,  9, 5, 55, "impact", 44, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    "pacifier S": (748,  8, 5, 58, "impact", 46, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    # ---- offense implant ----
+    "offense implant":   (650, 1, 1, 50, "impact", 100, "misc", "Provides superhuman combat efficiency and accuracy"),
+    "offense implant C": (650, 1, 1, 50, "impact", 100, "misc", "Provides superhuman combat efficiency and accuracy"),
+    "offense implant B": (683, 0, 1, 53, "impact", 105, "misc", "Provides superhuman combat efficiency and accuracy"),
+    "offense implant A": (715, 0, 1, 55, "impact", 110, "misc", "Provides superhuman combat efficiency and accuracy"),
+    "offense implant S": (748, 0, 1, 58, "impact", 115, "misc", "Provides superhuman combat efficiency and accuracy"),
+    # ---- neural trainer ----
+    "neural trainer":   (650, 1, 1, 50, "impact", 100, "misc", "Endows recipient with at least 10 in all skills"),
+    "neural trainer C": (650, 1, 1, 50, "impact", 100, "misc", "Endows recipient with at least 10 in all skills"),
+    "neural trainer B": (683, 0, 1, 53, "impact", 105, "misc", "Endows recipient with at least 10 in all skills"),
+    "neural trainer A": (715, 0, 1, 55, "impact", 110, "misc", "Endows recipient with at least 10 in all skills"),
+    "neural trainer S": (748, 0, 1, 58, "impact", 115, "misc", "Endows recipient with at least 10 in all skills"),
+    # ---- magnum ----
+    "magnum":   (300, 4, 1, 30, "impact", 40, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    "magnum C": (300, 4, 1, 30, "impact", 40, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    "magnum B": (315, 3, 1, 32, "impact", 42, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    "magnum A": (330, 3, 1, 33, "impact", 44, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    "magnum S": (345, 3, 1, 35, "impact", 46, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    # ---- laser pistol ----
+    "laser pistol":   (500, 3, 2, 20, "energy", 40, "weapon", "A precise energy weapon"),
+    "laser pistol C": (500, 3, 2, 20, "energy", 40, "weapon", "A precise energy weapon"),
+    "laser pistol B": (525, 2, 2, 21, "energy", 42, "weapon", "A precise energy weapon"),
+    "laser pistol A": (550, 2, 2, 22, "energy", 44, "weapon", "A precise energy weapon"),
+    "laser pistol S": (575, 2, 2, 23, "energy", 46, "weapon", "A precise energy weapon"),
+    # ---- pistol ----
+    "pistol":   (100, 2, 3, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol C": (100, 2, 3, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol B": (105, 1, 3, 11, "impact", 42, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol A": (110, 1, 3, 11, "impact", 44, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol S": (115, 1, 3, 12, "impact", 46, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    # ---- slicer ----
+    "slicer":   (350, 6, 2, 30, "impact", 50, "weapon", "A powered melee weapon"),
+    "slicer C": (350, 6, 2, 30, "impact", 50, "weapon", "A powered melee weapon"),
+    "slicer B": (368, 5, 2, 32, "impact", 53, "weapon", "A powered melee weapon"),
+    "slicer A": (385, 5, 2, 33, "impact", 55, "weapon", "A powered melee weapon"),
+    "slicer S": (403, 5, 2, 35, "impact", 58, "weapon", "A powered melee weapon"),
+    # ---- stunner ----
+    "stunner":   (200, 3, 1, 20, "sonic", 40, "weapon", "A nonlethal weapon that disables humanoids"),
+    "stunner C": (200, 3, 1, 20, "sonic", 40, "weapon", "A nonlethal weapon that disables humanoids"),
+    "stunner B": (210, 2, 1, 21, "sonic", 42, "weapon", "A nonlethal weapon that disables humanoids"),
+    "stunner A": (220, 2, 1, 22, "sonic", 44, "weapon", "A nonlethal weapon that disables humanoids"),
+    "stunner S": (230, 2, 1, 23, "sonic", 46, "weapon", "A nonlethal weapon that disables humanoids"),
+    # ---- carbine ----
+    "carbine":   (550, 10, 5, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine C": (550, 10, 5, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine B": (578,  9, 5, 11, "impact", 53, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine A": (605,  9, 5, 11, "impact", 55, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine S": (633,  8, 5, 12, "impact", 58, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    # ---- launcher ----
+    "launcher":   (600, 10, 1, 30, "impact", 40, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    "launcher C": (600, 10, 1, 30, "impact", 40, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    "launcher B": (630,  9, 1, 32, "impact", 42, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    "launcher A": (660,  9, 1, 33, "impact", 44, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    "launcher S": (690,  8, 1, 35, "impact", 46, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    # ---- laser rifle ----
+    "laser rifle":   (700, 10, 1, 50, "energy", 40, "weapon", "A powerful, heavy, expensive laser weapon"),
+    "laser rifle C": (700, 10, 1, 50, "energy", 40, "weapon", "A powerful, heavy, expensive laser weapon"),
+    "laser rifle B": (735,  9, 1, 53, "energy", 42, "weapon", "A powerful, heavy, expensive laser weapon"),
+    "laser rifle A": (770,  9, 1, 55, "energy", 44, "weapon", "A powerful, heavy, expensive laser weapon"),
+    "laser rifle S": (805,  8, 1, 58, "energy", 46, "weapon", "A powerful, heavy, expensive laser weapon"),
+    # ---- blaster rifle ----
+    "blaster rifle":   (500, 10, 1, 50, "sonic", 40, "weapon", "A powerful sonic rifle, but useless against robots"),
+    "blaster rifle C": (500, 10, 1, 50, "sonic", 40, "weapon", "A powerful sonic rifle, but useless against robots"),
+    "blaster rifle B": (525,  9, 1, 53, "sonic", 42, "weapon", "A powerful sonic rifle, but useless against robots"),
+    "blaster rifle A": (550,  9, 1, 55, "sonic", 44, "weapon", "A powerful sonic rifle, but useless against robots"),
+    "blaster rifle S": (575,  8, 1, 58, "sonic", 46, "weapon", "A powerful sonic rifle, but useless against robots"),
+    # ---- stun baton ----
+    "stun baton":   (250, 4, 2, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
+    "stun baton C": (250, 4, 2, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
+    "stun baton B": (263, 3, 2, 21, "sonic", 210, "weapon", "A nonlethal melee weapon"),
+    "stun baton A": (275, 3, 2, 22, "sonic", 220, "weapon", "A nonlethal melee weapon"),
+    "stun baton S": (288, 3, 2, 23, "sonic", 230, "weapon", "A nonlethal melee weapon"),
 }
 
-# Robot attributes: cost, mass, rate, damage, damage type, hp, type, description
+# Robot attributes — no quality tiers
 ROBOT_ATTRIBUTES = {
     "assaultbot": (500, 0, 3, 20, "impact", 200, "robot", "A fearless humanoid combat robot that can lead chamber breaches and fight enemies with the team"),
-    "techbot":    (350, 0, 1, 1,  "impact",  50, "robot", "A tech robot that can repair electronics and small misc items"),
-    "hackbot":    (200, 0, 1, 1,  "impact",  50, "robot", "A robot that can mesh with electronic interfaces and hack enemy systems"),
-    "mechbot":    (250, 0, 1, 5,  "impact",  50, "robot", "A repair robot that can repair structural or mechanical systems"),
-    "mulebot":    (250, 0, 1, 1,  "impact",  50, "robot", "A robot to carry food, ammo, and currently unused items to prevent team members from being encumbered"),
-    "scoutbot":   (150, 0, 1, 1,  "impact",  20, "robot", "A scout robot that helps prevent the team from being surprised"),
+    "techbot":    (350, 0, 1,  1, "impact",  50, "robot", "A tech robot that can repair electronics and small misc items"),
+    "hackbot":    (200, 0, 1,  1, "impact",  50, "robot", "A robot that can mesh with electronic interfaces and hack enemy systems"),
+    "mechbot":    (250, 0, 1,  5, "impact",  50, "robot", "A repair robot that can repair structural or mechanical systems"),
+    "mulebot":    (250, 0, 1,  1, "impact",  50, "robot", "A robot to carry food, ammo, and currently unused items to prevent team members from being encumbered"),
+    "scoutbot":   (150, 0, 1,  1, "impact",  20, "robot", "A scout robot that helps prevent the team from being surprised"),
     "meleebot":   (275, 0, 3, 20, "impact", 200, "robot", "A melee robot with short range cutters"),
-    "medibot":    (500, 0, 1, 5,  "impact",  50, "robot", "A medical robot that provides healing and medical supplies"),
+    "medibot":    (500, 0, 1,  5, "impact",  50, "robot", "A medical robot that provides healing and medical supplies"),
     "stunbot":    (350, 0, 2, 20, "sonic",  200, "robot", "A robot with ranged nonlethal weapons"),
     "batonbot":   (250, 0, 2, 20, "impact", 200, "robot", "A melee robot with nonlethal stun batons"),
 }
 
-# Combined lookup: items first, then robots.
-# Use this anywhere you need to look up any name regardless of category.
+# Combined lookup for any code that needs to find any name regardless of category
 ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
 
 # protection vs energy, sonic, impact, slash, pierce, concussion, electric
 ARMOR_ATTRIBUTES = {
-    "power shield": (8, 0, 0, 0, 0, 0, 3),
-    "veer suit":    (5, 5, 5, 5, 5, 5, 5),
-    "exoskeleton":  (3, 3, 3, 3, 3, 5, 5),
-    "holofield":    (0, 0, 0, 0, 0, 0, 0),
-    "powered armor":(8, 10, 10, 10, 8, 10, 8),
+    "power shield": (8,  0,  0,  0,  0,  0, 3),
+    "veer suit":    (5,  5,  5,  5,  5,  5, 5),
+    "exoskeleton":  (3,  3,  3,  3,  3,  5, 5),
+    "holofield":    (0,  0,  0,  0,  0,  0, 0),
+    "powered armor":(8, 10, 10, 10,  8, 10, 8),
 }
 
-# Tab names and types
+# Tab names and types shown in the store
 TABS = ["weapons", "armor", "robots", "misc"]
+
 
 class Item:
     def __init__(self, name, item_type, cost, mass, rate, damage, damage_type, hp, description, icon=None, rect=None):
@@ -73,7 +222,7 @@ class Item:
         self.damage_type = damage_type
         self.hp = hp
         self.description = description
-        self.icon = icon  # Pygame Surface for the item icon
+        self.icon = icon
         self.rect = rect if rect else pygame.Rect(0, 0, 50, 50)
 
     def __repr__(self):
@@ -103,19 +252,21 @@ class Item:
             "damage_type": self.damage_type,
             "hp": self.hp,
             "description": self.description
-            # Exclude 'icon' because it is not serializable
+            # Exclude 'icon' — not serializable
         }
 
     @classmethod
-    def load_icon(cls, item_name):
-        icon_path = resource_path(f"gadgets/{item_name}.jpg")
+    def load_icon(cls, item_name, size=(50, 50)):
+        """Load the .jpg icon for item_name, stripping any class suffix first."""
+        base = item_base_name(item_name)
+        icon_path = resource_path(f"gadgets/{base}.jpg")
         try:
             icon = pygame.image.load(icon_path)
-            icon = pygame.transform.scale(icon, (50, 50))
+            icon = pygame.transform.scale(icon, size)
             return icon
         except pygame.error:
-            print(f"Failed to load icon for {item_name}. Using placeholder.")
-            return None  # Return None or a default icon if the loading fails
+            print(f"Failed to load icon for '{item_name}' (tried '{base}.jpg').")
+            return None
 
     @classmethod
     def from_dict(cls, data):
@@ -130,7 +281,7 @@ class Item:
             damage_type=data["damage_type"],
             hp=data["hp"],
             description=data["description"],
-            icon = icon
+            icon=icon
         )
 
     def copy(self):
@@ -148,66 +299,63 @@ class Item:
             self.rect.copy() if self.rect else None
         )
 
-def load_items():
+
+def _build_items(icon_size: tuple) -> dict:
+    """Build an Item dict from ITEM_ATTRIBUTES + ROBOT_ATTRIBUTES.
+    Icons are loaded by stripping the class suffix so all tiers share one image file.
+    """
     items = {}
-    tab_dir = resource_path("gadgets/")
+    # Cache icons keyed by base name to avoid redundant disk loads
+    _icon_cache: dict = {}
 
-    for file_name in os.listdir(tab_dir):
-        if file_name.endswith(".jpg"):
-            name = file_name.split(".")[0]
-            # Check items first, then robots
-            attributes = ITEM_ATTRIBUTES.get(name) or ROBOT_ATTRIBUTES.get(name)
-            if attributes is None:
-                print(f"Warning: no attributes found for '{name}', skipping.")
-                continue
-            icon_path = resource_path(tab_dir + "/" + file_name)
-
+    def get_icon(base_name: str):
+        if base_name not in _icon_cache:
+            path = resource_path(f"gadgets/{base_name}.jpg")
             try:
-                icon = pygame.image.load(icon_path)
-                icon = pygame.transform.scale(icon, (50, 50))
+                img = pygame.image.load(path)
+                _icon_cache[base_name] = pygame.transform.scale(img, icon_size)
             except pygame.error:
-                print(f"Failed to load image for {name}")
-                icon = None
+                print(f"Warning: no icon image for '{base_name}'.")
+                _icon_cache[base_name] = None
+        return _icon_cache[base_name]
 
-            items[name] = Item.from_data(name, attributes, icon)
+    for name, attrs in ITEM_ATTRIBUTES.items():
+        icon = get_icon(item_base_name(name))
+        items[name] = Item.from_data(name, attrs, icon)
+
+    for name, attrs in ROBOT_ATTRIBUTES.items():
+        icon = get_icon(name)   # robots have no suffix to strip
+        items[name] = Item.from_data(name, attrs, icon)
 
     return items
 
-def load_items_battle():
-    items = {}
-    tab_dir = resource_path("gadgets/")
 
-    for file_name in os.listdir(tab_dir):
-        if file_name.endswith(".jpg"):
-            name = file_name.split(".")[0]
-            # Check items first, then robots
-            attributes = ITEM_ATTRIBUTES.get(name) or ROBOT_ATTRIBUTES.get(name)
-            if attributes is None:
-                print(f"Warning: no attributes found for '{name}', skipping.")
-                continue
-            icon_path = resource_path(tab_dir + "/" + file_name)
+def load_items() -> dict:
+    return _build_items((50, 50))
 
-            try:
-                icon = pygame.image.load(icon_path)
-                icon = pygame.transform.scale(icon, (40, 40))
-            except pygame.error:
-                print(f"Failed to load image for {name}")
-                icon = None
 
-            items[name] = Item.from_data(name, attributes, icon)
+def load_items_battle() -> dict:
+    return _build_items((40, 40))
 
-    return items
 
-def load_item_tabs():
+def load_item_tabs() -> dict:
+    """Return items grouped by store tab.
+    Only class-C (or bare-named) items are included for purchasable gear;
+    robots are always included.
+    """
     items_by_tab = {tab: [] for tab in TABS}
     all_items = load_items()
-    for item in all_items.values():
+    for name, item in all_items.items():
+        if item.type == "robot":
+            items_by_tab["robots"].append(item)
+            continue
+        # Only show class-C items in the store (skip bare and B/A/S variants)
+        if item_class(name) != "C":
+            continue
         if item.type == "weapon":
             items_by_tab["weapons"].append(item)
         elif item.type == "armor":
             items_by_tab["armor"].append(item)
-        elif item.type == "robot":
-            items_by_tab["robots"].append(item)
         else:
             items_by_tab["misc"].append(item)
 

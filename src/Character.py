@@ -494,10 +494,22 @@ class Character:
         return self.has_item("slicer")
 
     def has_item(self, item_name):
+        """Return True if the character carries any item whose base name matches item_name.
+        Strips class suffix so callers can use bare names like 'laser pistol' regardless
+        of quality tier ('laser pistol C', 'laser pistol B', etc.)."""
+        from Item import item_base_name
         for item in self.equipment:
-            if item.name == item_name:
+            if item_base_name(item.name) == item_name or item.name == item_name:
                 return True
         return False
+
+    def get_item(self, item_name):
+        """Return the first equipped Item whose base name matches item_name, or None."""
+        from Item import item_base_name
+        for item in self.equipment:
+            if item_base_name(item.name) == item_name or item.name == item_name:
+                return item
+        return None
 
     def has_skill(self, skill_name):
         if skill_name is None:
