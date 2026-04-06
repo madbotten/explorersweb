@@ -66,9 +66,9 @@ ITEM_ATTRIBUTES = {
     # ---- exoskeleton (good vs impact; adds strength) ----
     "exoskeleton":   (250, 1, 2, 25, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
     "exoskeleton C": (250, 1, 2, 25, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton B": (263, 0, 2, 26, "impact", 158, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton A": (275, 0, 2, 28, "impact", 165, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "exoskeleton S": (288, 0, 2, 29, "impact", 173, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton B": (263, 1, 2, 26, "impact", 158, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton A": (275, 1, 2, 28, "impact", 165, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "exoskeleton S": (288, 1, 2, 29, "impact", 173, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
     # ---- holofier (effect = miss-chance roll penalty applied to attackers) ----
     "holofier":   (400, 10, 1, 25, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
     "holofier C": (400, 10, 1, 25, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
@@ -148,15 +148,15 @@ ITEM_ATTRIBUTES = {
     "laser pistol A": (550, 2, 2, 22, "energy", 44, "weapon", "A precise energy weapon"),
     "laser pistol S": (575, 2, 2, 23, "energy", 46, "weapon", "A precise energy weapon"),
     # ---- pistol ----
-    "pistol":   (100, 2, 3, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
-    "pistol C": (100, 2, 3, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
-    "pistol B": (105, 1, 3, 11, "impact", 42, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol":   (100, 2, 2, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol C": (100, 2, 2, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol B": (105, 1, 2, 11, "impact", 42, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
     "pistol A": (110, 1, 3, 11, "impact", 44, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
-    "pistol S": (115, 1, 3, 12, "impact", 46, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "pistol S": (115, 1, 4, 12, "impact", 46, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
     # ---- slicer ----
-    "slicer":   (350, 6, 2, 30, "impact", 50, "weapon", "A powered melee weapon"),
-    "slicer C": (350, 6, 2, 30, "impact", 50, "weapon", "A powered melee weapon"),
-    "slicer B": (368, 5, 2, 32, "impact", 53, "weapon", "A powered melee weapon"),
+    "slicer":   (350, 6, 1, 30, "impact", 50, "weapon", "A powered melee weapon"),
+    "slicer C": (350, 6, 1, 30, "impact", 50, "weapon", "A powered melee weapon"),
+    "slicer B": (368, 5, 1, 32, "impact", 53, "weapon", "A powered melee weapon"),
     "slicer A": (385, 5, 2, 33, "impact", 55, "weapon", "A powered melee weapon"),
     "slicer S": (403, 5, 2, 35, "impact", 58, "weapon", "A powered melee weapon"),
     # ---- stunner ----
@@ -164,11 +164,11 @@ ITEM_ATTRIBUTES = {
     "stunner C": (200, 3, 1, 20, "sonic", 40, "weapon", "A nonlethal weapon that disables humanoids"),
     "stunner B": (210, 2, 1, 21, "sonic", 42, "weapon", "A nonlethal weapon that disables humanoids"),
     "stunner A": (220, 2, 1, 22, "sonic", 44, "weapon", "A nonlethal weapon that disables humanoids"),
-    "stunner S": (230, 2, 1, 23, "sonic", 46, "weapon", "A nonlethal weapon that disables humanoids"),
+    "stunner S": (230, 2, 2, 23, "sonic", 46, "weapon", "A nonlethal weapon that disables humanoids"),
     # ---- carbine ----
-    "carbine":   (550, 10, 5, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
-    "carbine C": (550, 10, 5, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
-    "carbine B": (578,  9, 5, 11, "impact", 53, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine":   (550, 10, 3, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine C": (550, 10, 3, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "carbine B": (578,  9, 3, 11, "impact", 53, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
     "carbine A": (605,  9, 5, 11, "impact", 55, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
     "carbine S": (633,  8, 5, 12, "impact", 58, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
     # ---- laser rifle ----
@@ -184,10 +184,10 @@ ITEM_ATTRIBUTES = {
     "blaster rifle A": (550,  9, 1, 55, "sonic", 44, "weapon", "A powerful sonic rifle, but useless against robots"),
     "blaster rifle S": (575,  8, 1, 58, "sonic", 46, "weapon", "A powerful sonic rifle, but useless against robots"),
     # ---- stun baton ----
-    "stun baton":   (250, 4, 2, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
-    "stun baton C": (250, 4, 2, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
-    "stun baton B": (263, 3, 2, 21, "sonic", 210, "weapon", "A nonlethal melee weapon"),
-    "stun baton A": (275, 3, 2, 22, "sonic", 220, "weapon", "A nonlethal melee weapon"),
+    "stun baton":   (250, 4, 1, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
+    "stun baton C": (250, 4, 1, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
+    "stun baton B": (263, 3, 1, 21, "sonic", 210, "weapon", "A nonlethal melee weapon"),
+    "stun baton A": (275, 3, 1, 22, "sonic", 220, "weapon", "A nonlethal melee weapon"),
     "stun baton S": (288, 3, 2, 23, "sonic", 230, "weapon", "A nonlethal melee weapon"),
 }
 
