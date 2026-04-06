@@ -150,7 +150,7 @@ def pirate_enemies(num_pirates, items):
     return pirates
 
 def jalorith(items):
-    pirate = Character(20, True)
+    pirate = Character(20, "pirate")
     pirate.occupation = "pirate"  # Override occupation to "pirate"
     pirate.name = "Jalorith"
 
@@ -163,7 +163,7 @@ def jalorith(items):
 
 def pirate_enemy(i, weapon_items, armor_items, non_weapon_items, all_items):
     index = random.randint(1, 24)
-    pirate = Character(index, True, 60, 70)
+    pirate = Character(index, "pirate", 60, 70)
     pirate.index = i
 
     # Assign a random weapon

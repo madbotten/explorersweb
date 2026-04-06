@@ -4,50 +4,59 @@ import random
 from Utils import *
 
 # Item attributes: cost, mass, rate, damage, damage type, hp, type, description
+# NOTE: robots are in ROBOT_ATTRIBUTES below to keep them separate for the quality system.
 ITEM_ATTRIBUTES = {
-    "assaultbot": (500, 0, 3, 20, "impact", 200, "robot", "A fearless humanoid combat robot that can lead chamber breaches and fight enemies with the team"),
-    "techbot": (350, 0, 1, 1, "impact", 50, "robot", "A tech robot that can repair electronics and small misc items"),
-    "hackbot": (200, 0, 1, 1, "impact", 50, "robot", "A robot that can mesh with electronic interfaces and hack enemy systems"),
-    "mechbot": (250, 0, 1, 5, "impact", 50, "robot", "A repair robot that can repair structural or mechanical systems"),
-    "mulebot": (250, 0, 1, 1, "impact", 50, "robot", "A robot to carry food, ammo, and currently unused items to prevent team members from being encumbered"),
-    "scoutbot": (150, 0, 1, 1, "impact", 20, "robot", "A scout robot that helps prevent the team from being surprised"),
-    "meleebot": (275, 0, 3, 20, "impact", 200, "robot", "A melee robot with short range cutters"),
-    "medibot": (500, 0, 1, 5, "impact", 50, "robot", "A medical robot that provides healing and medical supplies"),
-    "power shield": (200, 15, 1, 1, "impact", 50, "armor", "A protective item that can absorb some damage from energy attacks"),
-    "veer suit": (200, 7, 1, 1, "impact", 100, "armor", "A protective suit that protects against ballistic and melee impacts"),
-    "exoskeleton": (250, 1, 2, 20, "impact", 150, "armor", "A powered suit that protects against melee impacts and increases the strength of the wearer"),
-    "scanner": (100, 4, 1, 1, "impact", 30, "misc", "An item that helps identify unknown objects"),
-    "medikit": (150, 5, 1, 1, "impact", 40, "misc", "A medical kit that helps team members heal injuries"),
-    "stimulant": (100, 1, 1, 1, "impact", 10, "misc", "A powerful stimulant that allows for overhealing beyond base life level"),
-    "cutter": (125, 8, 1, 5, "impact", 50, "misc", "A tool used to cut through bulkheads and locked portals"),
-    "bio container": (75, 3, 1, 1, "impact", 50, "misc", "A rugged container suitable for carrying isolated biological samples"),
-    "magnum": (300, 4, 1, 30, "impact", 40, "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
-    "laser pistol": (500, 3, 2, 20, "energy", 40, "weapon", "A precise energy weapon"),
-    "pistol": (100, 2, 3, 10, "impact", 40, "weapon", "A projectile weapon with high rate of fire and low accuracy"),
-    "slicer": (350, 6, 2, 30, "impact", 50, "weapon", "A powered melee weapon"),
-    "stunner": (200, 3, 1, 20, "sonic", 40, "weapon", "A nonlethal weapon that disables humanoids"),
-    "carbine": (550, 10, 5, 10, "impact", 50, "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
-    "launcher": (600, 10, 1, 30, "impact", 40, "weapon", "Launches missiles in first combat round, damaging targets in an area"),
-    "laser rifle": (700, 10, 1, 50, "energy", 40, "weapon", "A powerful, heavy, expensive laser weapon"),
-    "holofier": (400, 10, 1, 50, "impact", 40, "armor", "Projects holograms of the wearer, causing some attacks to miss"),
-    "blaster rifle": (500, 10, 1, 50, "sonic", 40, "weapon", "A powerful sonic rifle, but useless against robots"),
-    "powered armor": (750, 0, 1, 50, "impact", 200, "armor", "Elite shock troop armor that eliminates encumbrance"),
-    "stealth orb": (400, 10, 2, 50, "impact", 50, "misc", "Blurs image of the wearer and suppresses noise"),
-    "pacifier": (650, 10, 5, 50, "impact", 40, "misc", "Used to incapacitate a humanoid, useful for capturing mission targets"),
-    "offense implant": (650, 1, 1, 50, "impact", 100, "misc", "Provides superhuman combat efficiency and accuracy"),
-    "neural trainer": (650, 1, 1, 50, "impact", 100, "misc", "Endows recipient with at least 10 in all skills"),
-    "stunbot": (350, 0, 2, 20, "sonic", 200, "robot", "A robot with ranged nonlethal weapons"),
-    "batonbot": (250, 0, 2, 20, "impact", 200, "robot", "A melee robot with nonlethal stun batons"),
-    "stun baton": (250, 4, 2, 20, "sonic", 200, "weapon", "A nonlethal melee weapon"),
+    "power shield":   (200, 15, 1, 1,  "impact", 50,  "armor",  "A protective item that can absorb some damage from energy attacks"),
+    "veer suit":      (200, 7,  1, 1,  "impact", 100, "armor",  "A protective suit that protects against ballistic and melee impacts"),
+    "exoskeleton":    (250, 1,  2, 20, "impact", 150, "armor",  "A powered suit that protects against melee impacts and increases the strength of the wearer"),
+    "holofier":       (400, 10, 1, 50, "impact", 40,  "armor",  "Projects holograms of the wearer, causing some attacks to miss"),
+    "powered armor":  (750, 0,  1, 50, "impact", 200, "armor",  "Elite shock troop armor that eliminates encumbrance"),
+    "scanner":        (100, 4,  1, 1,  "impact", 30,  "misc",   "An item that helps identify unknown objects"),
+    "medikit":        (150, 5,  1, 1,  "impact", 40,  "misc",   "A medical kit that helps team members heal injuries"),
+    "stimulant":      (100, 1,  1, 1,  "impact", 10,  "misc",   "A powerful stimulant that allows for overhealing beyond base life level"),
+    "cutter":         (125, 8,  1, 5,  "impact", 50,  "misc",   "A tool used to cut through bulkheads and locked portals"),
+    "bio container":  (75,  3,  1, 1,  "impact", 50,  "misc",   "A rugged container suitable for carrying isolated biological samples"),
+    "stealth orb":    (400, 10, 2, 50, "impact", 50,  "misc",   "Blurs image of the wearer and suppresses noise"),
+    "pacifier":       (650, 10, 5, 50, "impact", 40,  "misc",   "Used to incapacitate a humanoid, useful for capturing mission targets"),
+    "offense implant":(650, 1,  1, 50, "impact", 100, "misc",   "Provides superhuman combat efficiency and accuracy"),
+    "neural trainer": (650, 1,  1, 50, "impact", 100, "misc",   "Endows recipient with at least 10 in all skills"),
+    "magnum":         (300, 4,  1, 30, "impact", 40,  "weapon", "A powerful projectile weapon with low rate of fire and low accuracy"),
+    "laser pistol":   (500, 3,  2, 20, "energy", 40,  "weapon", "A precise energy weapon"),
+    "pistol":         (100, 2,  3, 10, "impact", 40,  "weapon", "A projectile weapon with high rate of fire and low accuracy"),
+    "slicer":         (350, 6,  2, 30, "impact", 50,  "weapon", "A powered melee weapon"),
+    "stunner":        (200, 3,  1, 20, "sonic",  40,  "weapon", "A nonlethal weapon that disables humanoids"),
+    "carbine":        (550, 10, 5, 10, "impact", 50,  "weapon", "A projectile weapon with very high rate of fire and medium accuracy"),
+    "launcher":       (600, 10, 1, 30, "impact", 40,  "weapon", "Launches missiles in first combat round, damaging targets in an area"),
+    "laser rifle":    (700, 10, 1, 50, "energy", 40,  "weapon", "A powerful, heavy, expensive laser weapon"),
+    "blaster rifle":  (500, 10, 1, 50, "sonic",  40,  "weapon", "A powerful sonic rifle, but useless against robots"),
+    "stun baton":     (250, 4,  2, 20, "sonic",  200, "weapon", "A nonlethal melee weapon"),
 }
+
+# Robot attributes: cost, mass, rate, damage, damage type, hp, type, description
+ROBOT_ATTRIBUTES = {
+    "assaultbot": (500, 0, 3, 20, "impact", 200, "robot", "A fearless humanoid combat robot that can lead chamber breaches and fight enemies with the team"),
+    "techbot":    (350, 0, 1, 1,  "impact",  50, "robot", "A tech robot that can repair electronics and small misc items"),
+    "hackbot":    (200, 0, 1, 1,  "impact",  50, "robot", "A robot that can mesh with electronic interfaces and hack enemy systems"),
+    "mechbot":    (250, 0, 1, 5,  "impact",  50, "robot", "A repair robot that can repair structural or mechanical systems"),
+    "mulebot":    (250, 0, 1, 1,  "impact",  50, "robot", "A robot to carry food, ammo, and currently unused items to prevent team members from being encumbered"),
+    "scoutbot":   (150, 0, 1, 1,  "impact",  20, "robot", "A scout robot that helps prevent the team from being surprised"),
+    "meleebot":   (275, 0, 3, 20, "impact", 200, "robot", "A melee robot with short range cutters"),
+    "medibot":    (500, 0, 1, 5,  "impact",  50, "robot", "A medical robot that provides healing and medical supplies"),
+    "stunbot":    (350, 0, 2, 20, "sonic",  200, "robot", "A robot with ranged nonlethal weapons"),
+    "batonbot":   (250, 0, 2, 20, "impact", 200, "robot", "A melee robot with nonlethal stun batons"),
+}
+
+# Combined lookup: items first, then robots.
+# Use this anywhere you need to look up any name regardless of category.
+ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
 
 # protection vs energy, sonic, impact, slash, pierce, concussion, electric
 ARMOR_ATTRIBUTES = {
     "power shield": (8, 0, 0, 0, 0, 0, 3),
-    "veer suit": (5, 5, 5, 5, 5, 5, 5),
-    "exoskeleton": (3, 3, 3, 3, 3, 5, 5),
-    "holofield": (0, 0, 0, 0, 0, 0, 0),
-    "powered armor": (8, 10, 10, 10, 8, 10, 8),
+    "veer suit":    (5, 5, 5, 5, 5, 5, 5),
+    "exoskeleton":  (3, 3, 3, 3, 3, 5, 5),
+    "holofield":    (0, 0, 0, 0, 0, 0, 0),
+    "powered armor":(8, 10, 10, 10, 8, 10, 8),
 }
 
 # Tab names and types
@@ -146,7 +155,11 @@ def load_items():
     for file_name in os.listdir(tab_dir):
         if file_name.endswith(".jpg"):
             name = file_name.split(".")[0]
-            attributes = ITEM_ATTRIBUTES.get(name, (0, 0, "Unknown item"))
+            # Check items first, then robots
+            attributes = ITEM_ATTRIBUTES.get(name) or ROBOT_ATTRIBUTES.get(name)
+            if attributes is None:
+                print(f"Warning: no attributes found for '{name}', skipping.")
+                continue
             icon_path = resource_path(tab_dir + "/" + file_name)
 
             try:
@@ -167,7 +180,11 @@ def load_items_battle():
     for file_name in os.listdir(tab_dir):
         if file_name.endswith(".jpg"):
             name = file_name.split(".")[0]
-            attributes = ITEM_ATTRIBUTES.get(name, (0, 0, "Unknown item"))
+            # Check items first, then robots
+            attributes = ITEM_ATTRIBUTES.get(name) or ROBOT_ATTRIBUTES.get(name)
+            if attributes is None:
+                print(f"Warning: no attributes found for '{name}', skipping.")
+                continue
             icon_path = resource_path(tab_dir + "/" + file_name)
 
             try:
@@ -195,18 +212,3 @@ def load_item_tabs():
             items_by_tab["misc"].append(item)
 
     return items_by_tab
-
-def copy(self):
-    return Item(
-        self.name,
-        self.type,
-        self.cost,
-        self.mass,
-        self.rate,
-        self.damage,
-        self.hp,
-        self.description,
-        self.icon,
-        self.rect.copy() if self.rect else None
-    )
-
