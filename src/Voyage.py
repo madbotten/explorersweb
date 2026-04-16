@@ -483,8 +483,8 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
         privacy_level=privacy_level,
     )
 
-    emit_character_image_at_text_offset(initiator, screen)
     type_out_text(screen, result.sentence, font, WHITE)
+    emit_character_image_at_text_offset(initiator, screen)
 
     liked_by_score = target.interaction_liked_by.get(result.interaction_type, 0)
     reaction = _interaction_reaction_string(result.success, liked_by_score, target.name)
@@ -494,6 +494,11 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
     if observer_list:
         names = ", ".join(m.name for m in observer_list)
         type_out_text(screen, f"Witnessed by: {names}.", font, CYAN)
+    else:
+        type_out_text(screen, "The interaction went unobserved.", font, CYAN)
+
+    # Blank line to push text cursor past the portrait before "Click to continue".
+    type_out_text(screen, " ", font)
 
     # --- Fight escalation (Step 5) ---
     if result.fight_triggered:
@@ -1083,6 +1088,7 @@ def voyage(team_data) :
                 speech_done = True
                 draw_location(locations["mess"], screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                 calculate_outcome_inspirational_speech(team, None, None, screen, DEFAULT_FONT)
+                type_out_text(screen, "Click to proceed.", DEFAULT_FONT)
                 events_completed += 1
                 day += 1
             elif events_completed > max_events_in_voyage:

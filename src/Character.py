@@ -599,7 +599,10 @@ class Character:
                 )
 
     def has_melee_weapon(self):
-        return self.has_item("slicer")
+        return any(
+            item.type == "weapon" and item_base_name(item.name) in self._MELEE_BASES
+            for item in self.equipment
+        )
 
     def has_item(self, item_name):
         """Return True if the character carries any item whose base name matches item_name.

@@ -71,14 +71,14 @@ FIGHT_TRIGGER_CHANCE = 0.35
 # ---------------------------------------------------------------------------
 
 _FLATTER_OBJECTS = [
-    "about your outstanding leadership",
-    "about your impressive skills",
-    "about how decisive you are",
-    "about your excellent judgment in the field",
-    "about your tactical brilliance",
-    "about the respect you command",
-    "about your clear thinking under pressure",
-    "about what an asset you are to this team",
+    "about their outstanding leadership",
+    "about their impressive skills",
+    "about how decisive they are",
+    "about their excellent judgment in the field",
+    "about their tactical brilliance",
+    "about the respect they command",
+    "about their clear thinking under pressure",
+    "about what an asset they are to this team",
 ]
 
 # BRAG fragments are built dynamically from the initiator's skills/stats;

@@ -187,7 +187,23 @@ def draw_life_bar(character, screen, x, y):
     foreground_rect = pygame.Rect(x + 70, y + 46, current_life, 5)
     pygame.draw.rect(screen, (0, 255, 0), foreground_rect)
 
+# Width of the strip cleared for action + HIT/MISS + damage labels
+ACTION_CLEAR_WIDTH = 200
+
+def clear_character_action_area(character, screen):
+    """Black out the action-text row next to this character's portrait."""
+    row_h = font_height = 24  # tall enough to cover a 16-pt Orbitron label
+    y = character.get_rect().top
+    if character.is_pirate():
+        x = character.get_rect().left - TEAM_ACTIONS_X_OFFSET
+    else:
+        x = character.get_rect().left + TEAM_ACTIONS_X_OFFSET
+    clear_surf = pygame.Surface((ACTION_CLEAR_WIDTH, row_h))
+    clear_surf.fill((0, 0, 0))
+    screen.blit(clear_surf, (x, y))
+
 def battle_display_action(character, action, screen, font):
+    clear_character_action_area(character, screen)
     if character.is_pirate():
         battle_display_pirate_action(character, action, screen, font)
     else:
