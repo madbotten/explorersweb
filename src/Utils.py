@@ -107,28 +107,21 @@ LAUNCHER_SOUND = load_sound("music/launcher.mp3")
 
 def play_weapon_sound(weapon):
     energy_weapons = {"laser pistol", "laser rifle"}
-    sonic_weapons = {"blaster", "stunner"}
-    impact_weapons = {""}
-    slashing_weapons = {"slicer"}
+    sonic_weapons = {"blaster rifle", "stunner"}
+    slashing_weapons = {"slicer", "stun baton"}
     piercing_weapons = {"carbine", "pistol", "magnum"}
     concussion_weapons = {"launcher"}
 
-    # For now, use only energy and impact
     if weapon in concussion_weapons:
         LAUNCHER_SOUND.play()
     elif weapon in energy_weapons:
         LASER_SOUND.play()
-        return
-    elif weapon in piercing_weapons:
-        PISTOL_SOUND.play()
-        return
     elif weapon in sonic_weapons:
         LASER_SOUND.play()
-        return
+    elif weapon in piercing_weapons:
+        PISTOL_SOUND.play()
     elif weapon in slashing_weapons:
         MELEE_SOUND.play()
-        return
-    return
 
 def play_background_music(path, pygame):
     background_music_path = resource_path(path)

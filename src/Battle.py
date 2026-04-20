@@ -313,12 +313,12 @@ class TeamBattle:
         self.context.screen.blit(text_surface, (xloc, yloc))
 
     def choose_battle_action_ranged_phase(self, member):
-        if member.has_ranged_weapon():
+        if member.chosen_ranged_weapon is not None:
             return BattleAction.SHOOT
         return BattleAction.EVADE
 
     def choose_battle_action_melee_phase(self, member):
-        if member.has_melee_weapon():
+        if member.chosen_melee_weapon is not None:
             return BattleAction.MELEE
         return BattleAction.EVADE
 

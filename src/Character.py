@@ -596,6 +596,7 @@ class Character:
                 or self.has_item("blaster rifle")
                 or self.has_item("carbine")
                 or self.has_item("launcher")
+                or self.has_item("stunner")
                 )
 
     def has_melee_weapon(self):

@@ -50,11 +50,10 @@ def team_status(team, screen, font):
             color = RED
         if percent > 0:
             emit_character_image_at_text_offset(member, screen)
-            type_out_text(screen, f"{member.name} health is {percent}%.\n ", font, color)
-            type_out_text(screen, f"{member.name} morale is {morale}%.\n ", font, color)
+            type_out_text(screen, f"{member.name}  health {percent}%  morale {morale}%", font, color)
         else:
             emit_character_image_at_text_offset(member, screen)
-            type_out_text(screen, f"{member.name} is dead.\n ", font, RED)
+            type_out_text(screen, f"{member.name} is dead.", font, RED)
 
     reset_x_offset()
 
