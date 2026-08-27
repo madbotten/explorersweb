@@ -94,6 +94,7 @@ no_suitable_team_member_statements = [
 ]
 
 global locations
+_fusion_reactor_failed = False
 
 def update_screen(surface, background, day, font):
     surface.blit(background, (0, 0))
@@ -322,6 +323,105 @@ def calculate_outcome_ship_fire(team, stat_name, skill_name, screen, font):
             if member and len(member.equipment) > 0:
                 member.equipment.remove(random.choice(member.equipment))
                 member.demoralize(3)
+
+    type_out_text(screen, result_text, font, WHITE)
+    reset_x_offset()
+
+def calculate_outcome_fusion_reactor(team, stat_name, skill_name, screen, font):
+    """A contaminated fusion reactor requires a physicist to stabilise it.
+
+    Success: crew member gains +5 Physics knowledge and 3 mission points.
+    Failure: voyage takes longer (max_events_in_voyage += 2) and
+             the whole team loses 5 mission points.
+    """
+    member = determine_best_team_member(team, stat_name, skill_name)
+    if member:
+        type_out_text(screen, f"{member.name} rushes to the reactor bay and begins containment procedures:", font)
+    else:
+        type_out_text(screen, "No one on the team has the physics knowledge to clean the reactor.", font)
+        result_text = (
+            "Without a physicist aboard, the contamination slows the reactors.\n"
+            "The crew is forced onto a longer emergency route. (-5 mission points each)"
+        )
+        type_out_text(screen, result_text, font, RED)
+        for m in team:
+            if m:
+                m.mission_points = max(0, m.mission_points - 5)
+        return
+
+    # Simulate a skill check — physics is hard, apply a penalty
+    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+
+    if check_passed:
+        result_text = (
+            f"{member.name} stabilises the reactor and flushes the contamination safely.\n"
+            f"Their Physics knowledge deepens. (+5 Physics, +3 mission points)"
+        )
+        member.increase_skill(skill_name, 5)
+        member.mission_points += 3
+        member.encourage(2)
+    else:
+        result_text = (
+            f"{member.name} slows the contamination but cannot fully contain it.\n"
+            f"The Knacknarpia must take a longer, safer route. (-5 mission points each)"
+        )
+        for m in team:
+            if m:
+                m.mission_points = max(0, m.mission_points - 5)
+        # Signal to the voyage loop that it should extend the voyage
+        # by returning a sentinel value via a module-level flag
+        global _fusion_reactor_failed
+        _fusion_reactor_failed = True
+
+    type_out_text(screen, result_text, font, WHITE)
+    reset_x_offset()
+
+def calculate_outcome_plasma_torpedo(team, stat_name, skill_name, screen, font):
+    """A plasma torpedo in the magazine has become unstable and needs disarming.
+
+    Success: crew member gains +5 Explosives skill, +3 mission points;
+             every team member gains 2 courage.
+    Failure: every team member loses 3 courage and 5 mission points.
+    """
+    member = determine_best_team_member(team, stat_name, skill_name)
+    if member:
+        type_out_text(screen, f"{member.name} races to the magazine and begins disarming the torpedo:", font)
+    else:
+        type_out_text(screen, "No one on the team has the explosives knowledge to disarm it.", font)
+        result_text = (
+            "With no one able to defuse the torpedo, the crew can only watch helplessly.\n"
+            "The torpedo is jettisoned but the near-miss shakes the team. (-5 mission points, -3 courage each)"
+        )
+        type_out_text(screen, result_text, font, RED)
+        for m in team:
+            if m:
+                m.mission_points = max(0, m.mission_points - 5)
+                m.decrease_stat("courage", 3)
+        return
+
+    # Disarming a live plasma torpedo is extremely dangerous — stiff penalty
+    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -15)
+
+    if check_passed:
+        result_text = (
+            f"{member.name} cuts the right conduit and the torpedo goes cold. Crisis averted.\n"
+            f"The crew's confidence soars. (+5 Explosives, +3 mission points, +2 courage each)"
+        )
+        member.increase_skill(skill_name, 5)
+        member.mission_points += 3
+        for m in team:
+            if m:
+                m.increase_stat("courage", 2)
+        member.encourage(3)
+    else:
+        result_text = (
+            f"{member.name} cannot fully disarm it — the torpedo is ejected into space before it detonates.\n"
+            f"The close call rattles the entire crew. (-5 mission points, -3 courage each)"
+        )
+        for m in team:
+            if m:
+                m.mission_points = max(0, m.mission_points - 5)
+                m.decrease_stat("courage", 3)
 
     type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
@@ -984,7 +1084,7 @@ def voyage(team_data) :
         Event(
             "An alien signal is intercepted.",
             "The signal has ended.",
-            0, "intelligence", "Analysis", locations["communications"],
+            0, "intelligence", "Artifact Analysis", locations["communications"],
             calculate_outcome_alien_signal,
             all_items,
         ),
@@ -1007,6 +1107,20 @@ def voyage(team_data) :
             "The debris field is passed.",
             0, "coordination", "Piloting", locations["bridge"],
             calculate_outcome_avoid_debris,
+            all_items,
+        ),
+        Event(
+            "Alarms blare — a coolant breach has contaminated the fusion reactor.",
+            "The reactor situation has been resolved.",
+            0, "intelligence", "Physics", locations["engineering"],
+            calculate_outcome_fusion_reactor,
+            all_items,
+        ),
+        Event(
+            "A plasma torpedo in the ship's magazine has become dangerously unstable.",
+            "The torpedo threat has been dealt with.",
+            0, "coordination", "Explosives", locations["hangar"],
+            calculate_outcome_plasma_torpedo,
             all_items,
         ),
         # Empty outcomes
@@ -1110,6 +1224,9 @@ def voyage(team_data) :
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                     event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    if _fusion_reactor_failed:
+                        max_events_in_voyage += 2
+                        globals()['_fusion_reactor_failed'] = False
                     events_completed += 1
                     day += 1
                 else:
