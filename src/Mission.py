@@ -97,7 +97,7 @@ def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
             result_text = f"{member.name} could not blow out the lock."
             type_out_text(screen, result_text, font, WHITE)
 
-    rooms_to_goal += 5
+    rooms_to_goal += 2
     type_out_text(screen, "The portal remains locked, the team must take another route", font, WHITE)
     reset_x_offset()
     return
@@ -172,7 +172,7 @@ def calculate_goal_outcome_cutter(member, screen, font):
         member.mission_points += 10
         result = True
     else:
-        result_text = f"{member.name} detonates a shaped charge but the area remains unbreached."
+        result_text = f"{member.name} tries cutting in, but the area remains unbreached."
         result = False
 
     type_out_text(screen, result_text, font, WHITE)
@@ -180,7 +180,7 @@ def calculate_goal_outcome_cutter(member, screen, font):
     return result
 
 def calculate_goal_outcome_negotiation(member, screen, font):
-    type_out_text(screen, f"{member.name} negotiates with the AI", font)
+    type_out_text(screen, f"{member.name} attempts to negotiate with the AI:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -190,14 +190,15 @@ def calculate_goal_outcome_negotiation(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, None, "coordination", 10), font, color)
+    type_out_text(screen, roll_string(roll, "Negotiation", None, 10), font, color)
 
     if skill_check:
-        result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points)."
+        result_text = f"{member.name} convinces the AI to cooperate and grant access (+10 mission points).\nTheir skill has been strengthened."
         member.mission_points += 10
+        member.increase_skill("Negotiation", 5)
         result = True
     else:
-        result_text = f"{member.name} detonates a shaped charge but the area remains unbreached."
+        result_text = f"{member.name} could not reach an agreement with the AI."
         result = False
 
     type_out_text(screen, result_text, font, WHITE)
@@ -205,24 +206,25 @@ def calculate_goal_outcome_negotiation(member, screen, font):
     return result
 
 def calculate_goal_outcome_diplomacy(member, screen, font):
-    type_out_text(screen, f"{member.name} conducts diplomacy with the AI", font)
+    type_out_text(screen, f"{member.name} attempts a diplomatic approach with the AI:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, "coordination", None, 10)
+    skill_check = member.skill_check(roll, "Diplomacy", None, 10)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, None, "coordination", 10), font, color)
+    type_out_text(screen, roll_string(roll, "Diplomacy", None, 10), font, color)
 
     if skill_check:
-        result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points)."
+        result_text = f"{member.name} establishes a diplomatic accord with the AI, gaining access (+10 mission points).\nTheir skill has been strengthened."
         member.mission_points += 10
+        member.increase_skill("Diplomacy", 5)
         result = True
     else:
-        result_text = f"{member.name} detonates a shaped charge but the area remains unbreached."
+        result_text = f"{member.name} could not establish terms the AI would accept."
         result = False
 
     type_out_text(screen, result_text, font, WHITE)
@@ -257,6 +259,8 @@ def calculate_goal_outcome_espionage(member, screen, font):
 def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
     global mission_failed
 
+    mission_failed = True  # assume failure until a method succeeds
+
     print("Trying hacking")
     member = determine_best_team_member(team, None, "Hacking")
     if member:
@@ -272,8 +276,8 @@ def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
 
     if mission_failed:
         print("Trying cutter")
-        member = determine_best_team_member(team, None, None)
-        if member:
+        if team_has_item(team, "cutter"):
+            member = next(m for m in team if m.has_item("cutter"))
             mission_failed = not calculate_goal_outcome_cutter(member, screen, font)
             print(f"{mission_failed}")
 
@@ -302,6 +306,8 @@ def calculate_outcome_officers_quarters_neutralize(team, stat_name, skill_name, 
 def calculate_outcome_ai_core(team, stat_name, skill_name, screen, font):
     global mission_failed
 
+    mission_failed = True  # assume failure until a method succeeds
+
     member = determine_best_team_member(team, None, "Negotiation")
     if member:
         mission_failed = not calculate_goal_outcome_negotiation(member, screen, font)
@@ -320,7 +326,7 @@ def calculate_outcome_ai_core(team, stat_name, skill_name, screen, font):
         type_out_text(screen, "The mission has failed!", font)
     else:
         mission_failed = False
-        type_out_text(screen, "The AI core yields the secret information to the team.\nThe mission mission objective has been achieved!", font)
+        type_out_text(screen, "The AI core yields the secret information to the team.\nThe mission objective has been achieved!", font)
 
     return
 
@@ -466,6 +472,13 @@ def go_mission(team_data) :
             "The team breaches a hatch and enters a bay.",
             "Bioaugmentation has been cleared.",
             2, None, None, locations["bioaugmentation"],
+            empty_outcome,
+            all_items,
+        ),
+        Event(
+            "The team travels through another long corridor.",
+            "The team proceeds toward the mission objective without incident.",
+            0, None, None, locations["corridor"],
             empty_outcome,
             all_items,
         ),
