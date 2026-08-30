@@ -69,7 +69,79 @@ TEAM_FIVE_NAME_LOC = (340 + 5 * (CHARACTER_BOX_WIDTH + BOX_GAP), NAME_Y_TOP)
 CANDIDATE_RECT = pygame.Rect(22, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
 REJECTED_BOX = box_rect = pygame.Rect(1375, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
 
-def choose_team(team_data):
+def _prompt_team_name(screen):
+    """
+    Show a text-entry overlay on the current screen and return the entered team name.
+    Accepts alphanumeric characters and spaces (max 20 chars).
+    Enter confirms; Backspace deletes. Returns "My Team" if nothing is entered.
+    """
+    font_path   = resource_path("fonts/Orbitron-Bold.ttf")
+    title_font  = pygame.font.Font(font_path, 22)
+    input_font  = pygame.font.Font(font_path, 28)
+    hint_font   = pygame.font.Font(font_path, 13)
+
+    entered = ""
+    MAX_LEN = 20
+
+    # Overlay panel
+    panel_w, panel_h = 520, 180
+    panel_x = (SCREEN_WIDTH  - panel_w) // 2
+    panel_y = (SCREEN_HEIGHT - panel_h) // 2
+
+    clock = pygame.time.Clock()
+    done  = False
+
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    done = True
+                elif event.key == pygame.K_BACKSPACE:
+                    entered = entered[:-1]
+                else:
+                    ch = event.unicode
+                    # Allow letters, digits, spaces
+                    if ch and (ch.isalnum() or ch == " ") and len(entered) < MAX_LEN:
+                        entered += ch
+
+        # Draw semi-transparent overlay
+        overlay = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        overlay.fill((10, 20, 40, 220))
+        screen.blit(overlay, (panel_x, panel_y))
+        pygame.draw.rect(screen, (0, 180, 200),
+                         (panel_x, panel_y, panel_w, panel_h), 2, border_radius=8)
+
+        # Title
+        title = title_font.render("Name your team:", True, (0, 255, 255))
+        screen.blit(title, title.get_rect(centerx=panel_x + panel_w // 2,
+                                          y=panel_y + 20))
+
+        # Input box
+        box_rect = pygame.Rect(panel_x + 30, panel_y + 70, panel_w - 60, 50)
+        pygame.draw.rect(screen, (0, 40, 60), box_rect, border_radius=6)
+        pygame.draw.rect(screen, (0, 180, 200), box_rect, 2, border_radius=6)
+        display_text = entered if entered else ""
+        input_surf = input_font.render(display_text + "_", True, (255, 255, 255))
+        screen.blit(input_surf, input_surf.get_rect(
+            midleft=(box_rect.x + 12, box_rect.centery)))
+
+        # Hint
+        hint = hint_font.render("Press Enter to confirm", True, (100, 140, 160))
+        screen.blit(hint, hint.get_rect(centerx=panel_x + panel_w // 2,
+                                        y=panel_y + 140))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    result = entered.strip() or "My Team"
+    return result
+
+
+def choose_team(team_data, team_name="Debug Team", loop=1):
     # If this is the first mission, team starts empty.
     # team = [None, None, None, None, None, None]
     # Otherwise, this is an opportunity to replace team members or add ones to replace dead ones
@@ -550,16 +622,21 @@ def choose_team(team_data):
         # Update the display
         pygame.display.flip()
 
+    # ---- Team naming prompt (loop 1 only) ----
+    if stage < 1000 and loop == 1:
+        team_name = _prompt_team_name(screen)
+
     # store the resulting team
     if stage < 1000:
-        team_data = save_team("team_data_stage_1.pkl", team)
+        add_team_mission_param(team, "team_name", team_name)
+        team_data = save_team_named(team_name, loop, 1, team)
     else:
         team_data = None
 
     # Quit PyGame
     pygame.quit()
 
-    return stage + 1, team_data
+    return stage + 1, team_data, team_name
 
 def main():
     print("Starting Stage: Choose Team")

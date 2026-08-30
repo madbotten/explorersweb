@@ -363,7 +363,7 @@ def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
 def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
-def go_mission(team_data) :
+def go_mission(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
     global mission_failed
@@ -388,7 +388,7 @@ def go_mission(team_data) :
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team("team_data_stage_4.pkl")
+        team_data = load_team_named(team_name, loop, 4)
     team = [Character.from_dict(data) for data in team_data]
     for member in team:
         member.team = team
@@ -634,7 +634,7 @@ def go_mission(team_data) :
 
     # Save characters upon exit
     if stage < 1000:
-        team_data = save_team("team_data_stage_5.pkl", team)
+        team_data = save_team_named(team_name, loop, 5, team)
     else:
         team_data = None
 

@@ -15,7 +15,7 @@ MAX_TEAM_SIZE = 10
 MAX_WEAPONS = 2
 MAX_ARMOR = 2
 
-def equip_team(team_data) :
+def equip_team(team_data, team_name="Debug Team", loop=1) :
     print("started equip team")
     # Initialize Pygame
     pygame.init()
@@ -25,7 +25,7 @@ def equip_team(team_data) :
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team("team_data_stage_2.pkl")
+        team_data = load_team_named(team_name, loop, 2)
     team = [Character.from_dict(data) for data in team_data]
     for character in team:
         character.team = team
@@ -443,7 +443,7 @@ def equip_team(team_data) :
 
     # save characters upon exit
     if stage < 1000:
-        team_data = save_team("team_data_stage_3.pkl", team)
+        team_data = save_team_named(team_name, loop, 3, team)
     else:
         team_data = None
 

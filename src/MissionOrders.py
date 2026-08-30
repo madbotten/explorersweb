@@ -55,7 +55,7 @@ def draw_team(team, screen, font):
             screen.blit(character.portrait, (portrait_x, portrait_y))
 
 # Game screen function
-def mission_orders(team_data):
+def mission_orders(team_data, team_name="Debug Team", loop=1):
     # Initialize Pygame
     pygame.init()
     pygame.font.init()
@@ -82,7 +82,7 @@ def mission_orders(team_data):
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team("team_data_stage_1.pkl")
+        team_data = load_team_named(team_name, loop, 1)
     team = [Character.from_dict(data) for data in team_data]
 
     # if not vetted, chance their skills are exaggerated
@@ -189,7 +189,7 @@ def mission_orders(team_data):
             add_team_mission_param(team, "options", checkbox.param)
 
     if stage < 1000:
-        team_data = save_team("team_data_stage_2.pkl", team)
+        team_data = save_team_named(team_name, loop, 2, team)
     else:
         team_data = None
 

@@ -37,7 +37,7 @@ def draw_team_and_scores(team, screen, font):
         screen.blit(text_surface, (INSTRUCTIONS_LEFT_EDGE, vertical_offset))
         vertical_offset += CHARACTER_BOX_HEIGHT + 10
 
-def score(team_data) :
+def score(team_data, team_name="Debug Team", loop=1) :
     global text_x_offset
     global text_y_offset
     global max_height
@@ -61,7 +61,7 @@ def score(team_data) :
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team("team_data_stage_6.pkl")
+        team_data = load_team_named(team_name, loop, 6)
     team = [Character.from_dict(data) for data in team_data]
 
     # Load and play background music

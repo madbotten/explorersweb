@@ -1,6 +1,7 @@
 import pygame
 import sys
 
+from LoadGame import load_game
 from Intro import introduction3
 from ChooseTeam4 import choose_team
 from MissionOrders import mission_orders
@@ -13,52 +14,59 @@ from Score import score
 
 def main(stage, mission):
 
-    # Stage 0: Intro
-    team_data = []
-    print("Starting Stage: Introduction")
-    stage = introduction3()
-    print(stage)
+    # Show load/save screen first
+    team_name, loop, start_stage, team_data = load_game()
 
-    if stage <= 7:
-        run_mission(stage, mission, team_data)
+    if team_name == "__new__":
+        # Fresh game — run intro then start from stage 1
+        team_data = []
+        team_name = "unnamed"
+        loop = 1
+        print("Starting Stage: Introduction")
+        stage = introduction3()
+        print(stage)
+        run_mission(stage, loop, team_name, team_data)
     else:
-        run_mission(stage, mission + 1, team_data)
+        # Resume from the chosen stage
+        print(f"Resuming team '{team_name}' at stage {start_stage}, loop {loop}")
+        run_mission(start_stage, loop, team_name, team_data)
 
-def run_mission(stage, mission, team_data):
+
+def run_mission(stage, loop, team_name, team_data):
     # Stage 1: Form Team / Replace Members
     if stage == 1:
         print("Starting Stage: Choose Team")
-        stage, team_data = choose_team(team_data)
+        stage, team_data, team_name = choose_team(team_data, team_name, loop)
 
     # Stage 2: Mission Orders
     if stage == 2:
         print("Starting Stage: Mission Orders")
-        stage, team_data = mission_orders(team_data)
+        stage, team_data = mission_orders(team_data, team_name, loop)
 
     # Stage 3: Equip Team
     if stage == 3:
         print("Starting Stage: Equip Team")
-        stage, team_data = equip_team(team_data)
+        stage, team_data = equip_team(team_data, team_name, loop)
 
     # Stage 4: Voyage
     if stage == 4:
         print("Starting Stage: Voyage")
-        stage, team_data = voyage(team_data)
+        stage, team_data = voyage(team_data, team_name, loop)
 
     # Stage 5: Mission
     if stage == 5:
         print("Starting Stage: Mission")
-        stage, team_data = go_mission(team_data)
+        stage, team_data = go_mission(team_data, team_name, loop)
 
     # Stage 6: Return Voyage
     if stage == 6:
         print("Starting Stage: Return Voyage")
-        stage, team_data = return_voyage(team_data)
+        stage, team_data = return_voyage(team_data, team_name, loop)
 
-    # Stage 6: Score
+    # Stage 7: Score
     if stage == 7:
         print("Starting Stage: Score")
-        score(team_data)
+        score(team_data, team_name, loop)
 
 if __name__ == "__main__":
     main(0, 0)

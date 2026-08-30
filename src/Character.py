@@ -52,7 +52,7 @@ _LIKED_BY_LABELS = {
     InteractionType.JOKE:     "Cheerful",
 }
 
-# Directory path for character portraits
+# Base directory for all portraits; each character type lives in its own subdirectory
 portraits_dir = "portraits/"
 TOP_EDGE = 30
 CHARACTER_BOX_WIDTH = 90
@@ -61,7 +61,6 @@ CHARACTER_BOX_HEIGHT = 100
 class Character:
     def __init__(self, index, type, width=CHARACTER_BOX_WIDTH, height=CHARACTER_BOX_HEIGHT):
         self.type = type
-        print("new character type is " + type)
         if type == "pirate":
             self.name = "pirate" + str(index)
             self.occupation = "pirate"
@@ -178,9 +177,9 @@ class Character:
 
         if type != "robot":
           if type == "team":
-            portrait_path = resource_path(f"portraits/character{index}.jpg")
+            portrait_path = resource_path(f"portraits/characters/character{index}.jpg")
           elif type == "pirate":
-            portrait_path = resource_path(f"portraits/pirate{index}.jpg")
+            portrait_path = resource_path(f"portraits/pirates/pirate{index}.jpg")
           try:
             self.portrait = pygame.image.load(portrait_path)  # Load the portrait image
             self.portrait = pygame.transform.scale(self.portrait, (width, height))

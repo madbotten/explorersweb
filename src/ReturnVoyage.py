@@ -391,7 +391,7 @@ def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, 
             font, RED,
         )
 
-def return_voyage(team_data) :
+def return_voyage(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
 
@@ -413,7 +413,7 @@ def return_voyage(team_data) :
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team("team_data_stage_5.pkl")
+        team_data = load_team_named(team_name, loop, 5)
     team = [Character.from_dict(data) for data in team_data]
     for character in team:
         character.team = team
@@ -866,7 +866,7 @@ def return_voyage(team_data) :
 
     # Save characters upon exit
     if stage < 1000:
-        team_data = save_team("team_data_stage_6.pkl", team)
+        team_data = save_team_named(team_name, loop, 6, team)
 
     pygame.quit()
 

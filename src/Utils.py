@@ -90,6 +90,76 @@ def load_team(filename):
     with open(filename, "rb") as team_file:
         return pickle.load(team_file)
 
+# ---------------------------------------------------------------------------
+# Named save/load system — saves/{team_name}/loop_{L}_{stage_name}_stage.pkl
+# ---------------------------------------------------------------------------
+SAVES_DIR = "saves"
+
+# Human-readable stage names used in save filenames
+STAGE_NAMES = {
+    1: "choose",
+    2: "orders",
+    3: "equip",
+    4: "voyage",
+    5: "mission",
+    6: "return",
+}
+STAGE_NUMBERS = {v: k for k, v in STAGE_NAMES.items()}
+
+def save_path(team_name: str, loop: int, stage: int) -> str:
+    """Return the path for saves/{team_name}/loop_{loop}_{name}_stage.pkl."""
+    folder = team_name.replace(" ", "_")
+    name   = STAGE_NAMES.get(stage, f"stage{stage}")
+    return os.path.join(SAVES_DIR, folder, f"loop_{loop}_{name}_stage.pkl")
+
+def save_team_named(team_name: str, loop: int, stage: int, team: list) -> list:
+    """Save team to the named path; create the directory if needed. Returns team_data."""
+    path = save_path(team_name, loop, stage)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    team_data = [character.to_dict() for character in team]
+    with open(path, "wb") as f:
+        pickle.dump(team_data, f)
+    return team_data
+
+def load_team_named(team_name: str, loop: int, stage: int) -> list:
+    """Load from saves/{team_name}/loop_{loop}_{name}_stage.pkl."""
+    path = save_path(team_name, loop, stage)
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def latest_saves_for_team(team_name: str) -> dict:
+    """Return {stage_int: highest_loop} for every stage that has a save file."""
+    folder   = team_name.replace(" ", "_")
+    team_dir = os.path.join(SAVES_DIR, folder)
+    result   = {}
+    if not os.path.isdir(team_dir):
+        return result
+    for fname in os.listdir(team_dir):
+        if not fname.endswith(".pkl"):
+            continue
+        stem  = fname[:-4]   # strip .pkl
+        parts = stem.split("_")
+        # Pattern: loop_{L}_{name}_stage  →  ['loop', L, name, 'stage']
+        if len(parts) == 4 and parts[0] == "loop" and parts[3] == "stage":
+            try:
+                lp = int(parts[1])
+                st = STAGE_NUMBERS.get(parts[2])
+                if st is not None:
+                    if st not in result or lp > result[st]:
+                        result[st] = lp
+            except ValueError:
+                pass
+    return result
+
+def list_teams() -> list:
+    """Return all team-name subfolders found under saves/."""
+    if not os.path.isdir(SAVES_DIR):
+        return []
+    return [
+        d for d in os.listdir(SAVES_DIR)
+        if os.path.isdir(os.path.join(SAVES_DIR, d)) and not d.startswith(".")
+    ]
+
 def load_sound(filename):
     sound_path = resource_path(filename)
     if os.path.exists(sound_path):
