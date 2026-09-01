@@ -253,7 +253,7 @@ def clear_team_last_action(team):
         member.last_action = None
 
 def team_dead(team):
-    return all(character.stats.get("lifelevel", 0) <= 0 for character in team)
+    return all(character.stats.get("max_health", 0) <= 0 for character in team)
 
 def add_team_mission_param(team, key, param):
     for member in team:
@@ -280,18 +280,21 @@ def team_skill_check(team, skill_name, difficulty_modifier):
 
 def team_needs_heal(team):
     return any(
-        member.stats["lifelevel"] > 0 and member.type == "team" and member.stats["lifelevel"] < 0.75 * member.max_lifelevel()
+        member.current_health > 0 and member.type == "team"
+        and member.current_health < 0.75 * member.stats["max_health"]
         for member in team
     )
 
 def heal_team_by(team, amount):
     bio_team = [m for m in team if m.type == "team"]
     for member in bio_team:
-        if member.stats["lifelevel"] > 0:  # Only heal alive members
-            member.stats["lifelevel"] = min(
-                member.max_lifelevel(),
-                member.stats["lifelevel"] + amount
+        if member.current_health > 0:  # Only heal alive members
+            member.current_health = min(
+                member.stats["max_health"],   # cap at max-HP stat
+                member.current_health + amount
             )
+            # Healing raises morale toward the current health ratio
+            member.morale_from_health()
 
 
 class EventContext:

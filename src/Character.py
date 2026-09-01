@@ -75,7 +75,7 @@ class Character:
         self.stats["deception"] = round((self.stats["courage"] + self.stats["charisma"]) / 2)
         self.stats["evasion"] = round((self.stats["intelligence"] + self.stats["coordination"]) / 2)
         self.stats["analyze"] = round((self.stats["intelligence"] + self.stats["willpower"]) / 2)
-        self.stats["lifelevel"] = self.stats["strength"] + self.stats["willpower"]
+        self.stats["max_health"] = self.stats["strength"] + self.stats["willpower"]
         self.stats["movement"] = self.stats["strength"] + self.stats["willpower"] + self.stats["coordination"]
         self.stats["meleecombat"] = self.stats["evasion"] + self.stats["strength"]
         self.stats["surprise"] = self.stats["deception"] + self.stats["evasion"]
@@ -123,7 +123,7 @@ class Character:
         # scores are populated and updated during gameplay.
         # Robots keep all relationships at 0.
         self.relationships: dict[str, int] = {}
-        self.current_health = self.stats["lifelevel"]
+        self.current_health = self.stats["max_health"]
 
         self.vetted = False
         self.psychotic = False
@@ -258,36 +258,69 @@ class Character:
        return self.occupation == "pirate"
 
     def get_health_ratio(self):
-        # SHOULD this be get_effective_stat("livelevel) ?
-        return self.stats["lifelevel"] / self.max_lifelevel()
+        """Current HP as a 0.0-1.0 fraction of max HP."""
+        if self.is_robot():
+            return self.current_health / self.max_life if self.max_life > 0 else 0.0
+        max_hp = self.stats["max_health"]
+        return self.current_health / max_hp if max_hp > 0 else 0.0
+
+    def health_pct(self):
+        """Current HP as a 0–100 integer percentage of max HP."""
+        return int(self.get_health_ratio() * 100)
+
+    def morale_from_health(self):
+        """
+        Sync morale upward to match the current health percentage.
+        Called after healing or repair — morale can never exceed 100,
+        and can be higher than health% if a separate event boosted it,
+        but healing raises a floor up to health%.
+        For robots morale IS health%, so it is set exactly.
+        """
+        pct = self.health_pct()
+        if self.is_robot():
+            self.morale = pct
+        else:
+            self.morale = min(100, max(self.morale, pct))
 
     def get_morale_ratio(self):
         return self.morale / 100
 
-    def max_lifelevel(self):
-        base_lifeforce = self.stats["strength"] + self.stats["willpower"]
+    def get_max_health(self):
+        """Max HP for this character (stat, never changes during play)."""
+        base = self.stats["strength"] + self.stats["willpower"]
         if self.has_item("stimulant"):
-            base_lifeforce += 50
-        return base_lifeforce
+            base += 50
+        return base
 
     def get_lifelevel(self):
-        return self.stats["lifelevel"]
+        """Return current HP (not the max-HP stat)."""
+        return self.current_health
 
     def is_alive(self):
-        return self.stats["lifelevel"] > 0
+        return self.current_health > 0
 
     def demoralize(self, amount):
-        self.morale -= amount
-        if self.morale <= 0:
-            self.morale = 0
+        """Lower morale by amount. Robots are immune (their morale tracks HP only)."""
+        if self.is_robot():
+            return
+        self.morale = max(0, self.morale - amount)
 
     def encourage(self, amount):
-        self.morale += amount
-        if self.morale > 100:
-            self.morale = 100
+        """Raise morale by amount. Robots are immune (their morale tracks HP only)."""
+        if self.is_robot():
+            return
+        self.morale = min(100, self.morale + amount)
 
     # Apply the pain and return True if they died
     def hurt(self, damage, effect_type):
+        """
+        Apply damage and update morale.
+
+        Robots: morale is set to health% (damage state proxy).
+        Humans: morale drops by the damage dealt AND is clamped so it
+                cannot exceed the current health percentage — injury
+                always pulls morale down at least as far as HP dropped.
+        """
         # effect_type → index in ARMOR_ATTRIBUTES multiplier tuple
         # (energy, sonic, impact, slash, pierce, concussion, electric)
         EFFECT_TYPE_INDEX = {
@@ -308,11 +341,23 @@ class Character:
         # always do at least 1 point on hit
         damage = max(1, damage)
 
-        # being wounded also demoralizes
-        self.morale = max(0, self.morale - damage)
+        # Apply HP damage to current_health (stats["max_health"] is the max-HP stat, never changes)
+        self.current_health = max(0, self.current_health - damage)
 
-        self.stats["lifelevel"] = max(0, self.stats["lifelevel"] - damage)
-        if self.stats["lifelevel"] <= 0:
+        # Update morale based on new health state
+        if self.is_robot():
+            # Robot morale = exact health ratio (their only morale driver)
+            self.morale = self.health_pct()
+        else:
+            # Morale drop is proportional to damage relative to max health:
+            #   15 dmg vs 100 max_health = -15 morale
+            #   15 dmg vs 200 max_health = -7.5 -> -8 morale
+            # Also clamped so morale can never exceed the current health%.
+            max_hp = self.stats["max_health"]
+            morale_drop = round(damage / max_hp * 100) if max_hp > 0 else damage
+            self.morale = max(0, min(self.morale - morale_drop, self.health_pct()))
+
+        if self.current_health <= 0:
             return True
         return False
 
@@ -322,8 +367,8 @@ class Character:
         if skill_name is None:
             return True
         ability = self.get_effective_skill_level(skill_name)
-        health = self.get_morale_ratio()
-        if roll < (ability * health) + difficulty_modifier:
+        morale_modifier = self.get_morale_ratio()
+        if roll < (ability * morale_modifier) + difficulty_modifier:
             return True
         return False
 
@@ -336,8 +381,8 @@ class Character:
 
         ability = self.get_effective_skill_level(skill_name)
         ability += self.get_effective_stat_level(stat_name)
-        health = self.get_morale_ratio()
-        if roll < (ability * health) + difficulty_modifier:
+        morale_modifier = self.get_morale_ratio()
+        if roll < (ability * morale_modifier) + difficulty_modifier:
             return True
         return False
 
@@ -346,14 +391,13 @@ class Character:
         if stat_name is None:
             return True
         print("stat check for " + stat_name + " with difficulty " + str(difficulty_modifier))
-        if self.stats["lifelevel"] < 0:
-            self.stats["lifelevel"] = 0
+        if self.current_health < 0:
+            self.current_health = 0
         ability = self.get_effective_stat_level(stat_name)
         print("Ability is " + str(ability))
-        health = self.get_health_ratio()
-        print("Health is " + health)
+        morale_modifier = self.get_morale_ratio()
         print("Roll is " + str(roll))
-        if roll < (ability * health) + difficulty_modifier:
+        if roll < (ability * morale_modifier) + difficulty_modifier:
             return True
         return False
 
@@ -771,7 +815,7 @@ class Character:
         "deception": "Ability to mislead and manipulate",
         "evasion": "Capability to avoid detection and attacks",
         "analyze": "Skill in examining and understanding unknown objects",
-        "lifelevel": "Overall health and vitality",
+        "max_health": "Overall health and vitality",
         "movement": "Speed and agility in movement",
         "meleecombat": "Skill in close-quarters combat",
         "surprise": "Capability to catch others off-guard",
@@ -862,8 +906,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/assaultbot.jpg")
         assaultbot.portrait = pygame.image.load(portrait_path)
         assaultbot.portrait = pygame.transform.scale(assaultbot.portrait, (70, 80))
-        assaultbot.stats["livelevel"] = all_items["assaultbot"].hp
         assaultbot.max_life = all_items["assaultbot"].hp
+        assaultbot.stats["max_health"] = assaultbot.max_life
+        assaultbot.current_health = assaultbot.max_life
         assaultbot.stats["strength"] = 50
         assaultbot.stats["intelligence"] = 30
         assaultbot.stats["willpower"] = 90
@@ -894,9 +939,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/stunbot.jpg")
         stunbot.portrait = pygame.image.load(portrait_path)
         stunbot.portrait = pygame.transform.scale(stunbot.portrait, (70, 80))
-        stunbot.stats["livelevel"] = all_items["stunbot"].hp
         stunbot.max_life = all_items["stunbot"].hp
-        stunbot.stats["lifelevel"] = stunbot.max_life
+        stunbot.stats["max_health"] = stunbot.max_life
+        stunbot.current_health = stunbot.max_life
         stunbot.stats["strength"] = 50
         stunbot.stats["intelligence"] = 30
         stunbot.stats["willpower"] = 90
@@ -926,9 +971,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/mechbot.jpg")
         mechbot.portrait = pygame.image.load(portrait_path)
         mechbot.portrait = pygame.transform.scale(mechbot.portrait, (70, 80))
-        mechbot.stats["livelevel"] = all_items["mechbot"].hp
         mechbot.max_life = all_items["mechbot"].hp
-        mechbot.stats["lifelevel"] = mechbot.max_life
+        mechbot.stats["max_health"] = mechbot.max_life
+        mechbot.current_health = mechbot.max_life
         mechbot.stats["strength"] = 50
         mechbot.stats["intelligence"] = 30
         mechbot.stats["willpower"] = 90
@@ -957,8 +1002,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/techbot.jpg")
         techbot.portrait = pygame.image.load(portrait_path)
         techbot.portrait = pygame.transform.scale(techbot.portrait, (70, 80))
-        techbot.stats["livelevel"] = all_items["techbot"].hp
         techbot.max_life = all_items["techbot"].hp
+        techbot.stats["max_health"] = techbot.max_life
+        techbot.current_health = techbot.max_life
         techbot.stats["strength"] = 50
         techbot.stats["intelligence"] = 30
         techbot.stats["willpower"] = 90
@@ -988,9 +1034,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/hackbot.jpg")
         hackbot.portrait = pygame.image.load(portrait_path)
         hackbot.portrait = pygame.transform.scale(hackbot.portrait, (70, 80))
-        hackbot.stats["livelevel"] = all_items["hackbot"].hp
         hackbot.max_life = all_items["hackbot"].hp
-        hackbot.stats["lifelevel"] = hackbot.max_life
+        hackbot.stats["max_health"] = hackbot.max_life
+        hackbot.current_health = hackbot.max_life
         hackbot.stats["strength"] = 50
         hackbot.stats["intelligence"] = 30
         hackbot.stats["willpower"] = 90
@@ -1020,8 +1066,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/meleebot.jpg")
         meleebot.portrait = pygame.image.load(portrait_path)
         meleebot.portrait = pygame.transform.scale(meleebot.portrait, (70, 80))
-        meleebot.stats["livelevel"] = all_items["meleebot"].hp
         meleebot.max_life = all_items["meleebot"].hp
+        meleebot.stats["max_health"] = meleebot.max_life
+        meleebot.current_health = meleebot.max_life
         meleebot.stats["strength"] = 50
         meleebot.stats["intelligence"] = 30
         meleebot.stats["willpower"] = 90
@@ -1051,8 +1098,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/batonbot.jpg")
         batonbot.portrait = pygame.image.load(portrait_path)
         batonbot.portrait = pygame.transform.scale(batonbot.portrait, (70, 80))
-        batonbot.stats["livelevel"] = all_items["batonbot"].hp
         batonbot.max_life = all_items["batonbot"].hp
+        batonbot.stats["max_health"] = batonbot.max_life
+        batonbot.current_health = batonbot.max_life
         batonbot.stats["strength"] = 50
         batonbot.stats["intelligence"] = 30
         batonbot.stats["willpower"] = 90
@@ -1082,8 +1130,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/medibot.jpg")
         medibot.portrait = pygame.image.load(portrait_path)
         medibot.portrait = pygame.transform.scale(medibot.portrait, (70, 80))
-        medibot.stats["livelevel"] = all_items["medibot"].hp
         medibot.max_life = all_items["medibot"].hp
+        medibot.stats["max_health"] = medibot.max_life
+        medibot.current_health = medibot.max_life
         medibot.stats["strength"] = 50
         medibot.stats["intelligence"] = 30
         medibot.stats["willpower"] = 90
@@ -1113,8 +1162,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/mulebot.jpg")
         mulebot.portrait = pygame.image.load(portrait_path)
         mulebot.portrait = pygame.transform.scale(mulebot.portrait, (70, 80))
-        mulebot.stats["livelevel"] = all_items["mulebot"].hp
         mulebot.max_life = all_items["mulebot"].hp
+        mulebot.stats["max_health"] = mulebot.max_life
+        mulebot.current_health = mulebot.max_life
         mulebot.stats["strength"] = 50
         mulebot.stats["intelligence"] = 30
         mulebot.stats["willpower"] = 90
@@ -1143,8 +1193,9 @@ class Character:
         portrait_path = resource_path(f"gadgets/scoutbot.jpg")
         scoutbot.portrait = pygame.image.load(portrait_path)
         scoutbot.portrait = pygame.transform.scale(scoutbot.portrait, (70, 80))
-        scoutbot.stats["livelevel"] = all_items["scoutbot"].hp
         scoutbot.max_life = all_items["scoutbot"].hp
+        scoutbot.stats["max_health"] = scoutbot.max_life
+        scoutbot.current_health = scoutbot.max_life
         scoutbot.stats["strength"] = 30
         scoutbot.stats["intelligence"] = 50
         scoutbot.stats["willpower"] = 90
@@ -1184,6 +1235,8 @@ class Character:
             "psychotic": self.psychotic,
             "traitor": self.traitor,
             "morale": self.morale,
+            "current_health": self.current_health,
+            "max_life": self.max_life,
             # Store each item in equipment as a serializable dictionary without the 'icon' pygame surface
             # Store equipment as a list of dictionaries (Item's `__dict__`).
             "equipment": [item.to_dict() for item in self.equipment],
@@ -1211,7 +1264,9 @@ class Character:
         character.vetted = data["vetted"]
         character.psychotic = data["psychotic"]
         character.traitor = data["traitor"]
-        character.morale = data["morale"]
+        character.morale         = data["morale"]
+        character.max_life       = data.get("max_life", 0)
+        character.current_health = data.get("current_health", character.stats.get("max_health", 0))
         if "mission" in data:
             character.mission = data["mission"]
         if "mission points" in data:

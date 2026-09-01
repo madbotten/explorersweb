@@ -36,21 +36,21 @@ def mission_failure(screen, font):
 def team_status(team, screen, font):
     deaths = 0
     for member in team:
-        if member.stats["lifelevel"] * 100 // member.max_lifelevel() <= 0:
+        if member.current_health <= 0:
             deaths += 1
 
     for member in team:
         member.demoralize(5 * deaths)
 
     for member in team:
-        percent = member.stats["lifelevel"] * 100 // member.max_lifelevel()
-        morale = member.morale // 100
+        max_hp  = member.stats["max_health"] if not member.is_robot() else member.max_life
+        percent = member.current_health * 100 // max_hp if max_hp > 0 else 0
         color = GREEN
         if percent <= 50:
             color = RED
-        if percent > 0:
+        if member.current_health > 0:
             emit_character_image_at_text_offset(member, screen)
-            type_out_text(screen, f"{member.name}  health {percent}%  morale {morale}%", font, color)
+            type_out_text(screen, f"{member.name}  health {percent}%  morale {member.morale}%", font, color)
         else:
             emit_character_image_at_text_offset(member, screen)
             type_out_text(screen, f"{member.name} is dead.", font, RED)
@@ -63,7 +63,7 @@ def team_repairs_robots(team, screen, font):
     robots = [m for m in team if m.type == "robot"]
     for robot in robots:
         if robot.type == "robot":
-          if 0 < robot.stats["lifelevel"] < .75 * robot.max_life:
+          if 0 < robot.current_health < .75 * robot.max_life:
             type_out_text(screen, f"{robot.name} needs repair.", font)
             repair_needed = True
 
@@ -81,14 +81,16 @@ def team_repairs_robots(team, screen, font):
 
     for robot in robots:
         if robot.type == "robot":
-          robot.stats["lifelevel"] = min(robot.max_life, robot.stats["lifelevel"] + base_repair)
+          robot.current_health = min(robot.max_life, robot.current_health + base_repair)
+          # Robot morale = health ratio - update after repair
+          robot.morale_from_health()
 
     return
 
 def team_heals(team, screen, font):
     # take out your dead
     for member in team[:]:
-        if member.stats["lifelevel"] <= 0:
+        if member.current_health <= 0:
             type_out_text(screen, f"{member.name} is dead.", font, RED)
             team.remove(member)
     # Refresh each survivor's team reference so mulebot checks stay accurate
