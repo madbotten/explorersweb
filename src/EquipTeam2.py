@@ -247,7 +247,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
         # Display stats
         for stat, value in character.stats.items():
             color = color_for_stat(value)
-            if stat == "lifelevel" or stat == "meleecombat" or stat == "surprise":
+            if stat == "max_health" or stat == "meleecombat" or stat == "surprise":
                 color = color_for_stat(round(value / 2))
             if stat == "movement" or stat == "leadership":
                 color = color_for_stat(round(value / 3))
@@ -440,6 +440,32 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
         blit_item_descriptions_with_hover(screen, items_by_tab[selected_tab], ITEM_DESC_FONT, mouse_pos)
 
         pygame.display.flip()
+
+    # modifications for traitors, psychos, and unvetted characters
+    for member in team:
+        if member.type == "robot":
+            continue
+
+        # Unvetted: 10% chance they misrepresented their skills
+        # Lower 1-3 randomly chosen skills by 10-25%
+        if not member.vetted and random.randint(1, 100) <= 10:
+            skill_names = list(member.skills.keys())
+            if skill_names:
+                n = random.randint(1, min(3, len(skill_names)))
+                for skill in random.sample(skill_names, n):
+                    reduction = random.uniform(0.10, 0.25)
+                    member.skills[skill] = max(1, int(member.skills[skill] * (1 - reduction)))
+
+        # Traitors: covert training grants or boosts Espionage and/or Hacking
+        # 75% chance of Espionage skill (or +20 if they already have it)
+        # 50% chance of Hacking skill (or +20 if they already have it)
+        if member.traitor:
+            if random.randint(1, 100) <= 75:
+                current = member.skills.get("Espionage", 0)
+                member.skills["Espionage"] = min(100, max(current + 20, 40))
+            if random.randint(1, 100) <= 50:
+                current = member.skills.get("Hacking", 0)
+                member.skills["Hacking"] = min(100, max(current + 20, 40))
 
     # save characters upon exit
     if stage < 1000:

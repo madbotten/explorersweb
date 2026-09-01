@@ -125,9 +125,9 @@ class Character:
         self.relationships: dict[str, int] = {}
         self.current_health = self.stats["max_health"]
 
-        self.vetted = False
-        self.psychotic = False
-        self.traitor = False
+        self.vetted    = False
+        self.psychotic = random.randint(1, 100) <= 5   # 5% start psychotic
+        self.traitor   = random.randint(1, 100) <= 5   # 5% start as traitor
 
         if type != "robot":
             if random.randint(1, 100) < 25:
@@ -150,14 +150,8 @@ class Character:
                 self.psychotic = False
             elif random.randint(1, 100) < 50:
                 self.history += "\nPsych analysis: Borderline."
-                roll = random.randint(1, 100)
-                if roll < 10:
-                    self.psychotic = True
             elif random.randint(1, 100) < 50:
                 self.history += "\nPsych analysis: Indeterminate."
-                roll = random.randint(1, 100)
-                if roll < 15:
-                    self.psychotic = True
             else:
                 self.history += "\nPsych analysis: Failed."
                 roll = random.randint(1, 100)
@@ -300,8 +294,12 @@ class Character:
         return self.current_health > 0
 
     def demoralize(self, amount):
-        """Lower morale by amount. Robots are immune (their morale tracks HP only)."""
-        if self.is_robot():
+        """Lower morale by amount.
+        Robots are immune (their morale tracks HP only).
+        Psychotics are immune to mental/social demoralization; they still
+        lose morale from physical damage via hurt().
+        """
+        if self.is_robot() or self.psychotic:
             return
         self.morale = max(0, self.morale - amount)
 
