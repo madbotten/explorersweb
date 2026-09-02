@@ -7,6 +7,7 @@ from Utils import *
 from Character import *
 from Item import *
 from Location import *
+from constants import DEBUG
 
 class BattleAction(Enum):
     NONE = 0
@@ -175,7 +176,7 @@ def draw_numbered_dot(character, context, color):
 def draw_life_bar(character, screen, x, y):
     # Calculate life level proportion
     current_life = character.get_lifelevel()
-    max_life = character.max_lifelevel()
+    max_life = character.get_max_health()
     # limit bar size for screen constraints
     max_life = min(200, max_life)
 
@@ -339,7 +340,8 @@ class TeamBattle:
         return
 
     def run_battle_action_evade(self, character):
-        print(f"{character.name} evades.")
+        if DEBUG:
+            print(f"{character.name} evades.")
         announce_action(f"{character.name}'s action: EVADE", self.context.screen, self.context.font)
         battle_display_action(character, BattleAction.EVADE, self.context.screen, self.context.font)
         character.last_action = BattleAction.EVADE
@@ -636,7 +638,8 @@ class TeamBattle:
         return
 
     def print_debug(self, round):
-        print(str(round))
+        if DEBUG:
+            print(str(round))
         for member in self.context.team:
             print(f"{member.name} : life: {member.get_lifelevel()}")
         for member in self.context.enemies:

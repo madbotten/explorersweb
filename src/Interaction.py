@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 # circular-import problems (Character.py imports from Battle, Utils, Item).
 # We re-export them here for convenience.
 from Character import InteractionType, INTERACTION_LOVE_THRESHOLD, INTERACTION_HATE_THRESHOLD
+from constants import DEBUG
 
 # ---------------------------------------------------------------------------
 # Public constants
@@ -386,8 +387,9 @@ class Interaction:
             setting_type=PROFESSIONAL,
             privacy_level=PUBLIC,
         )
-        print(result.sentence)
-        print("Success!" if result.success else "Failed.")
+        if DEBUG:
+            print(result.sentence)
+            print("Success!" if result.success else "Failed.")
     """
 
     def __init__(

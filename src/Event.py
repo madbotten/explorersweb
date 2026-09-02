@@ -5,6 +5,8 @@ import time
 from Battle import *
 from TypeText import *
 from Character import *
+from Utils import *
+from constants import DEBUG
 
 enemies_present_statements = [
     "Enemies are present! A battle breaks out.",
@@ -25,7 +27,8 @@ def team_evades_notice(team):
     avg_evasion = sum(m.get_effective_combat_evasion() for m in team) / len(team)
     roll = random.randint(1, 100)
     evaded = roll < avg_evasion
-    print(f"Stealth check: roll={roll}, avg_evasion={avg_evasion:.1f}, evaded={evaded}")
+    if DEBUG:
+        print(f"Stealth check: roll={roll}, avg_evasion={avg_evasion:.1f}, evaded={evaded}")
     return evaded
 
 def mission_failure(screen, font):

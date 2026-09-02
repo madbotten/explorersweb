@@ -4,6 +4,7 @@ from Character import *
 from DrawUtils import DrawingContext
 from Item import *
 from Utils import *
+from constants import TOP_BAR_Y, DEBUG
 
 
 # Screen settings
@@ -16,7 +17,8 @@ MAX_WEAPONS = 2
 MAX_ARMOR = 2
 
 def equip_team(team_data, team_name="Debug Team", loop=1) :
-    print("started equip team")
+    if DEBUG:
+        print("started equip team")
     # Initialize Pygame
     pygame.init()
     pygame.mixer.init()
@@ -53,10 +55,10 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
     ITEM_DESC_FONT = pygame.font.Font(font_path, 14)
     context = DrawingContext(screen)
 
-    PROCEED_RECT = pygame.Rect(1220, 5, 105, 25)
+    PROCEED_RECT = pygame.Rect(1220, TOP_BAR_Y, 105, 25)
     PROCEED_TEXT = DEFAULT_FONT.render("PROCEED", True, CYAN)
     STORE_RECT = pygame.Rect(0, 50, ITEM_PANEL_WIDTH - 50, SCREEN_HEIGHT)
-    EXIT_RECT = pygame.Rect(1400, 5, 105, 25)
+    EXIT_RECT = pygame.Rect(1400, TOP_BAR_Y, 105, 25)
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
     MESSAGE_LEFT = 300
 

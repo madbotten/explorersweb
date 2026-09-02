@@ -4,7 +4,8 @@ from typing import Any
 import pygame
 import random
 import os
-import copy
+from typing import Any
+from constants import DEBUG
 
 from Battle import BattleAction
 from Utils import *
@@ -78,8 +79,9 @@ class Character:
         self.stats["max_health"] = self.stats["strength"] + self.stats["willpower"]
         self.stats["movement"] = self.stats["strength"] + self.stats["willpower"] + self.stats["coordination"]
         self.stats["meleecombat"] = self.stats["evasion"] + self.stats["strength"]
-        self.stats["surprise"] = self.stats["deception"] + self.stats["evasion"]
-        self.stats["leadership"] = self.stats["intelligence"] + self.stats["charisma"] + self.stats["courage"]
+        self.stats["perception"]  = round((self.stats["willpower"] + self.stats["coordination"]) / 2)
+        self.stats["surprise"]    = self.stats["evasion"] + self.stats["perception"]
+        self.stats["leadership"]  = self.stats["intelligence"] + self.stats["charisma"] + self.stats["courage"]
 
         self.homeworld = random.choice(self.homeworlds)
         self.event = random.choice(self.events)
@@ -388,13 +390,15 @@ class Character:
     def stat_check(self, roll, stat_name, difficulty_modifier):
         if stat_name is None:
             return True
-        print("stat check for " + stat_name + " with difficulty " + str(difficulty_modifier))
+        if DEBUG:
+            print("stat check for " + stat_name + " with difficulty " + str(difficulty_modifier))
         if self.current_health < 0:
             self.current_health = 0
         ability = self.get_effective_stat_level(stat_name)
-        print("Ability is " + str(ability))
         morale_modifier = self.get_morale_ratio()
-        print("Roll is " + str(roll))
+        if DEBUG:
+            print("Ability is " + str(ability))
+            print("Roll is " + str(roll))
         if roll < (ability * morale_modifier) + difficulty_modifier:
             return True
         return False
@@ -817,7 +821,8 @@ class Character:
         "movement": "Speed and agility in movement",
         "meleecombat": "Skill in close-quarters combat",
         "surprise": "Capability to catch others off-guard",
-        "leadership": "Ability to inspire loyalty and lead others"
+        "leadership": "Ability to inspire loyalty and lead others",
+        "perception": "Ability to observe environment and notice threats"
     }
 
     skill_descriptions = {
@@ -922,6 +927,7 @@ class Character:
         assaultbot.stats["meleecombat"] = 10
         assaultbot.stats["surprise"] = 175
         assaultbot.stats["leadership"] = 5
+        assaultbot.stats["perception"] = 30
         assaultbot.skills = {"Energy Weapons":75, "Mech Combat":50}
         assaultbot.add_item(all_items["laser pistol"])
         assaultbot.add_item(all_items["power shield"])
@@ -955,6 +961,7 @@ class Character:
         stunbot.stats["meleecombat"] = 10
         stunbot.stats["surprise"] = 125
         stunbot.stats["leadership"] = 5
+        stunbot.stats["perception"] = 30
         stunbot.skills = {"Energy Weapons": 75, "Mech Combat":50}
         stunbot.add_item(all_items["stunner"])
         stunbot.add_item(all_items["power shield"])
@@ -987,6 +994,7 @@ class Character:
         mechbot.stats["meleecombat"] = 5
         mechbot.stats["surprise"] = 20
         mechbot.stats["leadership"] = 5
+        mechbot.stats["perception"] = 30
         mechbot.skills = {"Robot Repair": 65, "Fabrication": 35, "Mechanics": 50}
         mechbot.add_item(all_items["stunner"])
         return mechbot
@@ -1018,6 +1026,7 @@ class Character:
         techbot.stats["meleecombat"] = 5
         techbot.stats["surprise"] = 20
         techbot.stats["leadership"] = 5
+        techbot.stats["perception"] = 50
         techbot.skills = {"Robot Repair": 65, "Ships Systems": 55, "Fabrication": 15,
                               "Artifact Analysis": 45, "Hacking": 35}
         techbot.add_item(all_items["stunner"])
@@ -1050,6 +1059,7 @@ class Character:
         hackbot.stats["meleecombat"] = 5
         hackbot.stats["surprise"] = 20
         hackbot.stats["leadership"] = 5
+        hackbot.stats["perception"] = 60
         hackbot.skills = {"Robot Repair": 15, "Ships Systems": 45, "Fabrication": 10,
                           "Artifact Analysis": 25, "Hacking": 75}
         hackbot.add_item(all_items["stunner"])
@@ -1082,6 +1092,7 @@ class Character:
         meleebot.stats["meleecombat"] = 75
         meleebot.stats["surprise"] = 150
         meleebot.stats["leadership"] = 5
+        meleebot.stats["perception"] = 30
         meleebot.skills = {"Martial Arts":75, "Mech Combat":50}
         meleebot.add_item(all_items["slicer"])
         meleebot.add_item(all_items["veer suit"])
@@ -1114,6 +1125,7 @@ class Character:
         batonbot.stats["meleecombat"] = 75
         batonbot.stats["surprise"] = 150
         batonbot.stats["leadership"] = 5
+        batonbot.stats["perception"] = 30
         batonbot.skills = {"Martial Arts": 75, "Mech Combat":50}
         batonbot.add_item(all_items["stun baton"])
         batonbot.add_item(all_items["veer suit"])
@@ -1146,6 +1158,7 @@ class Character:
         medibot.stats["meleecombat"] = 5
         medibot.stats["surprise"] = 20
         medibot.stats["leadership"] = 5
+        medibot.stats["perception"] = 40
         medibot.skills = {"Medicine": 75, "Xenobiology": 50}
         medibot.add_item(all_items["stun baton"])
         medibot.add_item(all_items["medikit"])
@@ -1178,6 +1191,7 @@ class Character:
         mulebot.stats["meleecombat"] = 5
         mulebot.stats["surprise"] = 20
         mulebot.stats["leadership"] = 5
+        mulebot.stats["perception"] = 30
         mulebot.skills = {}
         mulebot.add_item(all_items["stun baton"])
         return mulebot
@@ -1209,6 +1223,7 @@ class Character:
         scoutbot.stats["meleecombat"] = 5
         scoutbot.stats["surprise"] = 150
         scoutbot.stats["leadership"] = 5
+        scoutbot.stats["perception"] = 75
         scoutbot.skills = {"Stealth": 50, "Espionage":50, "Detection":75}
         scoutbot.add_item(all_items["stunner"])
         scoutbot.add_item(all_items["scanner"])

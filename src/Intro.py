@@ -2,6 +2,7 @@ import pygame
 import sys
 
 from Utils import *
+from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
 TEXT_AREA_WIDTH = SCREEN_WIDTH - 100
@@ -13,11 +14,11 @@ TEAM_BOX_HEIGHT = (SCREEN_HEIGHT - CREDITS_BAR_HEIGHT) // 8  # Adjust for 8 char
 BASE_TEXT_X_OFFSET = 50
 
 TOPMOST = 10
-TOP_EDGE = 5
+TOP_EDGE = TOP_BAR_Y
 INSTRUCTIONS_TOP = 50
 INSTRUCTIONS_LEFT_EDGE = 180
-PROCEED_RECT = pygame.Rect(1130, TOP_EDGE, 105, 25)
-EXIT_RECT = pygame.Rect(1330, TOP_EDGE, 105, 25)
+PROCEED_RECT = pygame.Rect(1130, TOP_BAR_Y, 105, 25)
+EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
 
 ORDERS_RECT = pygame.Rect(1130, 100, 105, 25)
 EQUIP_RECT = pygame.Rect(1130, 150, 105, 25)

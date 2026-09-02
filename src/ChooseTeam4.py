@@ -3,9 +3,11 @@ import pickle
 import pygame
 import sys
 import textwrap
+import random
 
 from Character import Character
 from Utils import *
+from constants import TOP_BAR_Y, DEBUG
 
 # Generate 100 characters and load their images
 candidates = []
@@ -55,7 +57,7 @@ DERIVED_LABEL_RECT = pygame.Rect(75, STATS_EDGE + 160, 105, 25)
 SKILLS_LABEL_RECT = pygame.Rect(700, STATS_EDGE, 105, 25)
 BACKGROUND_LABEL_RECT = pygame.Rect(1285, STATS_EDGE, 105, 25)
 PROCEED_RECT = pygame.Rect(1150, TOP_EDGE + 35, 105, 25)
-EXIT_RECT = pygame.Rect(1150, 8, 105, 25)
+EXIT_RECT = pygame.Rect(1150, TOP_BAR_Y, 105, 25)
 
 NAME_Y_TOP = 129
 CANDIDATE_NAME_LOC = (40, NAME_Y_TOP)
@@ -372,7 +374,7 @@ def choose_team(team_data, team_name="Debug Team", loop=1):
         blit_text3(surface, str(value), (240, descent), font, color, 185)
         descent += 20
         blit_text3(surface, "LIFE LEVEL", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("lifelevel")
+        value = candidate.stats.get("max_health")
         color = color_for_stat(round(value / 2))
         blit_text3(surface, str(value), (240, descent), font, color, 185)
         descent += 20
@@ -394,6 +396,11 @@ def choose_team(team_data, team_name="Debug Team", loop=1):
         blit_text3(surface, "LEADERSHIP", (60, descent), font, CYAN, 185)
         value = candidate.stats.get("leadership")
         color = color_for_stat(round(value / 3))
+        blit_text3(surface, str(value), (240, descent), font, color, 185)
+        descent += 20
+        blit_text3(surface, "PERCEPTION", (60, descent), font, CYAN, 185)
+        value = candidate.stats.get("perception")
+        color = color_for_stat(value)
         blit_text3(surface, str(value), (240, descent), font, color, 185)
 
     # Display skill descriptions on mouseover

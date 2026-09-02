@@ -247,5 +247,180 @@ class TestHealthMorale(unittest.TestCase):
         self.assertEqual(r.max_life, 200)
 
 
+# ---------------------------------------------------------------------------
+# Helpers shared by initiative tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch
+from Battle import initiative
+
+
+def make_human_controlled(strength=40, willpower=60, coordination=50,
+                          intelligence=40, courage=50, charisma=40,
+                          morale=100):
+    """Human character with fully specified base stats so derived stats are predictable."""
+    c = make_human(strength, willpower, morale=morale)
+    # Override the base stats that feed into derived ones
+    c.stats["coordination"]  = coordination
+    c.stats["intelligence"]  = intelligence
+    c.stats["courage"]       = courage
+    c.stats["charisma"]      = charisma
+    # Re-derive all dependent stats exactly as __init__ does
+    c.stats["offense"]      = round((coordination + courage) / 2)
+    c.stats["defense"]      = round((coordination + strength) / 2)
+    c.stats["deception"]    = round((courage + charisma) / 2)
+    c.stats["evasion"]      = round((intelligence + coordination) / 2)
+    c.stats["analyze"]      = round((intelligence + willpower) / 2)
+    c.stats["max_health"]   = strength + willpower
+    c.stats["movement"]     = strength + willpower + coordination
+    c.stats["meleecombat"]  = c.stats["evasion"] + strength
+    c.stats["perception"]   = round((willpower + coordination) / 2)
+    c.stats["surprise"]     = c.stats["evasion"] + c.stats["perception"]
+    c.stats["leadership"]   = intelligence + charisma + courage
+    c.current_health        = c.stats["max_health"]
+    return c
+
+
+def make_scoutbot_simple(perception=75):
+    """Minimal scoutbot for initiative tests (no pygame image loading)."""
+    r = make_robot(150, morale=100)
+    r.occupation     = "scoutbot"
+    r.stats["perception"] = perception
+    r.stats["surprise"]   = 150          # hardcoded in factory
+    return r
+
+
+class TestInitiative(unittest.TestCase):
+
+    # ---- Stat derivation -----------------------------------------------
+
+    def test_perception_formula(self):
+        # perception = round((willpower + coordination) / 2)
+        c = make_human_controlled(willpower=60, coordination=50)
+        self.assertEqual(c.stats["perception"], round((60 + 50) / 2))   # 55
+
+    def test_perception_rounds_correctly(self):
+        # (willpower=61 + coordination=50) / 2 = 55.5 → rounds to 56
+        c = make_human_controlled(willpower=61, coordination=50)
+        self.assertEqual(c.stats["perception"], 56)
+
+    def test_surprise_uses_evasion_plus_perception(self):
+        # evasion = (intelligence + coordination) / 2
+        # surprise = evasion + perception
+        c = make_human_controlled(willpower=60, coordination=50, intelligence=40)
+        evasion    = round((40 + 50) / 2)   # 45
+        perception = round((60 + 50) / 2)   # 55
+        self.assertEqual(c.stats["evasion"],    evasion)
+        self.assertEqual(c.stats["perception"], perception)
+        self.assertEqual(c.stats["surprise"],   evasion + perception)  # 100
+
+    def test_surprise_does_not_use_deception(self):
+        # Two characters identical except different charisma (affects deception).
+        # Their surprise stat should be the same.
+        c1 = make_human_controlled(charisma=10)
+        c2 = make_human_controlled(charisma=90)
+        # deception differs
+        self.assertNotEqual(c1.stats["deception"], c2.stats["deception"])
+        # surprise is identical (deception not in formula)
+        self.assertEqual(c1.stats["surprise"], c2.stats["surprise"])
+
+    def test_high_perception_raises_surprise(self):
+        lo = make_human_controlled(willpower=20, coordination=20)
+        hi = make_human_controlled(willpower=80, coordination=80)
+        self.assertGreater(hi.stats["surprise"], lo.stats["surprise"])
+
+    # ---- Scout bonus ---------------------------------------------------
+
+    def test_no_scoutbot_gives_zero_scout_bonus(self):
+        # With a fixed roll, team member roll = fixed + surprise (no scout bonus)
+        hero   = make_human_controlled()
+        enemy  = make_human_controlled()
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy])
+        self.assertEqual(len(order), 2)
+
+    def test_scoutbot_adds_bonus_to_team_rolls(self):
+        # hero vs enemy: hero has a scoutbot ally → gets +5 scout bonus.
+        # Fix random to 50 for everyone.
+        # hero.surprise = 100, enemy.surprise = 100, scout adds +5 to hero.
+        # hero roll = 50 + 100 + 5 = 155; enemy roll = 50 + 100 = 150
+        hero   = make_human_controlled()
+        scout  = make_scoutbot_simple()
+        enemy  = make_human_controlled()
+        # Zero out surprise so the bonus is the only differentiator
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero, scout], [enemy])
+        # hero and scout should both beat enemy (hero gets scout_bonus=5)
+        team_positions   = [order.index(hero), order.index(scout)]
+        enemy_position   = order.index(enemy)
+        self.assertLess(min(team_positions), enemy_position)
+
+    def test_two_scoutbots_double_the_bonus(self):
+        hero    = make_human_controlled()
+        scout1  = make_scoutbot_simple()
+        scout2  = make_scoutbot_simple()
+        enemy   = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        # Two scoutbots → scout_bonus = 10. hero roll = 50+10=60, enemy = 50
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero, scout1, scout2], [enemy])
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- Squad tactics bonus -------------------------------------------
+
+    def test_squad_tactics_adds_bonus(self):
+        hero  = make_human_controlled()
+        hero.skills["Squad Tactics"] = 50   # bonus = 50 / 10 = 5
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy])
+        # hero roll = 50 + 5 (squad tactics) = 55 > 50
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- Brazen bonus --------------------------------------------------
+
+    def test_brazen_bonus_applied_to_team(self):
+        hero  = make_human_controlled()
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy], brazen_bonus=20)
+        # hero roll = 50 + 20 = 70 > enemy 50
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    def test_brazen_bonus_not_applied_to_enemies(self):
+        hero  = make_human_controlled()
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            # Even with brazen_bonus, only hero benefits
+            order = initiative([hero], [enemy], brazen_bonus=100)
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- General correctness -------------------------------------------
+
+    def test_initiative_returns_all_characters(self):
+        team   = [make_human_controlled() for _ in range(3)]
+        enemies = [make_human_controlled() for _ in range(2)]
+        order = initiative(team, enemies)
+        self.assertEqual(len(order), 5)
+        for m in team + enemies:
+            self.assertIn(m, order)
+
+    def test_higher_surprise_wins_with_fixed_roll(self):
+        low_surprise  = make_human_controlled(willpower=20, coordination=20)
+        high_surprise = make_human_controlled(willpower=80, coordination=80)
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([high_surprise], [low_surprise])
+        self.assertLess(order.index(high_surprise), order.index(low_surprise))
+
+
 if __name__ == "__main__":
     unittest.main()

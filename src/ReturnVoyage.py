@@ -11,6 +11,7 @@ from Utils import *
 from Event import *
 from TypeText import *
 from Interaction import Interaction, PRIVATE, PUBLIC, PERSONAL, PROFESSIONAL
+from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
 TEXT_AREA_WIDTH = SCREEN_WIDTH - 100
@@ -95,9 +96,9 @@ global locations
 def update_screen(surface, background, day, font):
     surface.blit(background, (0, 0))
     day_text = font.render(f"DAY {day}", True, CYAN)
-    surface.blit(day_text, (40, 10))
+    surface.blit(day_text, (40, TOP_BAR_Y))
     ship_text = font.render("The voyage of Knacknarpia to mission point", True, CYAN)
-    surface.blit(ship_text, (140, 10))
+    surface.blit(ship_text, (140, TOP_BAR_Y))
     reset_text_offsets()
 
 def calculate_outcome_training(team, stat_name, skill_name, screen, font):
@@ -408,7 +409,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
     DEFAULT_FONT = pygame.font.Font(font_path, 16)
     LOCATION_FONT = pygame.font.Font(font_path, 18)
     SMALL_FONT = pygame.font.Font(font_path, 12)
-    EXIT_RECT = pygame.Rect(1330, 8, 105, 25)
+    EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
 
     # Load team if not passed in by StageController
@@ -786,9 +787,9 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
     voyage_complete = False
     # Display the day
     day_text = DEFAULT_FONT.render(f"DAY {day}", True, CYAN)
-    screen.blit(day_text, (40, 10))
+    screen.blit(day_text, (40, TOP_BAR_Y))
     ship_text = DEFAULT_FONT.render("The voyage of Knacknarpia to home base", True, CYAN)
-    screen.blit(ship_text, (140, 10))
+    screen.blit(ship_text, (140, TOP_BAR_Y))
 
     intro_text = "The return voyage to home base begins... click to proceed."
     type_out_text(screen, intro_text, DEFAULT_FONT)

@@ -3,6 +3,7 @@ import sys
 
 from Utils import *
 from Character import Character
+from constants import TOP_BAR_Y, DEBUG
 
 CREDITS_BAR_HEIGHT = SCREEN_HEIGHT // 20
 METHODS_OFFSET = 60
@@ -65,9 +66,9 @@ def mission_orders(team_data, team_name="Debug Team", loop=1):
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
     TITLE_FONT = pygame.font.Font(font_path, 18)
     OPTION_FONT = pygame.font.Font(font_path, 16)
-    EXIT_RECT = pygame.Rect(1350, 5, 105, 25)
+    EXIT_RECT = pygame.Rect(1350, TOP_BAR_Y, 105, 25)
     EXIT_TEXT = TITLE_FONT.render("EXIT", True, RED)
-    PROCEED_RECT = pygame.Rect(1200, 5, 105, 20)
+    PROCEED_RECT = pygame.Rect(1200, TOP_BAR_Y, 105, 20)
     PROCEED_TEXT = TITLE_FONT.render("PROCEED", True, CYAN)
 
     mission_index = random.randint(0, len(MISSION_GOALS) - 1)

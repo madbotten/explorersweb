@@ -9,6 +9,7 @@ from pygame.sprite import collide_rect
 from Character import Character
 from Utils import *
 from TypeText import *
+from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
 TEXT_AREA_WIDTH    = SCREEN_WIDTH - 100
@@ -24,12 +25,12 @@ PORTRAIT_H = 68
 ROW_GAP    = 5    # gap between member rows
 
 TOPMOST = 10
-TOP_EDGE = 8
+TOP_EDGE = TOP_BAR_Y
 INSTRUCTIONS_TOP  = 80   # pushed down to clear top border art
 INSTRUCTIONS_LEFT = PORTRAIT_W + 70   # text starts to the right of portrait
 
-PROCEED_RECT = pygame.Rect(1130, TOP_EDGE, 105, 25)
-EXIT_RECT    = pygame.Rect(1330, TOP_EDGE, 105, 25)
+PROCEED_RECT = pygame.Rect(1130, TOP_BAR_Y, 105, 25)
+EXIT_RECT    = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
 
 ROW_H = PORTRAIT_H + ROW_GAP   # height of one member row
 

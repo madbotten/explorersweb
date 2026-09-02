@@ -14,6 +14,7 @@ from Utils import *
 from Event import *
 from TypeText import *
 from Interaction import Interaction, PRIVATE, PUBLIC, PERSONAL, PROFESSIONAL
+from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
 TEXT_AREA_WIDTH = SCREEN_WIDTH - 100
@@ -99,9 +100,9 @@ _fusion_reactor_failed = False
 def update_screen(surface, background, day, font):
     surface.blit(background, (0, 0))
     day_text = font.render(f"DAY {day}", True, CYAN)
-    surface.blit(day_text, (40, 10))
+    surface.blit(day_text, (40, TOP_BAR_Y))
     ship_text = font.render("The voyage of Knacknarpia to mission point", True, CYAN)
-    surface.blit(ship_text, (140, 10))
+    surface.blit(ship_text, (140, TOP_BAR_Y))
     reset_text_offsets()
 
 def calculate_outcome_mysterious_sensor_signal(team, stat_name, skill_name, screen, font):
@@ -723,7 +724,7 @@ def voyage(team_data, team_name="Debug Team", loop=1) :
     DEFAULT_FONT = pygame.font.Font(font_path, 16)
     LOCATION_FONT = pygame.font.Font(font_path, 18)
     SMALL_FONT = pygame.font.Font(font_path, 12)
-    EXIT_RECT = pygame.Rect(1330, 8, 105, 25)
+    EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
 
     # Load team if not passed in by StageController
@@ -735,7 +736,8 @@ def voyage(team_data, team_name="Debug Team", loop=1) :
 
     # Resize portraits to fit into a small area for each character
     for character in team:
-        print(character.name)
+        if DEBUG:
+            print(character.name)
         character.portrait = pygame.transform.scale(character.portrait, (70, 80))
 
     # Load and play background music

@@ -9,6 +9,7 @@ from Location import *
 from Utils import *
 from Event import *
 from TypeText import *
+from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
 TEXT_AREA_WIDTH = SCREEN_WIDTH - 100
@@ -261,21 +262,25 @@ def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
 
     mission_failed = True  # assume failure until a method succeeds
 
-    print("Trying hacking")
+    if DEBUG:
+        print("Trying hacking")
     member = determine_best_team_member(team, None, "Hacking")
     if member:
         mission_failed = not calculate_goal_outcome_hack(member, screen, font)
-        print(f"{mission_failed}")
+        if DEBUG:
+            print(f"{mission_failed}")
 
     if mission_failed:
-        print("Trying explosives")
+        if DEBUG:
+            print("Trying explosives")
         member = determine_best_team_member(team, None, "Explosives",)
         if member:
             mission_failed = not calculate_goal_outcome_explosives(member, screen, font)
             print(f"{mission_failed}")
 
     if mission_failed:
-        print("Trying cutter")
+        if DEBUG:
+            print("Trying cutter")
         if team_has_item(team, "cutter"):
             member = next(m for m in team if m.has_item("cutter"))
             mission_failed = not calculate_goal_outcome_cutter(member, screen, font)
@@ -383,7 +388,7 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
     DEFAULT_FONT = pygame.font.Font(font_path, 16)
     LOCATION_FONT = pygame.font.Font(font_path, 18)
     SMALL_FONT = pygame.font.Font(font_path, 12)
-    EXIT_RECT = pygame.Rect(1330, 8, 105, 25)
+    EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
     stage = 5
 
     # Load team if not passed in by StageController
@@ -562,7 +567,8 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
     rooms_to_goal = 5 # random.randint(10, 15)
 
     if team is None:
-        print("Team is None")
+        if DEBUG:
+            print("Team is None")
 
     # Event Loop
     running = True
