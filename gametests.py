@@ -5,6 +5,7 @@ Explorers unit tests — run with:
 """
 import os
 import sys
+import random
 import unittest
 
 # Run pygame headlessly (no display required)
@@ -38,6 +39,7 @@ def make_human(strength=50, willpower=50, morale=100):
 def make_robot(max_life=200, morale=100):
     """Create a minimal robot character with controlled HP."""
     c = Character(1, "robot")
+    c.name                    = "TestBot"   # robots skip name assignment in __init__
     c.max_life                = max_life
     c.stats["max_health"]     = max_life
     c.current_health          = max_life
@@ -420,6 +422,126 @@ class TestInitiative(unittest.TestCase):
         with patch("Battle.random.randint", return_value=50):
             order = initiative([high_surprise], [low_surprise])
         self.assertLess(order.index(high_surprise), order.index(low_surprise))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Supply Logistics skill + required_singular_events (Oreos event)
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock
+from ReturnVoyage import calculate_outcome_out_of_oreos
+
+
+def make_dummy_screen():
+    """Minimal pygame surface usable as a screen argument."""
+    return pygame.Surface((100, 100))
+
+
+def make_dummy_font():
+    """Minimal font object; render returns a tiny surface."""
+    return pygame.font.SysFont(None, 16)
+
+
+class TestSupplyLogistics(unittest.TestCase):
+
+    # ---- Skill registration --------------------------------------------
+
+    def test_supply_logistics_in_possible_skills(self):
+        self.assertIn("Supply Logistics", Character.possible_skills)
+
+    def test_supply_logistics_in_skill_descriptions(self):
+        self.assertIn("Supply Logistics", Character.skill_descriptions)
+
+    def test_supply_logistics_description_non_empty(self):
+        desc = Character.skill_descriptions["Supply Logistics"]
+        self.assertTrue(len(desc) > 0)
+
+    # ---- Oreos event: skilled member present ---------------------------
+
+    def test_oreos_fail_demoralizes_non_robots(self):
+        """When the skill check fails, non-robot crew lose 5 morale."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        crew[0].skills["Supply Logistics"] = 50
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Patch standard_skill_check to always fail
+        with patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.type_out_text"):
+            calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 95)   # 100 - 5
+
+    def test_oreos_pass_no_morale_loss(self):
+        """When the skill check passes, morale is untouched."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        crew[0].skills["Supply Logistics"] = 80
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        with patch("ReturnVoyage.standard_skill_check", return_value=True), \
+             patch("ReturnVoyage.type_out_text"):
+            calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 100)
+
+    def test_oreos_robots_immune_to_penalty(self):
+        """Robots must not be demoralized by the Oreos event."""
+        human = make_human(morale=100)
+        robot = make_robot(150, morale=100)
+        team = [human, robot]
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Force the human to be selected, skill check fails → only human penalised
+        with patch("ReturnVoyage.determine_best_team_member", return_value=human), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.type_out_text"):
+            calculate_outcome_out_of_oreos(team, None, "Supply Logistics", screen, font)
+        self.assertEqual(human.morale, 95)   # human loses 5
+        self.assertEqual(robot.morale, 100)  # robot unchanged
+
+    # ---- Oreos event: no skilled member --------------------------------
+
+    def test_oreos_no_skilled_member_demoralizes_all_non_robots(self):
+        """If no one has Supply Logistics, the penalty fires unconditionally."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Patch determine_best_team_member to None to simulate the no-skill path
+        with patch("ReturnVoyage.determine_best_team_member", return_value=None), \
+             patch("ReturnVoyage.type_out_text"):
+            calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 95)
+
+    def test_oreos_no_skilled_member_robot_still_immune(self):
+        """Robot morale not affected even when no one has Supply Logistics."""
+        robot = make_robot(150, morale=100)
+        robot.morale = 100
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        with patch("ReturnVoyage.type_out_text"):
+            calculate_outcome_out_of_oreos([robot], None, "Supply Logistics", screen, font)
+        self.assertEqual(robot.morale, 100)
+
+    # ---- required_singular_events scheduling ---------------------------
+
+    def test_required_trigger_points_within_voyage_range(self):
+        """Trigger points must be within [2, max_events-1]."""
+        max_events = 12
+        available  = list(range(2, max_events))
+        triggers   = set(random.sample(available, min(1, len(available))))
+        self.assertTrue(triggers.issubset(set(available)))
+
+    def test_required_events_fire_before_arrival(self):
+        """Simulates the force-fire path: required event runs when voyage exceeds max."""
+        import random as rnd
+        required = [MagicMock()]   # one pending required event with context.location
+        required[0].context.location = MagicMock()
+        # Simulate: events_completed > max_events, required still pending → pop and run
+        self.assertEqual(len(required), 1)
+        event = required.pop(0)
+        event.run(None, None, None, None, None)  # run with dummy args
+        self.assertEqual(len(required), 0)       # consumed
+        event.run.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -739,7 +739,8 @@ class Character:
         "Ships Systems", "Espionage", "Fabrication", "Instruction",
         "Energy Weapons", "Sonic Weapons", "Physics", "Projectile Weapons", "Artifact Analysis", "Squad Tactics", "Mech Combat",
         "Exoskeleton Systems", "Resource Extraction", "Detection",
-        "Weaponsmithing", "Armorsmithing", "Tinkering"
+        "Weaponsmithing", "Armorsmithing", "Tinkering",
+        "Supply Logistics"
     ]
     prefixes = ["Agn", "Abb", "Bann", "Bor", "Cer", "Can", "Dan", "Drax", "Eol", "End", "Fet", "Gal", "Han", "Ill",
                 "Jak", "Kalor", "Kor", "Lan",
@@ -861,6 +862,7 @@ class Character:
         "Weaponsmithing": "Ability to upgrade and improve the quality of weapons",
         "Armorsmithing": "Ability to upgrade and improve the quality of armor",
         "Tinkering": "Ability to upgrade and improve the quality of miscellaneous gear",
+        "Supply Logistics": "Skill in managing and planning consumable resources and supplies",
     }
 
     def draw(self, screen):
