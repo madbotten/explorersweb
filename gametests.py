@@ -429,7 +429,7 @@ class TestInitiative(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 from unittest.mock import MagicMock
-from ReturnVoyage import calculate_outcome_out_of_oreos
+from Voyage import calculate_outcome_out_of_oreos
 
 
 def make_dummy_screen():
@@ -465,8 +465,8 @@ class TestSupplyLogistics(unittest.TestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Patch standard_skill_check to always fail
-        with patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.type_out_text"):
+        with patch("Voyage.standard_skill_check", return_value=False), \
+             patch("Voyage.type_out_text"):
             calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 95)   # 100 - 5
@@ -477,8 +477,8 @@ class TestSupplyLogistics(unittest.TestCase):
         crew[0].skills["Supply Logistics"] = 80
         screen = make_dummy_screen()
         font   = make_dummy_font()
-        with patch("ReturnVoyage.standard_skill_check", return_value=True), \
-             patch("ReturnVoyage.type_out_text"):
+        with patch("Voyage.standard_skill_check", return_value=True), \
+             patch("Voyage.type_out_text"):
             calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 100)
@@ -491,9 +491,9 @@ class TestSupplyLogistics(unittest.TestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Force the human to be selected, skill check fails → only human penalised
-        with patch("ReturnVoyage.determine_best_team_member", return_value=human), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.type_out_text"):
+        with patch("Voyage.determine_best_team_member", return_value=human), \
+             patch("Voyage.standard_skill_check", return_value=False), \
+             patch("Voyage.type_out_text"):
             calculate_outcome_out_of_oreos(team, None, "Supply Logistics", screen, font)
         self.assertEqual(human.morale, 95)   # human loses 5
         self.assertEqual(robot.morale, 100)  # robot unchanged
@@ -506,8 +506,8 @@ class TestSupplyLogistics(unittest.TestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Patch determine_best_team_member to None to simulate the no-skill path
-        with patch("ReturnVoyage.determine_best_team_member", return_value=None), \
-             patch("ReturnVoyage.type_out_text"):
+        with patch("Voyage.determine_best_team_member", return_value=None), \
+             patch("Voyage.type_out_text"):
             calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 95)
@@ -518,7 +518,7 @@ class TestSupplyLogistics(unittest.TestCase):
         robot.morale = 100
         screen = make_dummy_screen()
         font   = make_dummy_font()
-        with patch("ReturnVoyage.type_out_text"):
+        with patch("Voyage.type_out_text"):
             calculate_outcome_out_of_oreos([robot], None, "Supply Logistics", screen, font)
         self.assertEqual(robot.morale, 100)
 

@@ -2,6 +2,7 @@
 import os
 import sys
 import pickle
+import shutil
 import random
 import pygame
 from pathlib import Path
@@ -159,6 +160,13 @@ def list_teams() -> list:
         d for d in os.listdir(SAVES_DIR)
         if os.path.isdir(os.path.join(SAVES_DIR, d)) and not d.startswith(".")
     ]
+
+def delete_team(team_name: str) -> None:
+    """Permanently delete all save files for the given team."""
+    folder   = team_name.replace(" ", "_")
+    team_dir = os.path.join(SAVES_DIR, folder)
+    if os.path.isdir(team_dir):
+        shutil.rmtree(team_dir)
 
 def load_sound(filename):
     sound_path = resource_path(filename)

@@ -31,10 +31,17 @@ CONT_W        = 380         # Continue button width
 CONT_H        = 38
 DEV_W         = 130         # [Dev] Stages button width
 DEV_H         = 38
+DEL_W         = 100         # Delete button width
+DEL_H         = 38
 TEAM_ROW_H    = 28          # height of the team name label row
-BUTTON_ROW_H  = 44          # height of the button row (cont + dev)
+BUTTON_ROW_H  = 44          # height of the button row (cont + dev + del)
 STAGE_ROW_H   = 32          # height of each expanded stage entry
 SECTION_GAP   = 14          # gap between team blocks
+
+DEL_COLOR     = (80, 20, 20)    # normal delete button
+DEL_CONFIRM   = (160, 80, 0)    # pending-confirmation state (amber)
+DEL_HOVER_N   = (120, 30, 30)   # hover on normal
+DEL_HOVER_C   = (200, 110, 0)   # hover on confirm
 
 # ---------------------------------------------------------------------------
 def load_game():
@@ -63,6 +70,7 @@ def load_game():
     teams      = list_teams()
     team_saves = {display_name(t): latest_saves_for_team(display_name(t)) for t in teams}
     expanded   = {display_name(t): False for t in teams}
+    confirm_del = {}   # tname -> True when awaiting second-click confirmation
 
     # New Game button — centred near the top
     ng_rect = pygame.Rect(SCREEN_WIDTH // 2 - 120, 60, 240, 46)
@@ -86,9 +94,12 @@ def load_game():
 
             # Walk team rows — rebuild positions same as draw pass
             y = 148
-            for tname, saves in team_saves.items():
+            clicked_del = False
+            for tname, saves in list(team_saves.items()):
                 y += TEAM_ROW_H           # name label
                 # Continue button row
+                del_rect = pygame.Rect(
+                    MARGIN + CONT_W + 12 + DEV_W + 10, y, DEL_W, DEL_H)
                 if saves:
                     latest_stage = max(saves.keys())
                     lp = saves[latest_stage]
@@ -102,11 +113,26 @@ def load_game():
                             break
                         if dev_rect.collidepoint(event.pos):
                             expanded[tname] = not expanded[tname]
+                            confirm_del.pop(tname, None)
+                            clicked_del = True
+
+                if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+                        and del_rect.collidepoint(event.pos)):
+                    clicked_del = True
+                    if confirm_del.get(tname):
+                        # Second click — delete and refresh
+                        delete_team(tname)
+                        del team_saves[tname]
+                        expanded.pop(tname, None)
+                        confirm_del.pop(tname, None)
+                    else:
+                        # First click — enter confirmation state
+                        confirm_del = {tname: True}  # reset others
 
                 y += BUTTON_ROW_H
 
                 # Expanded stage list
-                if expanded[tname]:
+                if expanded.get(tname) and saves:
                     for st in sorted(saves.keys()):
                         lp2 = saves[st]
                         st_rect = pygame.Rect(MARGIN + 20, y, CONT_W + DEV_W, STAGE_ROW_H)
@@ -120,6 +146,12 @@ def load_game():
                         break
 
                 y += SECTION_GAP  # separator gap
+
+            # Any click that didn't land on a delete button resets confirmation
+            if (event.type == pygame.MOUSEBUTTONDOWN
+                    and event.button == 1 and not clicked_del):
+                confirm_del.clear()
+
             if result:
                 break
 
@@ -175,10 +207,27 @@ def load_game():
                         "[Dev] Hide" if expanded[tname] else "[Dev] Stages", True, DIM)
                     screen.blit(dev_lbl, dev_lbl.get_rect(center=dev_rect.center))
 
+                    # Delete button
+                    del_rect = pygame.Rect(
+                        MARGIN + CONT_W + 12 + DEV_W + 10, y, DEL_W, DEL_H)
+                    pending = confirm_del.get(tname, False)
+                    if pending:
+                        del_bg = DEL_HOVER_C if del_rect.collidepoint(mouse) else DEL_CONFIRM
+                        del_text = "CONFIRM?"
+                        del_border = (255, 160, 0)
+                    else:
+                        del_bg = DEL_HOVER_N if del_rect.collidepoint(mouse) else DEL_COLOR
+                        del_text = "DELETE"
+                        del_border = (180, 40, 40)
+                    pygame.draw.rect(screen, del_bg, del_rect, border_radius=6)
+                    pygame.draw.rect(screen, del_border, del_rect, 2, border_radius=6)
+                    del_lbl = dev_font.render(del_text, True, (255, 200, 200))
+                    screen.blit(del_lbl, del_lbl.get_rect(center=del_rect.center))
+
                     y += BUTTON_ROW_H
 
                     # Expanded stage entries
-                    if expanded[tname]:
+                    if expanded.get(tname):
                         for st in sorted(saves.keys()):
                             lp2 = saves[st]
                             stage_label2 = STAGE_LABELS.get(st, f"Stage {st}")

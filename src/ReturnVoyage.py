@@ -355,38 +355,6 @@ def calculate_outcome_interaction_public_personal(team, stat_name, skill_name, s
     _run_interaction(team, screen, font, PERSONAL, PUBLIC)
 
 
-def calculate_outcome_out_of_oreos(team, stat_name, skill_name, screen, font):
-    """Required event: Supply Logistics check to avert an Oreo shortage.
-
-    Pass → supplies were properly managed, no penalty.
-    Fail → all non-robot crew are demoralized by 5.
-    """
-    member = determine_best_team_member(team, None, "Supply Logistics")
-    if member:
-        type_out_text(screen, f"{member.name} checks the supply manifest...", font)
-        check_passed = standard_skill_check(member, screen, None, "Supply Logistics", font, 0)
-        if check_passed:
-            type_out_text(
-                screen,
-                f"Thanks to {member.name}'s careful rationing, Oreo supplies hold. Crisis averted.",
-                font, GREEN,
-            )
-        else:
-            type_out_text(screen, "The Oreo supply has been exhausted. Morale suffers.", font, RED)
-            for m in team:
-                if not m.is_robot():
-                    m.demoralize(5)
-    else:
-        type_out_text(
-            screen,
-            "With no one skilled in Supply Logistics, the Oreo shortage hits the crew hard.",
-            font, RED,
-        )
-        for m in team:
-            if not m.is_robot():
-                m.demoralize(5)
-
-
 def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, font):
     """Step 6: The highest-leadership non-robot addresses the crew before the return voyage.
 
@@ -784,20 +752,12 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
     ]
 
     optional_singular_events = [
-        # (Oreos event moved to required_singular_events)
+        # (no optional singular events yet for the return voyage)
     ]
 
-    # required_singular_events: guaranteed to fire exactly once each.
-    # Each is scheduled at a random voyage step (not first, not last).
-    required_singular_events = [
-        Event(
-            "Situation critical. We have run out of Oreos.",
-            "There is no recourse.",
-            0, None, "Supply Logistics", locations["mess"],
-            calculate_outcome_out_of_oreos,
-            all_items,
-        ),
-    ]
+    # required_singular_events: psycho attack and traitor sabotage events
+    # will be inserted here in phases 3 and 4.
+    required_singular_events = []
 
     rando_atmosphere_strings = [
         " the vastness of space overwhelms the crew, causing a combination of awe and anxiety.",

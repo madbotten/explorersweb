@@ -705,6 +705,38 @@ def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, 
             font, RED,
         )
 
+def calculate_outcome_out_of_oreos(team, stat_name, skill_name, screen, font):
+    """Required outbound event: Supply Logistics check to avert an Oreo shortage.
+
+    Pass → supplies properly managed, no penalty.
+    Fail → all non-robot crew are demoralized by 5.
+    """
+    member = determine_best_team_member(team, None, "Supply Logistics")
+    if member:
+        type_out_text(screen, f"{member.name} checks the supply manifest...", font)
+        check_passed = standard_skill_check(member, screen, None, "Supply Logistics", font, 0)
+        if check_passed:
+            type_out_text(
+                screen,
+                f"Thanks to {member.name}'s careful rationing, Oreo supplies hold. Crisis averted.",
+                font, GREEN,
+            )
+        else:
+            type_out_text(screen, "The Oreo supply has been exhausted. Morale suffers.", font, RED)
+            for m in team:
+                if not m.is_robot():
+                    m.demoralize(5)
+    else:
+        type_out_text(
+            screen,
+            "With no one skilled in Supply Logistics, the Oreo shortage hits the crew hard.",
+            font, RED,
+        )
+        for m in team:
+            if not m.is_robot():
+                m.demoralize(5)
+
+
 def voyage(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
@@ -1125,12 +1157,17 @@ def voyage(team_data, team_name="Debug Team", loop=1) :
             calculate_outcome_plasma_torpedo,
             all_items,
         ),
-        # Empty outcomes
+        # Empty outcomes — (moved to required_singular_events below)
+    ]
+
+    # required_singular_events: guaranteed to fire exactly once.
+    # Scheduled at a random step in [2, max_events-1].
+    required_singular_events = [
         Event(
             "Situation critical. We have run out of Oreos.",
             "There is no recourse.",
-            0, "intelligence", None, locations["mess"],
-            empty_outcome,
+            0, None, "Supply Logistics", locations["mess"],
+            calculate_outcome_out_of_oreos,
             all_items,
         ),
     ]
@@ -1168,6 +1205,14 @@ def voyage(team_data, team_name="Debug Team", loop=1) :
     events_completed = 0
     max_events_in_voyage = random.randint(25, 32)
     speech_done = False
+
+    # Pre-schedule trigger points for required events (not at step 0 or the last step)
+    _req_count   = len(required_singular_events)
+    _available   = list(range(2, max_events_in_voyage))
+    _req_triggers = set(
+        random.sample(_available, min(_req_count, len(_available)))
+    )
+
     screen.blit(EXIT_TEXT, EXIT_RECT)
     # Event Loop
     running = True
@@ -1208,32 +1253,50 @@ def voyage(team_data, team_name="Debug Team", loop=1) :
                 events_completed += 1
                 day += 1
             elif events_completed > max_events_in_voyage:
-                type_out_text(screen, "You have arrived at the destination!", DEFAULT_FONT)
-                voyage_complete = True
-            else:
-                selector = random.randint(0, 100)
-                if selector < 75:
-                    event_index = random.randint(0, len(repeatable_events) - 1)
-                    event = repeatable_events[event_index]
-                    location = event.context.location
+                # Force any remaining required events before declaring arrival
+                if required_singular_events:
+                    req_event = required_singular_events.pop(0)
+                    location = req_event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
-                    events_completed += 1
-                    day += 1
-                elif optional_singular_events:
-                    event_index = random.randint(0, len(optional_singular_events) - 1)
-                    event = optional_singular_events.pop(event_index)
-                    location = event.context.location
-                    draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
-                    if _fusion_reactor_failed:
-                        max_events_in_voyage += 2
-                        globals()['_fusion_reactor_failed'] = False
+                    req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     events_completed += 1
                     day += 1
                 else:
-                    events_completed = max_events_in_voyage
+                    type_out_text(screen, "You have arrived at the destination!", DEFAULT_FONT)
+                    voyage_complete = True
+            else:
+                # Fire a scheduled required event if this step is a trigger point
+                if required_singular_events and events_completed in _req_triggers:
+                    req_event = required_singular_events.pop(0)
+                    location = req_event.context.location
+                    draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                    req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    events_completed += 1
                     day += 1
+                else:
+                    selector = random.randint(0, 100)
+                    if selector < 75:
+                        event_index = random.randint(0, len(repeatable_events) - 1)
+                        event = repeatable_events[event_index]
+                        location = event.context.location
+                        draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                        event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                        events_completed += 1
+                        day += 1
+                    elif optional_singular_events:
+                        event_index = random.randint(0, len(optional_singular_events) - 1)
+                        event = optional_singular_events.pop(event_index)
+                        location = event.context.location
+                        draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                        event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                        if _fusion_reactor_failed:
+                            max_events_in_voyage += 2
+                            globals()['_fusion_reactor_failed'] = False
+                        events_completed += 1
+                        day += 1
+                    else:
+                        events_completed = max_events_in_voyage
+                        day += 1
             waiting = True
 
         # Update the display
