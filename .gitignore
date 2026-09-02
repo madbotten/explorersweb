@@ -26,3 +26,7 @@ dist/
 
 # PyInstaller
 *.spec
+
+# Agent config and dev tools (local only)
+.agents/
+gametests.py
