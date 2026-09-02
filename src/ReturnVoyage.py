@@ -518,6 +518,134 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
             return
 
 
+def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font):
+    """Return voyage required event (conditional): traitor(s) attempt sabotage.
+
+    Only runs if at least one crew member has self.traitor == True.
+    Multiple traitors work together, adding -10 difficulty per extra traitor.
+
+    Step 1 — Commander perception check (difficulty -(traitors-1)*10):
+      Pass  → plot foiled; traitors brigged; commander earns mission points;
+               Interrogation roll for bonus points.
+
+    Step 2 — Perception fails; traitors steal mission data.
+              Commander surprise check (roll < surprise/2):
+      Pass  → traitors caught fleeing; brigged; Interrogation roll for smaller bonus.
+
+    Step 3 — Both checks fail:
+              Traitors escape with stolen data; team loses 66% of mission points.
+    """
+    traitors = [m for m in team
+                if getattr(m, 'traitor', False) and not m.is_robot()]
+    if not traitors:
+        return
+
+    non_robots = [m for m in team if not m.is_robot() and m.current_health > 0]
+    if not non_robots:
+        return
+
+    commander = max(non_robots, key=lambda m: m.stats.get("leadership", 0))
+    traitor_names = " and ".join(t.name for t in traitors)
+    plural = len(traitors) > 1
+
+    type_out_text(
+        screen,
+        f"INTELLIGENCE ALERT: A conspiracy has been uncovered aboard the Knacknarpia! "
+        f"{traitor_names} {'have' if plural else 'has'} been plotting against the mission.",
+        font, RED,
+    )
+
+    # -----------------------------------------------------------------
+    # Helper: run interrogation roll and award bonus mission points
+    # -----------------------------------------------------------------
+    def try_interrogation(bonus_per_traitor, context_msg):
+        interrogator = determine_best_team_member(
+            [m for m in team if m not in traitors and not m.is_robot()],
+            None, "Interrogation",
+        )
+        if not interrogator:
+            return
+        type_out_text(screen,
+            f"{interrogator.name} begins interrogating the captured traitor(s)...", font)
+        if standard_skill_check(interrogator, screen, None, "Interrogation", font, 0):
+            bonus = bonus_per_traitor * len(traitors)
+            interrogator.mission_points += bonus
+            type_out_text(
+                screen,
+                f"{context_msg} +{bonus} mission points for {interrogator.name}.",
+                font, GREEN,
+            )
+
+    # -----------------------------------------------------------------
+    # Step 1: Commander perception check
+    # -----------------------------------------------------------------
+    difficulty_modifier = -(len(traitors) - 1) * 10   # harder with more traitors
+    roll = random.randint(1, 100)
+    if commander.stat_check(roll, "perception", difficulty_modifier):
+        type_out_text(
+            screen,
+            f"{commander.name}'s sharp instincts expose the plot before any damage is done! "
+            f"{traitor_names} {'are' if plural else 'is'} thrown in the brig.",
+            font, GREEN,
+        )
+        points = 10 * len(traitors)
+        commander.mission_points += points
+        type_out_text(
+            screen,
+            f"{commander.name} earns {points} mission points for foiling the conspiracy.",
+            font, GREEN,
+        )
+        try_interrogation(15, "The interrogation yields critical intelligence!")
+        for t in traitors:
+            team.remove(t)
+        return
+
+    # -----------------------------------------------------------------
+    # Step 2: Perception failed — traitors steal mission data
+    # -----------------------------------------------------------------
+    type_out_text(
+        screen,
+        f"{commander.name} failed to anticipate the conspiracy in time. "
+        f"{traitor_names} steal valuable mission data and materials!",
+        font, RED,
+    )
+
+    surprise_threshold = commander.stats.get("surprise", 0) / 2
+    surprise_roll = random.randint(1, 100)
+    if surprise_roll < surprise_threshold:
+        type_out_text(
+            screen,
+            f"{commander.name}'s quick reflexes catch the traitor(s) before they can escape! "
+            f"{traitor_names} {'are' if plural else 'is'} captured and thrown in the brig.",
+            font, GREEN,
+        )
+        try_interrogation(10, "Despite the stolen data, the interrogation recovers some intelligence.")
+        for t in traitors:
+            team.remove(t)
+        return
+
+    # -----------------------------------------------------------------
+    # Step 3: Both checks failed — traitors escape
+    # -----------------------------------------------------------------
+    type_out_text(
+        screen,
+        f"{commander.name} was too slow to react. "
+        f"{traitor_names} {'escape' if plural else 'escapes'} with the stolen mission data!",
+        font, RED,
+    )
+    lost_total = 0
+    for m in non_robots:
+        lost = int(m.mission_points * 0.66)
+        m.mission_points = max(0, m.mission_points - lost)
+        lost_total += lost
+    type_out_text(
+        screen,
+        f"The team has lost 66% of their mission points due to the stolen data. "
+        f"({lost_total} points lost)",
+        font, RED,
+    )
+
+
 def return_voyage(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
@@ -882,7 +1010,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
 
     # required_singular_events: only scheduled when the condition is met.
     # Phase 3: psycho attack fires if any crew member is psychotic.
-    # Phase 4: traitor sabotage will be added here.
+    # Phase 4: traitor sabotage fires if any crew member is a traitor.
     required_singular_events = []
 
     _psychotics = [m for m in team
@@ -893,6 +1021,16 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
             "The incident is resolved.",
             0, None, None, locations["crew quarters"],
             calculate_outcome_psychotic_attack,
+            all_items,
+        ))
+
+    _traitors = [m for m in team if getattr(m, 'traitor', False) and not m.is_robot()]
+    if _traitors:
+        required_singular_events.append(Event(
+            "A conspiracy has been uncovered!",
+            "The conspiracy situation is resolved.",
+            0, None, None, locations["bridge"],
+            calculate_outcome_traitor_sabotage,
             all_items,
         ))
 
