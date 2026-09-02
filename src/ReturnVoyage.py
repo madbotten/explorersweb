@@ -393,6 +393,131 @@ def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, 
             font, RED,
         )
 
+def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font):
+    """Return voyage required event (conditional): a psychotic crew member snaps.
+
+    Only runs if at least one team member has self.psychotic == True.
+    Strongest psycho (highest offense) is chosen when multiple exist.
+
+    Round structure:
+      1. Perception check (best perceiver, difficulty -20).
+         Pass → psycho spotted and thrown in the brig. Done.
+      2. Fail → pick a random victim (non-robot, alive, not the psycho).
+         Opposed surprise roll; victim loses → psycho gets +30 offense.
+         Opposed offense roll (+ d30 each side).
+         Psycho wins → victim takes damage; click to continue rampage.
+         Victim wins → psycho subdued and thrown in the brig. Done.
+      3. Repeat until brig, defeat, or all non-robots incapacitated.
+    """
+    psychotics = [m for m in team
+                  if getattr(m, 'psychotic', False) and not m.is_robot()
+                  and m.current_health > 0]
+    if not psychotics:
+        return  # no psychotic crew members — event is a no-op
+
+    # Strongest psycho goes on the rampage
+    psycho = max(psychotics, key=lambda m: m.stats.get("offense", 0))
+
+    type_out_text(
+        screen,
+        f"ALERT: {psycho.name} has snapped! A psychotic episode is unfolding!",
+        font, RED,
+    )
+
+    def alive_crew():
+        """Non-robot, non-psycho, still conscious crew members."""
+        return [m for m in team
+                if m is not psycho and not m.is_robot() and m.current_health > 0]
+
+    # -----------------------------------------------------------------------
+    # Rampage loop — each iteration is one round
+    # -----------------------------------------------------------------------
+    while True:
+        # 1. Perception check — can anyone spot the threat?
+        candidates = alive_crew()
+        if not candidates:
+            type_out_text(
+                screen,
+                "All crew members are incapacitated. Mission is in grave danger!",
+                font, RED,
+            )
+            mission_failure(screen, font)
+            return
+
+        perceiver = max(candidates, key=lambda m: m.stats.get("perception", 0))
+        roll = random.randint(1, 100)
+        perceived = perceiver.stat_check(roll, "perception", -20)
+
+        if perceived:
+            type_out_text(
+                screen,
+                f"{perceiver.name}'s keen awareness spots the danger in time. "
+                f"{psycho.name} is restrained and thrown in the brig.",
+                font, GREEN,
+            )
+            team.remove(psycho)
+            return
+
+        type_out_text(
+            screen,
+            f"{perceiver.name} fails to notice the warning signs. The attack continues!",
+            font, RED,
+        )
+
+        # 2. Pick a victim
+        victims = alive_crew()
+        if not victims:
+            type_out_text(
+                screen, "No one remains to stop the rampage. Mission failed!", font, RED)
+            mission_failure(screen, font)
+            return
+
+        victim = random.choice(victims)
+
+        # 3. Surprise check (opposed roll + surprise stat)
+        victim_surprise = random.randint(1, 100) + victim.stats.get("surprise", 0)
+        psycho_surprise = random.randint(1, 100) + psycho.stats.get("surprise", 0)
+        surprised = victim_surprise < psycho_surprise
+
+        surprise_desc = (
+            f"{victim.name} is caught completely off guard!"
+            if surprised else
+            f"{victim.name} senses something is wrong!"
+        )
+        type_out_text(
+            screen,
+            f"{psycho.name} ambushes {victim.name}! {surprise_desc}",
+            font, RED,
+        )
+
+        # 4. Offense check (d30 + stat; psycho gets +30 if victim surprised)
+        psycho_offense = psycho.stats.get("offense", 50) + (30 if surprised else 0)
+        psycho_roll    = random.randint(1, 30) + psycho_offense
+        victim_roll    = random.randint(1, 30) + victim.stats.get("offense", 50)
+
+        if psycho_roll > victim_roll:
+            # Psycho wins — victim is killed instantly
+            victim.current_health = 0
+            type_out_text(
+                screen,
+                f"{psycho.name} overwhelms {victim.name}! "
+                f"{victim.name} is dead.",
+                font, RED,
+            )
+            type_out_text(screen, "Click to continue...", font)
+            # Loop back — next round starts with a fresh perception check
+        else:
+            # Victim wins — psycho is subdued
+            type_out_text(
+                screen,
+                f"{victim.name} fights back and manages to subdue {psycho.name}! "
+                f"{psycho.name} is restrained and thrown in the brig.",
+                font, GREEN,
+            )
+            team.remove(psycho)
+            return
+
+
 def return_voyage(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
@@ -755,9 +880,21 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
         # (no optional singular events yet for the return voyage)
     ]
 
-    # required_singular_events: psycho attack and traitor sabotage events
-    # will be inserted here in phases 3 and 4.
+    # required_singular_events: only scheduled when the condition is met.
+    # Phase 3: psycho attack fires if any crew member is psychotic.
+    # Phase 4: traitor sabotage will be added here.
     required_singular_events = []
+
+    _psychotics = [m for m in team
+                   if getattr(m, 'psychotic', False) and not m.is_robot()]
+    if _psychotics:
+        required_singular_events.append(Event(
+            "A crew member has snapped!",
+            "The incident is resolved.",
+            0, None, None, locations["crew quarters"],
+            calculate_outcome_psychotic_attack,
+            all_items,
+        ))
 
     rando_atmosphere_strings = [
         " the vastness of space overwhelms the crew, causing a combination of awe and anxiety.",
