@@ -2,7 +2,7 @@ import pygame
 import os
 import random
 import pickle
-import time
+import asyncio
 import sys
 
 from Character import Character
@@ -93,7 +93,7 @@ no_suitable_team_member_statements = [
 
 global locations
 
-def update_screen(surface, background, day, font):
+async def update_screen(surface, background, day, font):
     surface.blit(background, (0, 0))
     day_text = font.render(f"DAY {day}", True, CYAN)
     surface.blit(day_text, (40, TOP_BAR_Y))
@@ -101,13 +101,13 @@ def update_screen(surface, background, day, font):
     surface.blit(ship_text, (140, TOP_BAR_Y))
     reset_text_offsets()
 
-def calculate_outcome_training(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_training(team, stat_name, skill_name, screen, font):
     # Determine the best team member(s) to handle the event
     member = determine_best_team_member(team, stat_name, skill_name)
     if member:
-        type_out_text(screen, f"{member.name} {random.choice(teacher_responds_statements)}", font)
+        await type_out_text(screen, f"{member.name} {random.choice(teacher_responds_statements)}", font)
     else:
-        type_out_text(screen, random.choice(no_suitable_statements), font)
+        await type_out_text(screen, random.choice(no_suitable_statements), font)
         return
 
     # Simulate a skill check
@@ -118,7 +118,7 @@ def calculate_outcome_training(team, stat_name, skill_name, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
+    await type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
 
     if skill_check:
         result_text = f"{member.name} {random.choice(teaches_statements)}\n(Mission points + 1)"
@@ -128,12 +128,12 @@ def calculate_outcome_training(team, stat_name, skill_name, screen, font):
     else:
         result_text = f"{member.name} {random.choice(train_fail_statements)}\n "
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
 
-def empty_outcome(team, stat_name, skill_name, screen, font):
+async def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
-def calculate_outcome_weaponsmithing(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_weaponsmithing(team, stat_name, skill_name, screen, font):
     """A skilled team member tries to upgrade the class of a weapon."""
     all_items = load_items()
     candidates = [
@@ -143,28 +143,28 @@ def calculate_outcome_weaponsmithing(team, stat_name, skill_name, screen, font):
         if item.type == "weapon" and item_class(item.name) != "S"
     ]
     if not candidates:
-        type_out_text(screen, "The team has no weapons that can be improved further.", font)
+        await type_out_text(screen, "The team has no weapons that can be improved further.", font)
         return
     member = determine_best_team_member(team, stat_name, skill_name)
     if not member:
-        type_out_text(screen, "No one on the team has Weaponsmithing skill to attempt an upgrade.", font)
+        await type_out_text(screen, "No one on the team has Weaponsmithing skill to attempt an upgrade.", font)
         return
     _, target_item = max(candidates, key=lambda x: x[1].effect)
     owner = next(m for m, i in candidates if i is target_item)
-    type_out_text(screen, f"{member.name} sets to work in the engineering bay, attempting to upgrade {owner.name}'s {target_item.name}:", font)
-    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    await type_out_text(screen, f"{member.name} sets to work in the engineering bay, attempting to upgrade {owner.name}'s {target_item.name}:", font)
+    check_passed = await standard_skill_check(member, screen, stat_name, skill_name, font, -10)
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The weapon has been upgraded to {upgraded.name}. {member.name}'s Weaponsmithing skill increases.", font, GREEN)
+            await type_out_text(screen, f"Success! The weapon has been upgraded to {upgraded.name}. {member.name}'s Weaponsmithing skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} worked diligently, but the weapon is already at its peak quality.", font)
+            await type_out_text(screen, f"{member.name} worked diligently, but the weapon is already at its peak quality.", font)
     else:
-        type_out_text(screen, f"{member.name} worked hard but couldn't achieve the desired improvement. The weapon is unchanged.", font, RED)
+        await type_out_text(screen, f"{member.name} worked hard but couldn't achieve the desired improvement. The weapon is unchanged.", font, RED)
 
-def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
     """A skilled team member tries to upgrade the class of an armor item."""
     all_items = load_items()
     candidates = [
@@ -174,28 +174,28 @@ def calculate_outcome_armorsmithing(team, stat_name, skill_name, screen, font):
         if item.type == "armor" and item_class(item.name) != "S"
     ]
     if not candidates:
-        type_out_text(screen, "The team has no armor that can be improved further.", font)
+        await type_out_text(screen, "The team has no armor that can be improved further.", font)
         return
     member = determine_best_team_member(team, stat_name, skill_name)
     if not member:
-        type_out_text(screen, "No one on the team has Armorsmithing skill to attempt an upgrade.", font)
+        await type_out_text(screen, "No one on the team has Armorsmithing skill to attempt an upgrade.", font)
         return
     _, target_item = max(candidates, key=lambda x: x[1].effect)
     owner = next(m for m, i in candidates if i is target_item)
-    type_out_text(screen, f"{member.name} carefully examines {owner.name}'s {target_item.name} and begins reworking it:", font)
-    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    await type_out_text(screen, f"{member.name} carefully examines {owner.name}'s {target_item.name} and begins reworking it:", font)
+    check_passed = await standard_skill_check(member, screen, stat_name, skill_name, font, -10)
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The armor has been upgraded to {upgraded.name}. {member.name}'s Armorsmithing skill increases.", font, GREEN)
+            await type_out_text(screen, f"Success! The armor has been upgraded to {upgraded.name}. {member.name}'s Armorsmithing skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} worked carefully, but the armor is already peak quality.", font)
+            await type_out_text(screen, f"{member.name} worked carefully, but the armor is already peak quality.", font)
     else:
-        type_out_text(screen, f"{member.name} gave it their best effort but couldn't achieve an improvement. The armor is unchanged.", font, RED)
+        await type_out_text(screen, f"{member.name} gave it their best effort but couldn't achieve an improvement. The armor is unchanged.", font, RED)
 
-def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
     """A skilled team member tries to upgrade the class of a misc item."""
     all_items = load_items()
     candidates = [
@@ -205,26 +205,26 @@ def calculate_outcome_tinkering(team, stat_name, skill_name, screen, font):
         if item.type == "misc" and item_class(item.name) != "S"
     ]
     if not candidates:
-        type_out_text(screen, "The team has no misc items that can be tinkered with further.", font)
+        await type_out_text(screen, "The team has no misc items that can be tinkered with further.", font)
         return
     member = determine_best_team_member(team, stat_name, skill_name)
     if not member:
-        type_out_text(screen, "No one on the team has Tinkering skill to attempt an upgrade.", font)
+        await type_out_text(screen, "No one on the team has Tinkering skill to attempt an upgrade.", font)
         return
     _, target_item = max(candidates, key=lambda x: x[1].effect)
     owner = next(m for m, i in candidates if i is target_item)
-    type_out_text(screen, f"{member.name} pulls out tools and starts tinkering with {owner.name}'s {target_item.name}:", font)
-    check_passed = standard_skill_check(member, screen, stat_name, skill_name, font, -10)
+    await type_out_text(screen, f"{member.name} pulls out tools and starts tinkering with {owner.name}'s {target_item.name}:", font)
+    check_passed = await standard_skill_check(member, screen, stat_name, skill_name, font, -10)
     if check_passed:
         upgraded = upgrade_item_class(target_item, all_items)
         if upgraded and replace_item_in_inventory(owner, target_item, upgraded):
-            type_out_text(screen, f"Success! The item has been upgraded to {upgraded.name}. {member.name}'s Tinkering skill increases.", font, GREEN)
+            await type_out_text(screen, f"Success! The item has been upgraded to {upgraded.name}. {member.name}'s Tinkering skill increases.", font, GREEN)
             member.increase_skill(skill_name, 5)
             member.encourage(3)
         else:
-            type_out_text(screen, f"{member.name} couldn't find a way to improve it further — the item is already at peak quality.", font)
+            await type_out_text(screen, f"{member.name} couldn't find a way to improve it further — the item is already at peak quality.", font)
     else:
-        type_out_text(screen, f"{member.name} tinkered away but couldn't figure out the right approach. The item is unchanged.", font, RED)
+        await type_out_text(screen, f"{member.name} tinkered away but couldn't figure out the right approach. The item is unchanged.", font, RED)
 
 def _interaction_reaction_string(success: bool, score: int, target_name: str) -> str:
     """Return a UI string describing how the target felt about the interaction."""
@@ -243,11 +243,11 @@ def _interaction_reaction_string(success: bool, score: int, target_name: str) ->
         else:
             return f"{target_name} was indifferent."
 
-def _run_interaction(team, screen, font, setting_type, privacy_level):
+async def _run_interaction(team, screen, font, setting_type, privacy_level):
     """Core logic shared by all four interaction event outcomes."""
     non_robots = [m for m in team if not m.is_robot()]
     if len(non_robots) < 2:
-        type_out_text(screen, "The crew keeps to themselves.", font)
+        await type_out_text(screen, "The crew keeps to themselves.", font)
         return
 
     initiator = random.choice(non_robots)
@@ -271,26 +271,26 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
         privacy_level=privacy_level,
     )
 
-    type_out_text(screen, result.sentence, font, WHITE)
+    await type_out_text(screen, result.sentence, font, WHITE)
     emit_character_image_at_text_offset(initiator, screen)
 
     liked_by_score = target.interaction_liked_by.get(result.interaction_type, 0)
     reaction = _interaction_reaction_string(result.success, liked_by_score, target.name)
     color = GREEN if result.success else RED
-    type_out_text(screen, reaction, font, color)
+    await type_out_text(screen, reaction, font, color)
 
     if observer_list:
         names = ", ".join(m.name for m in observer_list)
-        type_out_text(screen, f"Witnessed by: {names}.", font, CYAN)
+        await type_out_text(screen, f"Witnessed by: {names}.", font, CYAN)
     else:
-        type_out_text(screen, "The interaction went unobserved.", font, CYAN)
+        await type_out_text(screen, "The interaction went unobserved.", font, CYAN)
 
     # Blank line to push text cursor past the portrait before "Click to continue".
-    type_out_text(screen, " ", font)
+    await type_out_text(screen, " ", font)
 
     # --- Fight escalation (Step 5) ---
     if result.fight_triggered:
-        type_out_text(
+        await type_out_text(
             screen,
             f"{target.name} is furious and starts a fight with {initiator.name}!",
             font, RED,
@@ -304,12 +304,12 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
         mediator = max(eligible, key=lambda m: m.stats.get("leadership", 0)) if eligible else None
 
         if mediator:
-            type_out_text(screen, f"{mediator.name} steps in to break it up:", font)
-            check_passed = standard_skill_check(
+            await type_out_text(screen, f"{mediator.name} steps in to break it up:", font)
+            check_passed = await standard_skill_check(
                 mediator, screen, "leadership", "Social Engineering", font, 0
             )
             if check_passed:
-                type_out_text(
+                await type_out_text(
                     screen,
                     f"{mediator.name} manages to calm things down. Their leadership is strengthened.",
                     font, GREEN,
@@ -318,7 +318,7 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
                 mediator.increase_skill("Social Engineering", 3)
                 mediator.encourage(5)
             else:
-                type_out_text(
+                await type_out_text(
                     screen,
                     f"{mediator.name} cannot stop them. The fight breaks out! Both sides take minor injuries.",
                     font, RED,
@@ -328,7 +328,7 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
                 for m in team:
                     m.demoralize(3)
         else:
-            type_out_text(
+            await type_out_text(
                 screen,
                 "No one steps in. The brawl breaks out! Both sides take injuries.",
                 font, RED,
@@ -338,24 +338,24 @@ def _run_interaction(team, screen, font, setting_type, privacy_level):
             for m in team:
                 m.demoralize(5)
 
-def calculate_outcome_interaction_private_professional(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_interaction_private_professional(team, stat_name, skill_name, screen, font):
     """PRIVATE PROFESSIONAL: a quiet work talk in crew quarters."""
-    _run_interaction(team, screen, font, PROFESSIONAL, PRIVATE)
+    await _run_interaction(team, screen, font, PROFESSIONAL, PRIVATE)
 
-def calculate_outcome_interaction_public_professional(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_interaction_public_professional(team, stat_name, skill_name, screen, font):
     """PUBLIC PROFESSIONAL: an open exchange on the bridge."""
-    _run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
+    await _run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
 
-def calculate_outcome_interaction_private_personal(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_interaction_private_personal(team, stat_name, skill_name, screen, font):
     """PRIVATE PERSONAL: a personal conversation behind closed doors."""
-    _run_interaction(team, screen, font, PERSONAL, PRIVATE)
+    await _run_interaction(team, screen, font, PERSONAL, PRIVATE)
 
-def calculate_outcome_interaction_public_personal(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_interaction_public_personal(team, stat_name, skill_name, screen, font):
     """PUBLIC PERSONAL: a candid exchange in the mess hall."""
-    _run_interaction(team, screen, font, PERSONAL, PUBLIC)
+    await _run_interaction(team, screen, font, PERSONAL, PUBLIC)
 
 
-def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, font):
     """Step 6: The highest-leadership non-robot addresses the crew before the return voyage.
 
     Success: every non-robot crew member gains 5-20 relationship points with
@@ -364,17 +364,17 @@ def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, 
     """
     non_robots = [m for m in team if not m.is_robot()]
     if not non_robots:
-        type_out_text(screen, "There is no one suitable to address the crew.", font)
+        await type_out_text(screen, "There is no one suitable to address the crew.", font)
         return
 
     leader = max(non_robots, key=lambda m: m.stats.get("leadership", 0))
-    type_out_text(screen, f"{leader.name} addresses the crew before the return voyage:", font)
+    await type_out_text(screen, f"{leader.name} addresses the crew before the return voyage:", font)
 
-    check_passed = standard_skill_check(leader, screen, "leadership", "Instruction", font, 0)
+    check_passed = await standard_skill_check(leader, screen, "leadership", "Instruction", font, 0)
 
     if check_passed:
         boost = random.randint(5, 20)
-        type_out_text(
+        await type_out_text(
             screen,
             f"{leader.name}'s words resonate with the crew.\n"
             f"The team feels inspired to work together toward a common goal.\n"
@@ -387,13 +387,13 @@ def calculate_outcome_inspirational_speech(team, stat_name, skill_name, screen, 
                 if other is not member:
                     member.adjust_relationship(other.name, boost)
     else:
-        type_out_text(
+        await type_out_text(
             screen,
             f"{leader.name}'s words fall flat. The crew remains unmoved.",
             font, RED,
         )
 
-def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font):
     """Return voyage required event (conditional): a psychotic crew member snaps.
 
     Only runs if at least one team member has self.psychotic == True.
@@ -418,7 +418,7 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
     # Strongest psycho goes on the rampage
     psycho = max(psychotics, key=lambda m: m.stats.get("offense", 0))
 
-    type_out_text(
+    await type_out_text(
         screen,
         f"ALERT: {psycho.name} has snapped! A psychotic episode is unfolding!",
         font, RED,
@@ -436,12 +436,12 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
         # 1. Perception check — can anyone spot the threat?
         candidates = alive_crew()
         if not candidates:
-            type_out_text(
+            await type_out_text(
                 screen,
                 "All crew members are incapacitated. Mission is in grave danger!",
                 font, RED,
             )
-            mission_failure(screen, font)
+            await mission_failure(screen, font)
             return
 
         perceiver = max(candidates, key=lambda m: m.stats.get("perception", 0))
@@ -449,7 +449,7 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
         perceived = perceiver.stat_check(roll, "perception", -20)
 
         if perceived:
-            type_out_text(
+            await type_out_text(
                 screen,
                 f"{perceiver.name}'s keen awareness spots the danger in time. "
                 f"{psycho.name} is restrained and thrown in the brig.",
@@ -458,7 +458,7 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
             team.remove(psycho)
             return
 
-        type_out_text(
+        await type_out_text(
             screen,
             f"{perceiver.name} fails to notice the warning signs. The attack continues!",
             font, RED,
@@ -467,9 +467,9 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
         # 2. Pick a victim
         victims = alive_crew()
         if not victims:
-            type_out_text(
+            await type_out_text(
                 screen, "No one remains to stop the rampage. Mission failed!", font, RED)
-            mission_failure(screen, font)
+            await mission_failure(screen, font)
             return
 
         victim = random.choice(victims)
@@ -484,7 +484,7 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
             if surprised else
             f"{victim.name} senses something is wrong!"
         )
-        type_out_text(
+        await type_out_text(
             screen,
             f"{psycho.name} ambushes {victim.name}! {surprise_desc}",
             font, RED,
@@ -498,17 +498,17 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
         if psycho_roll > victim_roll:
             # Psycho wins — victim is killed instantly
             victim.current_health = 0
-            type_out_text(
+            await type_out_text(
                 screen,
                 f"{psycho.name} overwhelms {victim.name}! "
                 f"{victim.name} is dead.",
                 font, RED,
             )
-            type_out_text(screen, "Click to continue...", font)
+            await type_out_text(screen, "Click to continue...", font)
             # Loop back — next round starts with a fresh perception check
         else:
             # Victim wins — psycho is subdued
-            type_out_text(
+            await type_out_text(
                 screen,
                 f"{victim.name} fights back and manages to subdue {psycho.name}! "
                 f"{psycho.name} is restrained and thrown in the brig.",
@@ -518,7 +518,7 @@ def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen, font
             return
 
 
-def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font):
     """Return voyage required event (conditional): traitor(s) attempt sabotage.
 
     Only runs if at least one crew member has self.traitor == True.
@@ -548,7 +548,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     traitor_names = " and ".join(t.name for t in traitors)
     plural = len(traitors) > 1
 
-    type_out_text(
+    await type_out_text(
         screen,
         f"INTELLIGENCE ALERT: A conspiracy has been uncovered aboard the Knacknarpia! "
         f"{traitor_names} {'have' if plural else 'has'} been plotting against the mission.",
@@ -558,19 +558,19 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     # -----------------------------------------------------------------
     # Helper: run interrogation roll and award bonus mission points
     # -----------------------------------------------------------------
-    def try_interrogation(bonus_per_traitor, context_msg):
+    async def try_interrogation(bonus_per_traitor, context_msg):
         interrogator = determine_best_team_member(
             [m for m in team if m not in traitors and not m.is_robot()],
             None, "Interrogation",
         )
         if not interrogator:
             return
-        type_out_text(screen,
+        await type_out_text(screen,
             f"{interrogator.name} begins interrogating the captured traitor(s)...", font)
-        if standard_skill_check(interrogator, screen, None, "Interrogation", font, 0):
+        if await standard_skill_check(interrogator, screen, None, "Interrogation", font, 0):
             bonus = bonus_per_traitor * len(traitors)
             interrogator.mission_points += bonus
-            type_out_text(
+            await type_out_text(
                 screen,
                 f"{context_msg} +{bonus} mission points for {interrogator.name}.",
                 font, GREEN,
@@ -582,7 +582,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     difficulty_modifier = -(len(traitors) - 1) * 10   # harder with more traitors
     roll = random.randint(1, 100)
     if commander.stat_check(roll, "perception", difficulty_modifier):
-        type_out_text(
+        await type_out_text(
             screen,
             f"{commander.name}'s sharp instincts expose the plot before any damage is done! "
             f"{traitor_names} {'are' if plural else 'is'} thrown in the brig.",
@@ -590,12 +590,12 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
         )
         points = 10 * len(traitors)
         commander.mission_points += points
-        type_out_text(
+        await type_out_text(
             screen,
             f"{commander.name} earns {points} mission points for foiling the conspiracy.",
             font, GREEN,
         )
-        try_interrogation(15, "The interrogation yields critical intelligence!")
+        await try_interrogation(15, "The interrogation yields critical intelligence!")
         for t in traitors:
             team.remove(t)
         return
@@ -603,7 +603,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     # -----------------------------------------------------------------
     # Step 2: Perception failed — traitors steal mission data
     # -----------------------------------------------------------------
-    type_out_text(
+    await type_out_text(
         screen,
         f"{commander.name} failed to anticipate the conspiracy in time. "
         f"{traitor_names} steal valuable mission data and materials!",
@@ -613,13 +613,13 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     surprise_threshold = commander.stats.get("surprise", 0) / 2
     surprise_roll = random.randint(1, 100)
     if surprise_roll < surprise_threshold:
-        type_out_text(
+        await type_out_text(
             screen,
             f"{commander.name}'s quick reflexes catch the traitor(s) before they can escape! "
             f"{traitor_names} {'are' if plural else 'is'} captured and thrown in the brig.",
             font, GREEN,
         )
-        try_interrogation(10, "Despite the stolen data, the interrogation recovers some intelligence.")
+        await try_interrogation(10, "Despite the stolen data, the interrogation recovers some intelligence.")
         for t in traitors:
             team.remove(t)
         return
@@ -627,7 +627,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     # -----------------------------------------------------------------
     # Step 3: Both checks failed — traitors escape
     # -----------------------------------------------------------------
-    type_out_text(
+    await type_out_text(
         screen,
         f"{commander.name} was too slow to react. "
         f"{traitor_names} {'escape' if plural else 'escapes'} with the stolen mission data!",
@@ -638,7 +638,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
         lost = int(m.mission_points * 0.66)
         m.mission_points = max(0, m.mission_points - lost)
         lost_total += lost
-    type_out_text(
+    await type_out_text(
         screen,
         f"The team has lost 66% of their mission points due to the stolen data. "
         f"({lost_total} points lost)",
@@ -646,7 +646,7 @@ def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen, font
     )
 
 
-def return_voyage(team_data, team_name="Debug Team", loop=1) :
+async def return_voyage(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
 
@@ -1064,7 +1064,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
     screen.blit(ship_text, (140, TOP_BAR_Y))
 
     intro_text = "The return voyage to home base begins... click to proceed."
-    type_out_text(screen, intro_text, DEFAULT_FONT)
+    await type_out_text(screen, intro_text, DEFAULT_FONT)
 
     events_completed = 0
     max_events_in_voyage = random.randint(10, 15)
@@ -1092,13 +1092,13 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                     running = False
                 else:
                     waiting = False
-                    update_screen(screen, background_image, day, DEFAULT_FONT)
+                    await update_screen(screen, background_image, day, DEFAULT_FONT)
                     if not voyage_complete:
                         rando_text = ""
                         if rando_atmosphere_strings and random.randint(0, 100) < 30:
                             rando_index = random.randint(0, len(rando_atmosphere_strings) - 1)
                             rando_text = rando_atmosphere_strings.pop(rando_index)
-                        type_out_text(screen, "The voyage continues..." + rando_text, DEFAULT_FONT)
+                        await type_out_text(screen, "The voyage continues..." + rando_text, DEFAULT_FONT)
                     else:
                         running = False
                         waiting = True
@@ -1110,8 +1110,8 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                 # Always-first event: inspirational speech
                 speech_done = True
                 draw_location(locations["mess"], screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                calculate_outcome_inspirational_speech(team, None, None, screen, DEFAULT_FONT)
-                type_out_text(screen, "Click to proceed.", DEFAULT_FONT)
+                await calculate_outcome_inspirational_speech(team, None, None, screen, DEFAULT_FONT)
+                await type_out_text(screen, "Click to proceed.", DEFAULT_FONT)
                 events_completed += 1
                 day += 1
             elif events_completed > max_events_in_voyage:
@@ -1120,11 +1120,11 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                     req_event = required_singular_events.pop(0)
                     location = req_event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    await req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     events_completed += 1
                     day += 1
                 else:
-                    type_out_text(screen, "You have arrived at the destination!", DEFAULT_FONT)
+                    await type_out_text(screen, "You have arrived at the destination!", DEFAULT_FONT)
                     voyage_complete = True
             else:
                 # Fire a scheduled required event if this step is a trigger point
@@ -1132,7 +1132,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                     req_event = required_singular_events.pop(0)
                     location = req_event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    await req_event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     events_completed += 1
                     day += 1
                 else:
@@ -1142,7 +1142,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                         event = repeatable_events[event_index]
                         location = event.context.location
                         draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                        event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                        await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                         events_completed += 1
                         day += 1
                     elif optional_singular_events:
@@ -1150,7 +1150,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
                         event = optional_singular_events.pop(event_index)
                         location = event.context.location
                         draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                        event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                        await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                         events_completed += 1
                         day += 1
                     else:
@@ -1170,7 +1170,7 @@ def return_voyage(team_data, team_name="Debug Team", loop=1) :
 
     return stage + 1, team_data
 
-def main():
+async def main():
     print("Starting Stage: Return Voyage")
     team_data = return_voyage(None)
 

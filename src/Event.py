@@ -1,6 +1,6 @@
 import pygame
 import random
-import time
+import asyncio
 
 from Battle import *
 from TypeText import *
@@ -31,12 +31,12 @@ def team_evades_notice(team):
         print(f"Stealth check: roll={roll}, avg_evasion={avg_evasion:.1f}, evaded={evaded}")
     return evaded
 
-def mission_failure(screen, font):
+async def mission_failure(screen, font):
     global mission_failed
-    type_out_text(screen, "The mission has failed.", font)
+    await type_out_text(screen, "The mission has failed.", font)
     mission_failed = True
 
-def team_status(team, screen, font):
+async def team_status(team, screen, font):
     deaths = 0
     for member in team:
         if member.current_health <= 0:
@@ -45,39 +45,40 @@ def team_status(team, screen, font):
     for member in team:
         member.demoralize(5 * deaths)
 
+    advance_text_y(20)
     for member in team:
         max_hp  = member.stats["max_health"] if not member.is_robot() else member.max_life
         percent = member.current_health * 100 // max_hp if max_hp > 0 else 0
         color = GREEN
         if percent <= 50:
             color = RED
+        emit_team_status_portrait(member, screen, size=50)
         if member.current_health > 0:
-            emit_character_image_at_text_offset(member, screen)
-            type_out_text(screen, f"{member.name}  health {percent}%  morale {member.morale}%", font, color)
+            await type_out_text(screen, f"{member.name}  health {percent}%  morale {member.morale}%", font, color)
         else:
-            emit_character_image_at_text_offset(member, screen)
-            type_out_text(screen, f"{member.name} is dead.", font, RED)
+            await type_out_text(screen, f"{member.name} is dead.", font, RED)
+        advance_text_y(30)
 
     reset_x_offset()
 
-def team_repairs_robots(team, screen, font):
+async def team_repairs_robots(team, screen, font):
     # Check if any robot item hp is below normal
     repair_needed = False
     robots = [m for m in team if m.type == "robot"]
     for robot in robots:
         if robot.type == "robot":
           if 0 < robot.current_health < .75 * robot.max_life:
-            type_out_text(screen, f"{robot.name} needs repair.", font)
+            await type_out_text(screen, f"{robot.name} needs repair.", font)
             repair_needed = True
 
     if not repair_needed:
-        type_out_text(screen, "No robot repairs needed.", font)
+        await type_out_text(screen, "No robot repairs needed.", font)
         return
 
     # Perform skill check for "Robot Repair"
     repair_successful = team_skill_check(team, "Robot Repair", 0)
     if repair_successful:
-        type_out_text(screen, "Repair skills and equipment improved the results.", font)
+        await type_out_text(screen, "Repair skills and equipment improved the results.", font)
         base_repair = 40
     else:
         base_repair = 10
@@ -90,11 +91,11 @@ def team_repairs_robots(team, screen, font):
 
     return
 
-def team_heals(team, screen, font):
+async def team_heals(team, screen, font):
     # take out your dead
     for member in team[:]:
         if member.current_health <= 0:
-            type_out_text(screen, f"{member.name} is dead.", font, RED)
+            await type_out_text(screen, f"{member.name} is dead.", font, RED)
             team.remove(member)
     # Refresh each survivor's team reference so mulebot checks stay accurate
     for member in team:
@@ -102,10 +103,10 @@ def team_heals(team, screen, font):
 
     healing_needed = team_needs_heal(team)
     if not healing_needed:
-        type_out_text(screen, "No healing is needed.", font)
+        await type_out_text(screen, "No healing is needed.", font)
         return  # No healing needed
 
-    type_out_text(screen, "The team pauses to heal.", font)
+    await type_out_text(screen, "The team pauses to heal.", font)
 
     # Perform skill checks for "Medicine" with difficulty_modifier=0
     # It's okay to skill check against dead members, b/c that check always returns False
@@ -121,7 +122,7 @@ def team_heals(team, screen, font):
 
     # Determine base healing amounts
     if healing_successful:
-        type_out_text(screen, "Medical skills improved the results.", font)
+        await type_out_text(screen, "Medical skills improved the results.", font)
         base_heal = 50
         medikit_heal = best_medikit.effect if best_medikit else 0
     else:
@@ -133,7 +134,7 @@ def team_heals(team, screen, font):
 
     # Remove one medikit if available
     if has_medikit:
-        type_out_text(screen, "A medikit had to be consumed to patch everyone up.", font)
+        await type_out_text(screen, "A medikit had to be consumed to patch everyone up.", font)
         for member in team:
             for item in member.equipment:
                 if item_base_name(item.name) == "medikit":
@@ -147,7 +148,7 @@ def team_heals(team, screen, font):
     heal_amount = base_heal + (medikit_heal if has_medikit else 0)
     heal_team_by(team, heal_amount)
 
-    team_status(team, screen, font)
+    await team_status(team, screen, font)
 
 def pirate_enemies(num_pirates, items):
     pirates = []
@@ -196,9 +197,9 @@ def pirate_enemy(i, weapon_items, armor_items, non_weapon_items, all_items):
         pirate.add_item(item)
     return pirate
 
-def pause_to_clear_screen(screen, background, font):
+async def pause_to_clear_screen(screen, background, font):
     paused = True
-    type_out_text(screen, "Click to continue.", font)
+    await type_out_text(screen, "Click to continue.", font)
     while paused:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -206,13 +207,14 @@ def pause_to_clear_screen(screen, background, font):
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 paused = False
+        await asyncio.sleep(0)   # yield to browser while waiting for click
     clear_screen(screen, background)
 
 class Event:
     def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items):
         self.context = EventContext(pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items)
 
-    def run(self, team, screen, font, background, location_font):
+    async def run(self, team, screen, font, background, location_font):
         self.context.add_run_params(team, screen, font, background, location_font)
         if self.context.num_enemies == 0:
             self.context.enemies = None
@@ -223,57 +225,57 @@ class Event:
             self.context.enemies = pirate_enemies(5, self.context.all_items).append(jalorith(self.context.all_items))
 
         # Display the pre-battle description
-        type_out_text(screen, self.context.pre_description, font)
+        await type_out_text(screen, self.context.pre_description, font)
 
         # Run the battle, if any
         if self.context.enemies:
-            self.run_battle()
+            await self.run_battle()
 
         # Calculate the outcome of the event
-        next_event = self.context.calculate_outcome(team, self.context.stat_name, self.context.skill_name, screen, font)
+        next_event = await self.context.calculate_outcome(team, self.context.stat_name, self.context.skill_name, screen, font)
         compound_event = False
         # Handle compound events
         while(next_event) is not None:
             compound_event = True
-            next_event = next_event.run(team, screen, font, background, location_font)
+            next_event = await next_event.run(team, screen, font, background, location_font)
 
         # Don't ask for click on compound events
         reset_x_offset()
         if not compound_event:
-            type_out_text(screen, "Click to proceed.", font)
+            await type_out_text(screen, "Click to proceed.", font)
 
-    def run_battle(self):
+    async def run_battle(self):
         methods = self.context.team[0].mission.get("methods") if self.context.team else None
 
         # --- Stealth check ---
         if methods == "stealth":
             if team_evades_notice(self.context.team):
-                type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
+                await type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
                 return  # skip combat entirely
             else:
-                type_out_text(self.context.screen, "The team is spotted! Combat ensues.", self.context.font)
-        type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
+                await type_out_text(self.context.screen, "The team is spotted! Combat ensues.", self.context.font)
+        await type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
 
         if methods == "brazen":
-            self.context.brazen_bonus = 25
-            type_out_text(self.context.screen, "The team catches the enemy by surprise!", self.context.font)
-        pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
+            self.context.brazen_bonus = 10
+            await type_out_text(self.context.screen, "The team catches the enemy by surprise!", self.context.font)
+        await pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         event_battle = TeamBattle(self.context)
-        event_battle.run_battle()
+        await event_battle.run_battle()
         pygame.mixer.music.fadeout(2000)
         play_background_music("music/track3.mp3", pygame)
         max_y_offset()
 
         # If team died, game ends
         if team_dead(self.context.team):
-            mission_failure(self.context.screen, self.context.font)
+            await mission_failure(self.context.screen, self.context.font)
         else:
-            pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
+            await pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         # Heal if appropriate
         if self.context.enemies:
-            team_heals(self.context.team, self.context.screen, self.context.font)
-            team_repairs_robots(self.context.team, self.context.screen, self.context.font)
+            await team_heals(self.context.team, self.context.screen, self.context.font)
+            await team_repairs_robots(self.context.team, self.context.screen, self.context.font)
 
         # Display the post-battle description
         if self.context.post_description is not None:
-            type_out_text(self.context.screen, self.context.post_description, self.context.font)
+            await type_out_text(self.context.screen, self.context.post_description, self.context.font)

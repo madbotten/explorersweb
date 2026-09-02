@@ -44,7 +44,7 @@ DEL_HOVER_N   = (120, 30, 30)   # hover on normal
 DEL_HOVER_C   = (200, 110, 0)   # hover on confirm
 
 # ---------------------------------------------------------------------------
-def load_game():
+async def load_game():
     """
     Show the Load Game startup screen.
     Returns (team_name, loop, start_stage, team_data).

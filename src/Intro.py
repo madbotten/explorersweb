@@ -27,7 +27,7 @@ MISSION_RECT = pygame.Rect(1130, 250, 105, 25)
 RETURN_RECT = pygame.Rect(1130, 300, 105, 25)
 SCORE_RECT = pygame.Rect(1130, 350, 105, 25)
 
-def introduction3() :
+async def introduction3() :
     global text_x_offset
     global text_y_offset
     global max_height
@@ -194,7 +194,7 @@ def introduction3() :
 
     return stage
 
-def main():
+async def main():
     print("Starting Stage: Introduction")
     introduction3()
 

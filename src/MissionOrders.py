@@ -41,7 +41,7 @@ class Checkbox:
                 # Check this checkbox
                 self.checked = True
 
-def draw_team(team, screen, font):
+async def draw_team(team, screen, font):
     for i, character in enumerate(team):
         character_rect = pygame.Rect(SCREEN_WIDTH - 370, CREDITS_BAR_HEIGHT + i * 120, 50, 50)
 
@@ -56,7 +56,7 @@ def draw_team(team, screen, font):
             screen.blit(character.portrait, (portrait_x, portrait_y))
 
 # Game screen function
-def mission_orders(team_data, team_name="Debug Team", loop=1):
+async def mission_orders(team_data, team_name="Debug Team", loop=1):
     # Initialize Pygame
     pygame.init()
     pygame.font.init()
@@ -165,7 +165,7 @@ def mission_orders(team_data, team_name="Debug Team", loop=1):
         screen.blit(PROCEED_TEXT, PROCEED_RECT)
         screen.blit(EXIT_TEXT, EXIT_RECT)
 
-        draw_team(team, screen, OPTION_FONT)
+        await draw_team(team, screen, OPTION_FONT)
 
         # Draw checkboxes
         for checkbox in methods_group:

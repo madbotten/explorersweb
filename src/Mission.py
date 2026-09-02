@@ -1,5 +1,6 @@
 
 import pygame
+import asyncio
 import os
 import sys
 
@@ -31,7 +32,7 @@ global locations
 global mission_failed
 global rooms_to_goal
 
-def update_screen(surface, background, hour, font):
+async def update_screen(surface, background, hour, font):
     surface.blit(background, (0, 0))
     day_text = font.render(f"HOUR {hour}", True, CYAN)
     surface.blit(day_text, (40, 10))
@@ -39,72 +40,72 @@ def update_screen(surface, background, hour, font):
     surface.blit(ship_text, (120, 10))
     reset_text_offsets()
 
-def calculate_outcome_sickbay(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_sickbay(team, stat_name, skill_name, screen, font):
     member = determine_best_team_member(team, stat_name, skill_name)
     if member:
-        type_out_text(screen, f"{member.name} grabs a spare medikit from the corner.", font)
+        await type_out_text(screen, f"{member.name} grabs a spare medikit from the corner.", font)
     return
 
-def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
     global rooms_to_goal
 
     # try using cutter
     if team_has_item(team, "cutter"):
-        type_out_text(screen, "The team uses the cutter to breach the portal.", font, WHITE)
+        await type_out_text(screen, "The team uses the cutter to breach the portal.", font, WHITE)
         return None
 
     # try hacking
     member = determine_best_team_member(team, None, "Hacking")
     if member:
-        type_out_text(screen, f"{member.name} tries to hack the controller:", font)
-        check_passed = standard_skill_check(member, screen, None, "Hacking", font, 0)
+        await type_out_text(screen, f"{member.name} tries to hack the controller:", font)
+        check_passed = await standard_skill_check(member, screen, None, "Hacking", font, 0)
         if check_passed:
             result_text = f"{member.name} gets access and opens the portal.\nTheir skill has been strengthened."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
             member.mission_points += 5
             member.increase_skill("Hacking", 1)
             return
         else:
             result_text = f"{member.name} could not break in."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
 
     # try rerouting the portal control
     member = determine_best_team_member(team, None, "Ships Systems")
     if member:
-        type_out_text(screen, f"{member.name} tries to route around the portal controller:", font)
-        check_passed = standard_skill_check(member, screen, None, "Ships Systems", font, 0)
+        await type_out_text(screen, f"{member.name} tries to route around the portal controller:", font)
+        check_passed = await standard_skill_check(member, screen, None, "Ships Systems", font, 0)
         if check_passed:
             result_text = f"{member.name} gets opens the portal.\nTheir skill has been strengthened."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
             member.mission_points += 5
             member.increase_skill("Ships Systems", 1)
             return
         else:
             result_text = f"{member.name} could not reroute the control."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
 
     # try to blow up the lock
     member = determine_best_team_member(team, None, "Explosives")
     if member:
-        type_out_text(screen, f"{member.name} prepares a small charge to blow out the lock:", font)
-        check_passed = standard_skill_check(member, screen, None, "Explosives", font, 0)
+        await type_out_text(screen, f"{member.name} prepares a small charge to blow out the lock:", font)
+        check_passed = await standard_skill_check(member, screen, None, "Explosives", font, 0)
         if check_passed:
             result_text = f"{member.name} gets the portal open.\nTheir skill has been strengthened."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
             member.mission_points += 5
             member.increase_skill("Explosives", 1)
             return
         else:
             result_text = f"{member.name} could not blow out the lock."
-            type_out_text(screen, result_text, font, WHITE)
+            await type_out_text(screen, result_text, font, WHITE)
 
     rooms_to_goal += 2
-    type_out_text(screen, "The portal remains locked, the team must take another route", font, WHITE)
+    await type_out_text(screen, "The portal remains locked, the team must take another route", font, WHITE)
     reset_x_offset()
     return
 
-def calculate_goal_outcome_hack(member, screen, font):
-    type_out_text(screen, f"{member.name} steps up to hack into the console:", font)
+async def calculate_goal_outcome_hack(member, screen, font):
+    await type_out_text(screen, f"{member.name} steps up to hack into the console:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -114,7 +115,7 @@ def calculate_goal_outcome_hack(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, "Hacking", None, 0), font, color)
+    await type_out_text(screen, roll_string(roll, "Hacking", None, 0), font, color)
 
     if skill_check:
         result_text = f"{member.name} gets access and downloads secrets (+10 mission points).\nTheir skill has been strengthened."
@@ -125,12 +126,12 @@ def calculate_goal_outcome_hack(member, screen, font):
         result_text = f"{member.name} could not break in."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_goal_outcome_explosives(member, screen, font):
-    type_out_text(screen, f"{member.name} steps up to place explosives at the mechanism:", font)
+async def calculate_goal_outcome_explosives(member, screen, font):
+    await type_out_text(screen, f"{member.name} steps up to place explosives at the mechanism:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -140,7 +141,7 @@ def calculate_goal_outcome_explosives(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, "Explosives", None, 0), font, color)
+    await type_out_text(screen, roll_string(roll, "Explosives", None, 0), font, color)
 
     if skill_check:
         result_text = f"{member.name} detonates a shaped charge and forces the vault open (+10 mission points).\nTheir skill has been strengthened."
@@ -151,12 +152,12 @@ def calculate_goal_outcome_explosives(member, screen, font):
         result_text = f"{member.name} detonates a shaped charge but the mechanism remains secured."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_goal_outcome_cutter(member, screen, font):
-    type_out_text(screen, f"{member.name} begins to work on the controller with their cutter:", font)
+async def calculate_goal_outcome_cutter(member, screen, font):
+    await type_out_text(screen, f"{member.name} begins to work on the controller with their cutter:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -166,7 +167,7 @@ def calculate_goal_outcome_cutter(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, None, "coordination", 10), font, color)
+    await type_out_text(screen, roll_string(roll, None, "coordination", 10), font, color)
 
     if skill_check:
         result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points)."
@@ -176,12 +177,12 @@ def calculate_goal_outcome_cutter(member, screen, font):
         result_text = f"{member.name} tries cutting in, but the area remains unbreached."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_goal_outcome_negotiation(member, screen, font):
-    type_out_text(screen, f"{member.name} attempts to negotiate with the AI:", font)
+async def calculate_goal_outcome_negotiation(member, screen, font):
+    await type_out_text(screen, f"{member.name} attempts to negotiate with the AI:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -191,7 +192,7 @@ def calculate_goal_outcome_negotiation(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, "Negotiation", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Negotiation", None, 10), font, color)
 
     if skill_check:
         result_text = f"{member.name} convinces the AI to cooperate and grant access (+10 mission points).\nTheir skill has been strengthened."
@@ -202,12 +203,12 @@ def calculate_goal_outcome_negotiation(member, screen, font):
         result_text = f"{member.name} could not reach an agreement with the AI."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_goal_outcome_diplomacy(member, screen, font):
-    type_out_text(screen, f"{member.name} attempts a diplomatic approach with the AI:", font)
+async def calculate_goal_outcome_diplomacy(member, screen, font):
+    await type_out_text(screen, f"{member.name} attempts a diplomatic approach with the AI:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -217,7 +218,7 @@ def calculate_goal_outcome_diplomacy(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, "Diplomacy", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Diplomacy", None, 10), font, color)
 
     if skill_check:
         result_text = f"{member.name} establishes a diplomatic accord with the AI, gaining access (+10 mission points).\nTheir skill has been strengthened."
@@ -228,12 +229,12 @@ def calculate_goal_outcome_diplomacy(member, screen, font):
         result_text = f"{member.name} could not establish terms the AI would accept."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_goal_outcome_espionage(member, screen, font):
-    type_out_text(screen, f"{member.name} tries to use their skill in espionage:", font)
+async def calculate_goal_outcome_espionage(member, screen, font):
+    await type_out_text(screen, f"{member.name} tries to use their skill in espionage:", font)
 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
@@ -243,7 +244,7 @@ def calculate_goal_outcome_espionage(member, screen, font):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, "Espionage", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Espionage", None, 10), font, color)
 
     if skill_check:
         result_text = f"{member.name} succeeds in the operation (+10 mission points)."
@@ -253,11 +254,11 @@ def calculate_goal_outcome_espionage(member, screen, font):
         result_text = f"{member.name} fails to make any progress."
         result = False
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
     return result
 
-def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
     global mission_failed
 
     mission_failed = True  # assume failure until a method succeeds
@@ -266,7 +267,7 @@ def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
         print("Trying hacking")
     member = determine_best_team_member(team, None, "Hacking")
     if member:
-        mission_failed = not calculate_goal_outcome_hack(member, screen, font)
+        mission_failed = not await calculate_goal_outcome_hack(member, screen, font)
         if DEBUG:
             print(f"{mission_failed}")
 
@@ -275,7 +276,7 @@ def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
             print("Trying explosives")
         member = determine_best_team_member(team, None, "Explosives",)
         if member:
-            mission_failed = not calculate_goal_outcome_explosives(member, screen, font)
+            mission_failed = not await calculate_goal_outcome_explosives(member, screen, font)
             print(f"{mission_failed}")
 
     if mission_failed:
@@ -283,66 +284,66 @@ def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font):
             print("Trying cutter")
         if team_has_item(team, "cutter"):
             member = next(m for m in team if m.has_item("cutter"))
-            mission_failed = not calculate_goal_outcome_cutter(member, screen, font)
+            mission_failed = not await calculate_goal_outcome_cutter(member, screen, font)
             print(f"{mission_failed}")
 
     if mission_failed:
-        type_out_text(screen, "The mission has failed!", font)
+        await type_out_text(screen, "The mission has failed!", font)
     else:
         mission_failed = False
-        type_out_text(screen, "The Trilisk artifact is retrieved from the breached vault.\n Mission objective has been achieved!", font)
+        await type_out_text(screen, "The Trilisk artifact is retrieved from the breached vault.\n Mission objective has been achieved!", font)
 
     return
 
-def calculate_outcome_officers_quarters_jalorith(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_officers_quarters_jalorith(team, stat_name, skill_name, screen, font):
     global mission_failed
 
     mission_failed = False
-    type_out_text(screen, "Jalorith has been defeated. The mission objective has been achieved!", font)
+    await type_out_text(screen, "Jalorith has been defeated. The mission objective has been achieved!", font)
     return
 
-def calculate_outcome_officers_quarters_neutralize(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_officers_quarters_neutralize(team, stat_name, skill_name, screen, font):
     global mission_failed
 
     mission_failed = False
-    type_out_text(screen, "All the pirates have been neutralized. The mission objective has been achieved!", font)
+    await type_out_text(screen, "All the pirates have been neutralized. The mission objective has been achieved!", font)
     return
 
-def calculate_outcome_ai_core(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_ai_core(team, stat_name, skill_name, screen, font):
     global mission_failed
 
     mission_failed = True  # assume failure until a method succeeds
 
     member = determine_best_team_member(team, None, "Negotiation")
     if member:
-        mission_failed = not calculate_goal_outcome_negotiation(member, screen, font)
+        mission_failed = not await calculate_goal_outcome_negotiation(member, screen, font)
 
     if mission_failed:
         member = determine_best_team_member(team, None, "Espionage")
         if member:
-            mission_failed = not calculate_goal_outcome_espionage(member, screen, font)
+            mission_failed = not await calculate_goal_outcome_espionage(member, screen, font)
 
     if mission_failed:
         member = determine_best_team_member(team, None, "Diplomacy")
         if member:
-            mission_failed = not calculate_goal_outcome_diplomacy(member, screen, font)
+            mission_failed = not await calculate_goal_outcome_diplomacy(member, screen, font)
 
     if mission_failed:
-        type_out_text(screen, "The mission has failed!", font)
+        await type_out_text(screen, "The mission has failed!", font)
     else:
         mission_failed = False
-        type_out_text(screen, "The AI core yields the secret information to the team.\nThe mission objective has been achieved!", font)
+        await type_out_text(screen, "The AI core yields the secret information to the team.\nThe mission objective has been achieved!", font)
 
     return
 
-def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
+async def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
     member = determine_best_team_member(team, stat_name, skill_name)
     if member:
-        type_out_text(screen, f"{member.name} steps up to hack into the console:", font)
+        await type_out_text(screen, f"{member.name} steps up to hack into the console:", font)
     else:
-        type_out_text(screen, random.choice(no_suitable_statements), font)
+        await type_out_text(screen, random.choice(no_suitable_statements), font)
         result_text = "No one can access any data from here."
-        type_out_text(screen, result_text, font, WHITE)
+        await type_out_text(screen, result_text, font, WHITE)
         return
 
     # Simulate a skill check
@@ -352,7 +353,7 @@ def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
     if skill_check:
         color = GREEN
     else: color = RED
-    type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
+    await type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
 
     if skill_check:
         result_text = f"{member.name} gets access and downloads secrets (+10 mission points).\nTheir skill has been strengthened."
@@ -362,13 +363,13 @@ def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, font):
     else:
         result_text = f"{member.name} could not discover anything useful."
 
-    type_out_text(screen, result_text, font, WHITE)
+    await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
 
-def empty_outcome(team, stat_name, skill_name, screen, font):
+async def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
-def go_mission(team_data, team_name="Debug Team", loop=1) :
+async def go_mission(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
     global mission_failed
@@ -554,13 +555,13 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
 
     intro_text = "The team arrives on planet at the mission point..."
-    type_out_text(screen, intro_text, DEFAULT_FONT)
+    await type_out_text(screen, intro_text, DEFAULT_FONT)
 
     mission_index = team[0].mission["mission_index"]
     intro_text = MISSION_GOALS[mission_index][0]
-    type_out_text(screen, intro_text, DEFAULT_FONT)
+    await type_out_text(screen, intro_text, DEFAULT_FONT)
     intro_text = "Click to proceed."
-    type_out_text(screen, intro_text, DEFAULT_FONT)
+    await type_out_text(screen, intro_text, DEFAULT_FONT)
 
     location = locations["entrance"]
     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
@@ -589,13 +590,13 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
                     running = False
                 else:
                     waiting = False
-                    update_screen(screen, background_image, hour, DEFAULT_FONT)
+                    await update_screen(screen, background_image, hour, DEFAULT_FONT)
                     if not voyage_complete:
                         rando_text = ""
                         if rando_atmosphere_strings and random.randint(0, 100) < 30:
                             rando_index = random.randint(0, len(rando_atmosphere_strings) - 1)
                             rando_text = rando_atmosphere_strings.pop(rando_index)
-                        type_out_text(screen, "The team continues..." + rando_text, DEFAULT_FONT)
+                        await type_out_text(screen, "The team continues..." + rando_text, DEFAULT_FONT)
                     else:
                         running = False
                         waiting = True
@@ -607,7 +608,7 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
                 event = goal_event[mission_index]
                 location = event.context.location
                 draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                 hour += 1
                 voyage_complete = True
                 if not mission_failed:
@@ -620,7 +621,7 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
                     event = optional_singular_events.pop(event_index)
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     rooms_to_goal -= 1
                     hour += 1
                 else:
@@ -629,7 +630,7 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
                     event = repeatable_events[event_index]
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                    await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
                     rooms_to_goal -= 1
                     hour += 1
             waiting = True
@@ -648,7 +649,7 @@ def go_mission(team_data, team_name="Debug Team", loop=1) :
 
     return stage + 1, team_data
 
-def main():
+async def main():
     print("Starting Stage: Mission")
     team_data = mission(None)
 

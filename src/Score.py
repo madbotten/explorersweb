@@ -150,7 +150,7 @@ def draw_hover_popup(member, screen, mouse_pos, popup_font, header_font):
         ty += line_h
 
 
-def score(team_data, team_name="Debug Team", loop=1):
+async def score(team_data, team_name="Debug Team", loop=1):
     global text_x_offset
     global text_y_offset
     global max_height
@@ -250,7 +250,7 @@ def score(team_data, team_name="Debug Team", loop=1):
     return stage, team_data
 
 
-def main():
+async def main():
     print("Starting Stage: Score")
     score(None)
 

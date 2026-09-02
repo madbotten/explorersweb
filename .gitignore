@@ -1,5 +1,5 @@
 # Virtual environment
-#.venv/ do NOT add this, it causes problems with agent access to code
+.venv/
 
 # Python cache
 __pycache__/
@@ -30,3 +30,4 @@ dist/
 # Agent config and dev tools (local only)
 .agents/
 gametests.py
+ExplorersGameResources/

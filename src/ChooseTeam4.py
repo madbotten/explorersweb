@@ -71,7 +71,7 @@ TEAM_FIVE_NAME_LOC = (340 + 5 * (CHARACTER_BOX_WIDTH + BOX_GAP), NAME_Y_TOP)
 CANDIDATE_RECT = pygame.Rect(22, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
 REJECTED_BOX = box_rect = pygame.Rect(1375, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
 
-def _prompt_team_name(screen):
+async def _prompt_team_name(screen):
     """
     Show a text-entry overlay on the current screen and return the entered team name.
     Accepts alphanumeric characters and spaces (max 20 chars).
@@ -143,7 +143,7 @@ def _prompt_team_name(screen):
     return result
 
 
-def choose_team(team_data, team_name="Debug Team", loop=1):
+async def choose_team(team_data, team_name="Debug Team", loop=1):
     # If this is the first mission, team starts empty.
     # team = [None, None, None, None, None, None]
     # Otherwise, this is an opportunity to replace team members or add ones to replace dead ones
@@ -631,7 +631,7 @@ def choose_team(team_data, team_name="Debug Team", loop=1):
 
     # ---- Team naming prompt (loop 1 only) ----
     if stage < 1000 and loop == 1:
-        team_name = _prompt_team_name(screen)
+        team_name = await _prompt_team_name(screen)
 
     # store the resulting team
     if stage < 1000:
@@ -645,7 +645,7 @@ def choose_team(team_data, team_name="Debug Team", loop=1):
 
     return stage + 1, team_data, team_name
 
-def main():
+async def main():
     print("Starting Stage: Choose Team")
     team_data = choose_team()
 

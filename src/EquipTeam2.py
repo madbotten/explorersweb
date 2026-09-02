@@ -1,4 +1,4 @@
-import time
+import asyncio
 
 from Character import *
 from DrawUtils import DrawingContext
@@ -16,7 +16,7 @@ MAX_TEAM_SIZE = 10
 MAX_WEAPONS = 2
 MAX_ARMOR = 2
 
-def equip_team(team_data, team_name="Debug Team", loop=1) :
+async def equip_team(team_data, team_name="Debug Team", loop=1) :
     if DEBUG:
         print("started equip team")
     # Initialize Pygame
@@ -68,7 +68,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
         credits_text = DEFAULT_FONT.render(f"Credits: {credits}", True, WHITE)
         screen.blit(credits_text, (40, 10))
 
-    def display_message(text, surface, font):
+    async def display_message(text, surface, font):
         action_text_surface = font.render(text, True, CYAN)
         background_surface = pygame.Surface(
             (action_text_surface.get_width() + 150, action_text_surface.get_height() + 5))
@@ -77,7 +77,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
         surface.blit(background_surface, background_position)
         surface.blit(action_text_surface, background_position)
         pygame.display.flip()
-        time.sleep(2)
+        await asyncio.sleep(2)
 
     # Display item descriptions on mouseover
     def blit_item_descriptions_with_hover(surface, items, font, mouse_pos):
@@ -166,7 +166,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
             screen.blit(tab_text, (x_offset, CREDITS_BAR_HEIGHT + 10))
             x_offset += 105
 
-    def handle_item_drag(team, item, character):
+    async def handle_item_drag(team, item, character):
         """
         Handles item cost deduction and adding item to character's equipment as an icon.
         Must pass basic checks:
@@ -175,13 +175,13 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
         3. Max team size 10 counting characters + assault bots + melee bots
         """
         if item.type == "robot":
-            return handle_robot_drag(team, item)
+            return await handle_robot_drag(team, item)
 
         if character.get_weapon_count() >= 2 and item.type == "weapon":
-            display_message("Max two weapons per character", screen, DEFAULT_FONT)
+            await display_message("Max two weapons per character", screen, DEFAULT_FONT)
             return
         if character.get_armor_count() >= 2 and item.type == "armor":
-            display_message("Max two armors per character", screen, DEFAULT_FONT)
+            await display_message("Max two armors per character", screen, DEFAULT_FONT)
             return
 
         nonlocal credits
@@ -190,12 +190,12 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
             if item.type != "robot":
                 character.add_item(item.copy())
         else:
-            display_message("Not enough credits!", screen, DEFAULT_FONT)
+            await display_message("Not enough credits!", screen, DEFAULT_FONT)
 
-    def handle_robot_drag(team, item):
+    async def handle_robot_drag(team, item):
 
         if item.type == "robot" and team_size(team) >= 10:
-            display_message("Max team size: 10", screen, DEFAULT_FONT)
+            await display_message("Max team size: 10", screen, DEFAULT_FONT)
             return
 
         nonlocal credits
@@ -203,7 +203,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
             credits -= item.cost
             add_robot_to_team(team, item)
         else:
-            display_message("Not enough credits!", screen, DEFAULT_FONT)
+            await display_message("Not enough credits!", screen, DEFAULT_FONT)
 
     def add_robot_to_team(team, item):
         i = team_size(team)
@@ -374,10 +374,10 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
                         # If dropped on a different character, move the item
                         if dragging_from_character and dragging_from_character != dropped_on_character:
                             if dropped_on_character.get_weapon_count() >= 2 and dragging_item.type == "weapon":
-                                display_message("Max two weapons per character", screen, DEFAULT_FONT)
+                                await display_message("Max two weapons per character", screen, DEFAULT_FONT)
                                 dragging_item.rect.topleft = original_item_position
                             elif dropped_on_character.get_armor_count() >= 2 and dragging_item.type == "armor":
-                                display_message("Max two armors per character", screen, DEFAULT_FONT)
+                                await display_message("Max two armors per character", screen, DEFAULT_FONT)
                                 dragging_item.rect.topleft = original_item_position
                             else:
                                 dragging_from_character.equipment.remove(original_dragging_item)
@@ -386,7 +386,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
                             dragging_item.rect.topleft = original_item_position
                         else:
                             # handle as a new purchase with various checks
-                            handle_item_drag(team, dragging_item, dropped_on_character)
+                            await handle_item_drag(team, dragging_item, dropped_on_character)
                     elif STORE_RECT.collidepoint(dragging_item.rect.center):
                         if dragging_from_character:
                             dragging_from_character.equipment.remove(original_dragging_item)
@@ -394,7 +394,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
                     else:
                         # If it's a robot dropped in open space, add it to the team
                         if dragging_item.type == "robot" and not dragging_from_character:
-                            handle_item_drag(team, dragging_item, None)
+                            await handle_item_drag(team, dragging_item, None)
                         else:
                             # Return to the original position if not equipped
                             dragging_item.rect.topleft = original_item_position
@@ -409,7 +409,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
                         # Refund only the robot's purchase cost; its equipment stays
                         refund = all_items[dragging_robot.occupation].cost
                         credits += refund
-                        display_message(f"Sold {dragging_robot.name} for {refund} credits", screen, DEFAULT_FONT)
+                        await display_message(f"Sold {dragging_robot.name} for {refund} credits", screen, DEFAULT_FONT)
                         team.remove(dragging_robot)
                     dragging_robot = None
                     dragging_robot_rect = None
@@ -479,7 +479,7 @@ def equip_team(team_data, team_name="Debug Team", loop=1) :
 
     return stage + 1, team_data
 
-def main():
+async def main():
     print("Starting Stage: Equip Team")
     team_data = equip_team(None)
 

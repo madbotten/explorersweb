@@ -1,6 +1,6 @@
 import pygame
 import random
-import time
+import asyncio
 
 from Utils import *
 
@@ -24,7 +24,7 @@ def reset_x_offset():
     text_x_offset = BASE_TEXT_X_OFFSET
 
 # negative modifier is harder
-def standard_skill_check(member, screen, stat_name, skill_name, font, modifier):
+async def standard_skill_check(member, screen, stat_name, skill_name, font, modifier):
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
     skill_check = member.stat_and_skill_check(roll, stat_name, skill_name, modifier)
@@ -32,7 +32,7 @@ def standard_skill_check(member, screen, stat_name, skill_name, font, modifier):
         color = GREEN
     else:
         color = RED
-    type_out_text(screen, roll_string(roll, skill_name, stat_name, modifier), font, color)
+    await type_out_text(screen, roll_string(roll, skill_name, stat_name, modifier), font, color)
     return skill_check
 
 def emit_character_image_at_text_offset(character, screen):
@@ -41,7 +41,21 @@ def emit_character_image_at_text_offset(character, screen):
     screen.blit(character.portrait, (50, text_y_offset + 30))
     text_x_offset = BASE_TEXT_X_OFFSET + 80
 
-def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.010):
+def emit_team_status_portrait(character, screen, size=50):
+    global text_x_offset
+    global text_y_offset
+    if hasattr(character, "portrait") and character.portrait:
+        scaled = pygame.transform.scale(character.portrait, (size, size))
+        screen.blit(scaled, (50, text_y_offset + 10))
+        text_x_offset = BASE_TEXT_X_OFFSET + size + 20
+    else:
+        text_x_offset = BASE_TEXT_X_OFFSET + size + 20
+
+def advance_text_y(amount=30):
+    global text_y_offset
+    text_y_offset += amount
+
+async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.010):
     global text_x_offset
     global text_y_offset
 
@@ -58,7 +72,7 @@ def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.010)
             surface.fill((0, 0, 0), line_rect)  # Black background
             surface.blit(text_surface, (text_x_offset, text_y_offset))
             pygame.display.flip()
-            time.sleep(delay)
+            await asyncio.sleep(delay)
 
 def clear_screen(surface, background):
     global text_x_offset

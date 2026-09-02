@@ -1,4 +1,4 @@
-import time
+import asyncio
 
 from enum import Enum
 
@@ -29,12 +29,12 @@ TEAM_RIGHT = 880
 TEAM_TOP = 5
 TEAM_ACTIONS_X_OFFSET = 300
 
-def clear_announce_bar(surface):
+async def clear_announce_bar(surface):
     background_surface = pygame.Surface((800, 25))
     background_surface.fill((0, 0, 0))
     surface.blit(background_surface, (ROUND_AND_PHASE_LEFT, 5))
     pygame.display.flip()
-    time.sleep(2)
+    await asyncio.sleep(2)
 
 def announce_round_and_phase(round, phase, surface, font):
     text = f"Round: {round} Phase: {phase}"
@@ -45,7 +45,7 @@ def announce_round_and_phase(round, phase, surface, font):
     surface.blit(background_surface, background_position)
     surface.blit(action_text_surface, (ROUND_AND_PHASE_LEFT, 5))
 
-def announce_action(text, surface, font):
+async def announce_action(text, surface, font):
     action_text_surface = font.render(text, True, CYAN)
     background_surface = pygame.Surface((action_text_surface.get_width() + 150, action_text_surface.get_height() + 5))
     background_surface.fill((0, 0, 0))  # Black background
@@ -53,16 +53,16 @@ def announce_action(text, surface, font):
     surface.blit(background_surface, background_position)
     surface.blit(action_text_surface, (ACTION_LEFT, 5))
     pygame.display.flip()
-    time.sleep(1)
+    await asyncio.sleep(1)
 
-def clear_screen_for_round(round, phase, screen, font):
+async def clear_screen_for_round(round, phase, screen, font):
     background_surface = pygame.Surface((500, 800))
     background_surface.fill((0, 0, 0))  # Black background
     background_position = (330, 60)
     screen.blit(background_surface, background_position)
     announce_round_and_phase(round, phase, screen, font)
     pygame.display.flip()
-    time.sleep(1)
+    await asyncio.sleep(1)
 
 def initiative(team, enemies, brazen_bonus=0):
     all_characters = team + enemies
@@ -220,12 +220,12 @@ def battle_display_pirate_action(character, action, screen, font):
     screen.blit(text_surface, (character.get_rect().left - TEAM_ACTIONS_X_OFFSET, character.get_rect().top))
     pygame.display.flip()
 
-def battle_display_character_hit(character, screen):
+async def battle_display_character_hit(character, screen):
     red_overlay = pygame.Surface(character.portrait.get_size(), pygame.SRCALPHA)
     red_overlay.fill((255, 0, 0, 128))  # Semi-transparent red
     screen.blit(red_overlay, character.rect)
     pygame.display.flip()
-    time.sleep(.5)
+    await asyncio.sleep(.5)
     screen.blit(character.portrait, character.rect)
     pygame.display.flip()
 
@@ -323,13 +323,13 @@ class TeamBattle:
             return BattleAction.MELEE
         return BattleAction.EVADE
 
-    def run_battle_action(self, character, action):
+    async def run_battle_action(self, character, action):
         if action == BattleAction.MELEE:
-            self.run_battle_action_melee(character)
+            await self.run_battle_action_melee(character)
         elif action == BattleAction.EVADE:
-            self.run_battle_action_evade(character)
+            await self.run_battle_action_evade(character)
         elif action == BattleAction.SHOOT:
-            self.run_battle_action_shoot(character)
+            await self.run_battle_action_shoot(character)
         elif action == BattleAction.ITEM:
             self.run_battle_action_item(character)
             return
@@ -339,15 +339,15 @@ class TeamBattle:
         character.last_action = BattleAction.ITEM
         return
 
-    def run_battle_action_evade(self, character):
+    async def run_battle_action_evade(self, character):
         if DEBUG:
             print(f"{character.name} evades.")
-        announce_action(f"{character.name}'s action: EVADE", self.context.screen, self.context.font)
+        await announce_action(f"{character.name}'s action: EVADE", self.context.screen, self.context.font)
         battle_display_action(character, BattleAction.EVADE, self.context.screen, self.context.font)
         character.last_action = BattleAction.EVADE
         return
 
-    def run_battle_action_melee(self, character):
+    async def run_battle_action_melee(self, character):
         character.last_action = BattleAction.MELEE
         # Choose target logic
         if not character.is_pirate():
@@ -366,7 +366,7 @@ class TeamBattle:
         base_weapon_effect = self.context.all_items[chosen_weapon].effect
         effect_type = self.context.all_items[chosen_weapon].effect_type
 
-        announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
+        await announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
 
         # play sound (strip class suffix for sound lookup)
         play_weapon_sound(item_base_name(chosen_weapon))
@@ -429,7 +429,7 @@ class TeamBattle:
             target.hurt(adjusted_damage, effect_type)
             draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
             battle_display_action_damage(character, BattleAction.MELEE, adjusted_damage, self.context.screen, self.context.font)
-            battle_display_character_hit(target, self.context.screen)
+            await battle_display_character_hit(target, self.context.screen)
         return
 
     @staticmethod
@@ -459,7 +459,7 @@ class TeamBattle:
         item = character.chosen_melee_weapon
         return item.name if item else None
 
-    def run_battle_action_shoot(self, character):
+    async def run_battle_action_shoot(self, character):
         character.last_action = BattleAction.SHOOT
         # Choose target logic
         if not character.is_pirate():
@@ -478,7 +478,7 @@ class TeamBattle:
         base_weapon_effect = self.context.all_items[chosen_weapon].effect
         effect_type = self.context.all_items[chosen_weapon].effect_type
 
-        announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
+        await announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
 
         # play sound (strip class suffix for sound lookup)
         play_weapon_sound(item_base_name(chosen_weapon))
@@ -548,15 +548,15 @@ class TeamBattle:
         adjusted_damage = round(adjusted_damage)
 
         if hit and target.is_alive():
-            self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
+            await self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
         return
 
     @staticmethod
-    def damage_target(character, target, adjusted_damage, effect_type, screen, font):
+    async def damage_target(character, target, adjusted_damage, effect_type, screen, font):
         target.hurt(adjusted_damage, effect_type)
         draw_life_bar(target, screen, target.rect.left, target.rect.top)
         battle_display_action_damage(character, BattleAction.SHOOT, adjusted_damage, screen, font)
-        battle_display_character_hit(target, screen)
+        await battle_display_character_hit(target, screen)
 
     def battle_ended(self):
         # temp for debugging
@@ -571,7 +571,7 @@ class TeamBattle:
             return True
         return False
 
-    def check_battle_ended(self):
+    async def check_battle_ended(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -579,13 +579,13 @@ class TeamBattle:
 
         if not team_alive(self.context.team):
             max_y_offset()
-            clear_announce_bar(self.context.screen)
-            announce_action("Team is dead!", self.context.screen, self.context.font)
+            await clear_announce_bar(self.context.screen)
+            await announce_action("Team is dead!", self.context.screen, self.context.font)
             return False
         if not team_alive(self.context.enemies):
             max_y_offset()
-            clear_announce_bar(self.context.screen)
-            announce_action("Enemies defeated.", self.context.screen, self.context.font)
+            await clear_announce_bar(self.context.screen)
+            await announce_action("Enemies defeated.", self.context.screen, self.context.font)
             return False
         return True
 
@@ -597,47 +597,48 @@ class TeamBattle:
             character.chosen_ranged_weapon = character.choose_ranged_weapon()
             character.chosen_melee_weapon  = character.choose_melee_weapon()
 
-    def run_battle(self):
-        clear_announce_bar(self.context.screen)
+    async def run_battle(self):
+        await clear_announce_bar(self.context.screen)
         pygame.mixer.music.fadeout(2000)
         play_battle_music(pygame)
         draw_location(self.context.location, self.context.screen, LOCATION_LEFT, LOCATION_TOP, self.context.location_font, self.smaller_font)
         self.draw_teams()
         pygame.display.flip()
-        time.sleep(1)
+        await asyncio.sleep(1)
         self._prepare_weapons()
         battle_rages = True
         self.round = 1
         while battle_rages:
-            clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
+            await clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
             # RANGED PHASE — initiative includes extra shots from weapon rate
             ranged_order = initiative_ranged(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
             for character in ranged_order:
                 if character.is_alive():
                     action = self.choose_battle_action_ranged_phase(character)
                     character.last_action = action
-                    self.run_battle_action(character, action)
-            time.sleep(1)
+                    await self.run_battle_action(character, action)
+            await asyncio.sleep(1)
 
             # MELEE PHASE — own initiative roll
             if not self.battle_ended():
-                clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
-                time.sleep(1)
+                await clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
+                await asyncio.sleep(1)
                 melee_order = initiative_melee(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
                 for character in melee_order:
                     if character.is_alive():
                         action = self.choose_battle_action_melee_phase(character)
-                        self.run_battle_action(character, action)
+                        await self.run_battle_action(character, action)
 
-            battle_rages = self.check_battle_ended()
+            battle_rages = await self.check_battle_ended()
             self.round += 1
+            await asyncio.sleep(0)  # yield to browser between rounds
         # click to continue...
-        time.sleep(1)
+        await asyncio.sleep(1)
         max_y_offset()
         clear_team_last_action(self.context.team)
         return
 
-    def print_debug(self, round):
+    async def print_debug(self, round):
         if DEBUG:
             print(str(round))
         for member in self.context.team:
@@ -651,4 +652,5 @@ class TeamBattle:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     return
+            await asyncio.sleep(0)  # yield to browser while waiting for debug click
 

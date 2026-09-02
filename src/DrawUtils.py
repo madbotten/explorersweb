@@ -1,6 +1,6 @@
 # DrawUtils.py -- common stuffs and things for drawing
 import pygame
-import time
+import asyncio
 
 from Utils import resource_path
 
@@ -24,7 +24,7 @@ class DrawingContext:
             "location": pygame.font.Font(font_path, 18),
         }
 
-    def display_message(self,
+    async def display_message(self,
             text,
             font_selector,
             position,
@@ -44,5 +44,5 @@ class DrawingContext:
         if flip:
             pygame.display.flip()
         if sleep:
-            time.sleep(2)
+            await asyncio.sleep(2)
 
