@@ -34,7 +34,7 @@ async def clear_announce_bar(surface):
     background_surface.fill((0, 0, 0))
     surface.blit(background_surface, (ROUND_AND_PHASE_LEFT, 5))
     pygame.display.flip()
-    await asyncio.sleep(2)
+    await asyncio.sleep(0.5)
 
 def announce_round_and_phase(round, phase, surface, font):
     text = f"Round: {round} Phase: {phase}"
@@ -53,7 +53,7 @@ async def announce_action(text, surface, font):
     surface.blit(background_surface, background_position)
     surface.blit(action_text_surface, (ACTION_LEFT, 5))
     pygame.display.flip()
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.7)
 
 async def clear_screen_for_round(round, phase, screen, font):
     background_surface = pygame.Surface((500, 800))
@@ -62,7 +62,7 @@ async def clear_screen_for_round(round, phase, screen, font):
     screen.blit(background_surface, background_position)
     announce_round_and_phase(round, phase, screen, font)
     pygame.display.flip()
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.6)
 
 def initiative(team, enemies, brazen_bonus=0):
     all_characters = team + enemies
@@ -559,11 +559,9 @@ class TeamBattle:
         await battle_display_character_hit(target, screen)
 
     def battle_ended(self):
-        # temp for debugging
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                raise SystemExit(0)
 
         if not team_alive(self.context.team):
             return True
@@ -572,10 +570,10 @@ class TeamBattle:
         return False
 
     async def check_battle_ended(self):
+        await asyncio.sleep(0)  # yield to browser between rounds
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                raise SystemExit(0)
 
         if not team_alive(self.context.team):
             max_y_offset()
@@ -598,40 +596,63 @@ class TeamBattle:
             character.chosen_melee_weapon  = character.choose_melee_weapon()
 
     async def run_battle(self):
+        try:
+            import platform
+            platform.window.console.log("battle: starting run_battle")
+        except Exception:
+            pass
         await clear_announce_bar(self.context.screen)
-        pygame.mixer.music.fadeout(2000)
+        pygame.mixer.music.fadeout(1000)
+        await asyncio.sleep(1.5)  # browser Web Audio API fades slower than native; extra buffer
+        try:
+            import platform
+            platform.window.console.log("battle: calling play_battle_music")
+        except Exception:
+            pass
         play_battle_music(pygame)
+        try:
+            import platform
+            platform.window.console.log("battle: play_battle_music done, drawing location")
+        except Exception:
+            pass
         draw_location(self.context.location, self.context.screen, LOCATION_LEFT, LOCATION_TOP, self.context.location_font, self.smaller_font)
         self.draw_teams()
         pygame.display.flip()
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         self._prepare_weapons()
+        try:
+            import platform
+            platform.window.console.log("battle: weapons prepared, starting battle loop")
+        except Exception:
+            pass
         battle_rages = True
         self.round = 1
         while battle_rages:
+            await asyncio.sleep(0)  # yield to browser at start of each round
             await clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
             # RANGED PHASE — initiative includes extra shots from weapon rate
             ranged_order = initiative_ranged(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
             for character in ranged_order:
+                await asyncio.sleep(0)  # yield to browser for each character action
                 if character.is_alive():
                     action = self.choose_battle_action_ranged_phase(character)
                     character.last_action = action
                     await self.run_battle_action(character, action)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.8)
 
             # MELEE PHASE — own initiative roll
             if not self.battle_ended():
                 await clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.8)
                 melee_order = initiative_melee(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
                 for character in melee_order:
+                    await asyncio.sleep(0)  # yield to browser for each character action
                     if character.is_alive():
                         action = self.choose_battle_action_melee_phase(character)
                         await self.run_battle_action(character, action)
 
             battle_rages = await self.check_battle_ended()
             self.round += 1
-            await asyncio.sleep(0)  # yield to browser between rounds
         # click to continue...
         await asyncio.sleep(1)
         max_y_offset()
@@ -648,8 +669,7 @@ class TeamBattle:
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                    raise SystemExit(0)
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     return
             await asyncio.sleep(0)  # yield to browser while waiting for debug click

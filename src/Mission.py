@@ -577,7 +577,10 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     while running:
         for event in pygame.event.get():
             if team_dead(team) or mission_failed:
+                if team_dead(team):
+                    await mission_failure(screen, font)
                 running = False
+                stage = 999  # sentinel: will return 1000 → StageController restarts
                 break
 
             if event.type == pygame.QUIT:
@@ -638,14 +641,13 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
         # Update the display
         screen.blit(EXIT_TEXT, EXIT_RECT)
         pygame.display.flip()
+        await asyncio.sleep(0)
 
-    # Save characters upon exit
-    if stage < 1000:
+    # Save characters upon exit (only on clean exit, not team death/quit)
+    if stage not in (999, 1000):
         team_data = save_team_named(team_name, loop, 5, team)
     else:
         team_data = None
-
-    pygame.quit()
 
     return stage + 1, team_data
 

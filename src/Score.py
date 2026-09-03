@@ -4,6 +4,7 @@ import random
 import pickle
 import time
 import sys
+import asyncio
 
 from pygame.sprite import collide_rect
 from Character import Character
@@ -227,6 +228,7 @@ async def score(team_data, team_name="Debug Team", loop=1):
                 break
 
         pygame.display.flip()
+        await asyncio.sleep(0)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

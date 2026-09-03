@@ -1,5 +1,6 @@
 import pygame
 import sys
+import asyncio
 
 from Utils import *
 from constants import TOP_BAR_Y, DEBUG
@@ -149,6 +150,7 @@ async def introduction3() :
         screen.blit(EXIT_TEXT, EXIT_RECT.topleft)
 
         pygame.display.flip()
+        await asyncio.sleep(0)
 
         # Event loop
         for event in pygame.event.get():

@@ -55,7 +55,7 @@ def advance_text_y(amount=30):
     global text_y_offset
     text_y_offset += amount
 
-async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.010):
+async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.005):
     global text_x_offset
     global text_y_offset
 
@@ -72,7 +72,7 @@ async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=
             surface.fill((0, 0, 0), line_rect)  # Black background
             surface.blit(text_surface, (text_x_offset, text_y_offset))
             pygame.display.flip()
-            await asyncio.sleep(delay)
+            await asyncio.sleep(0)  # one frame (~16ms) per char in WASM
 
 def clear_screen(surface, background):
     global text_x_offset

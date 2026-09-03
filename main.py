@@ -17,12 +17,47 @@ import random
 # WASM has no OS entropy by default — seed explicitly before any random calls
 random.seed(os.urandom(16))
 
+import pygame
+try:
+    platform.window.console.log(f"main.py pygame file: {getattr(pygame, '__file__', 'no __file__')}")
+    platform.window.console.log(f"main.py pygame dir: {dir(pygame)}")
+except Exception:
+    pass
+
 import StageController
 
 
+import platform
+
+try:
+    platform.window.console.log("main.py: module level executing")
+except Exception:
+    pass
+
 async def main():
-    # StageController.main() will be made async as part of the async cascade.
-    # For now this wraps the synchronous call so pygbag can find the entry point.
-    StageController.main(0, 0)
+    try:
+        platform.window.console.log("main.py: main() async started!")
+    except Exception:
+        pass
+    print("=== EXPLORERS WEB STARTED ===")
+    try:
+        await StageController.main(0, 0)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        try:
+            platform.window.console.error(f"StageController error: {e}")
+        except Exception:
+            pass
+
+try:
+    platform.window.console.log("main.py: calling asyncio.run(main())")
+except Exception:
+    pass
 
 asyncio.run(main())
+
+try:
+    platform.window.console.log("main.py: asyncio.run(main()) call complete")
+except Exception:
+    pass

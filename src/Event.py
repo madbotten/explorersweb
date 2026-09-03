@@ -33,8 +33,27 @@ def team_evades_notice(team):
 
 async def mission_failure(screen, font):
     global mission_failed
-    await type_out_text(screen, "The mission has failed.", font)
     mission_failed = True
+    # Draw a full-screen MISSION FAILED banner
+    screen.fill((0, 0, 0))
+    big_font = pygame.font.Font(resource_path("fonts/Orbitron-Bold.ttf"), 48)
+    sub_font  = pygame.font.Font(resource_path("fonts/Orbitron-Bold.ttf"), 20)
+    banner = big_font.render("MISSION FAILED", True, (200, 0, 0))
+    sub    = sub_font.render("Click to return to the loading screen.", True, (180, 180, 180))
+    screen.blit(banner, (SCREEN_WIDTH // 2 - banner.get_width() // 2,
+                          SCREEN_HEIGHT // 2 - banner.get_height()))
+    screen.blit(sub,    (SCREEN_WIDTH // 2 - sub.get_width() // 2,
+                          SCREEN_HEIGHT // 2 + 20))
+    pygame.display.flip()
+    # Wait for click
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                raise SystemExit(0)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                waiting = False
+        await asyncio.sleep(0)
 
 async def team_status(team, screen, font):
     deaths = 0
@@ -203,8 +222,7 @@ async def pause_to_clear_screen(screen, background, font):
     while paused:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                raise SystemExit(0)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 paused = False
         await asyncio.sleep(0)   # yield to browser while waiting for click
@@ -231,6 +249,10 @@ class Event:
         if self.context.enemies:
             await self.run_battle()
 
+        # If the team died during battle, mission_failure() already handled the click — stop here
+        if team_dead(team):
+            return
+
         # Calculate the outcome of the event
         next_event = await self.context.calculate_outcome(team, self.context.stat_name, self.context.skill_name, screen, font)
         compound_event = False
@@ -238,6 +260,7 @@ class Event:
         while(next_event) is not None:
             compound_event = True
             next_event = await next_event.run(team, screen, font, background, location_font)
+            await asyncio.sleep(0)  # yield to browser in compound event chain
 
         # Don't ask for click on compound events
         reset_x_offset()
@@ -262,13 +285,15 @@ class Event:
         await pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         event_battle = TeamBattle(self.context)
         await event_battle.run_battle()
-        pygame.mixer.music.fadeout(2000)
-        play_background_music("music/track3.mp3", pygame)
+        pygame.mixer.music.fadeout(1000)
+        await asyncio.sleep(1.5)  # browser Web Audio API fades slower than native; extra buffer
+        play_background_music("music/track3.ogg", pygame)
         max_y_offset()
 
-        # If team died, game ends
+        # If team died, show failure screen and exit — don't heal or continue
         if team_dead(self.context.team):
             await mission_failure(self.context.screen, self.context.font)
+            return
         else:
             await pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
         # Heal if appropriate

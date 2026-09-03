@@ -4,6 +4,7 @@ import pygame
 import sys
 import textwrap
 import random
+import asyncio
 
 from Character import Character
 from Utils import *
@@ -96,8 +97,7 @@ async def _prompt_team_name(screen):
     while not done:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                raise SystemExit(0)
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
@@ -137,6 +137,7 @@ async def _prompt_team_name(screen):
                                         y=panel_y + 140))
 
         pygame.display.flip()
+        await asyncio.sleep(0)
         clock.tick(60)
 
     result = entered.strip() or "My Team"
@@ -628,6 +629,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
 
         # Update the display
         pygame.display.flip()
+        await asyncio.sleep(0)
 
     # ---- Team naming prompt (loop 1 only) ----
     if stage < 1000 and loop == 1:

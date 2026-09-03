@@ -5,6 +5,11 @@ import pickle
 import shutil
 import random
 import pygame
+try:
+    import pygame.mixer
+    import pygame.font
+except Exception:
+    pass
 from pathlib import Path
 
 WHITE = (255, 255, 255)
@@ -168,20 +173,30 @@ def delete_team(team_name: str) -> None:
     if os.path.isdir(team_dir):
         shutil.rmtree(team_dir)
 
-def load_sound(filename):
-    sound_path = resource_path(filename)
-    if os.path.exists(sound_path):
-        pygame.mixer.init()
-        this_sound = pygame.mixer.Sound(sound_path)
-        this_sound.set_volume(0.5)
-        return this_sound
-    else:
-        print("sound file not found.")
+_SOUND_CACHE = {}
 
-LASER_SOUND = load_sound("music/laser.mp3")
-PISTOL_SOUND = load_sound("music/pistol.mp3")
-MELEE_SOUND = load_sound("music/melee.mp3")
-LAUNCHER_SOUND = load_sound("music/launcher.mp3")
+def load_sound(filename):
+    try:
+        if not hasattr(pygame, "mixer"):
+            return None
+        ogg_path = filename.rsplit(".", 1)[0] + ".ogg"
+        if os.path.exists(resource_path(ogg_path)):
+            filename = ogg_path
+        sound_path = resource_path(filename)
+        if sound_path in _SOUND_CACHE:
+            return _SOUND_CACHE[sound_path]
+        if os.path.exists(sound_path):
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            this_sound = pygame.mixer.Sound(sound_path)
+            this_sound.set_volume(0.5)
+            _SOUND_CACHE[sound_path] = this_sound
+            return this_sound
+        else:
+            print(f"sound file not found: {sound_path}")
+    except Exception as e:
+        print(f"Warning: could not load sound {filename}: {e}")
+    return None
 
 def play_weapon_sound(weapon):
     energy_weapons = {"laser pistol", "laser rifle"}
@@ -190,34 +205,58 @@ def play_weapon_sound(weapon):
     piercing_weapons = {"carbine", "pistol", "magnum"}
     concussion_weapons = {"launcher"}
 
+    sound = None
     if weapon in concussion_weapons:
-        LAUNCHER_SOUND.play()
-    elif weapon in energy_weapons:
-        LASER_SOUND.play()
-    elif weapon in sonic_weapons:
-        LASER_SOUND.play()
+        sound = load_sound("music/launcher.ogg")
+    elif weapon in energy_weapons or weapon in sonic_weapons:
+        sound = load_sound("music/laser.ogg")
     elif weapon in piercing_weapons:
-        PISTOL_SOUND.play()
+        sound = load_sound("music/pistol.ogg")
     elif weapon in slashing_weapons:
-        MELEE_SOUND.play()
+        sound = load_sound("music/melee.ogg")
+
+    if sound:
+        try:
+            sound.play()
+        except Exception as e:
+            print(f"Warning: could not play sound: {e}")
 
 def play_background_music(path, pygame):
-    background_music_path = resource_path(path)
-    if os.path.exists(background_music_path):
-        pygame.mixer.music.load(background_music_path)
-        pygame.mixer.music.set_volume(0.5)
-        pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
-    else:
-        print("Background music file not found.")
+    try:
+        if not hasattr(pygame, "mixer"):
+            return
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        ogg_path = path.rsplit(".", 1)[0] + ".ogg"
+        if os.path.exists(resource_path(ogg_path)):
+            path = ogg_path
+        background_music_path = resource_path(path)
+        if os.path.exists(background_music_path):
+            pygame.mixer.music.load(background_music_path)
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+        else:
+            print("Background music file not found.")
+    except Exception as e:
+        print(f"Warning: could not load background music {path}: {e}")
 
 def play_battle_music(pygame):
-    background_music_path = resource_path("music/fight3.mp3")
-    if os.path.exists(background_music_path):
-        pygame.mixer.music.load(background_music_path)
-        pygame.mixer.music.set_volume(0.6)
-        pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
-    else:
-        print("Background music file not found.")
+    try:
+        if not hasattr(pygame, "mixer"):
+            return
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        background_music_path = resource_path("music/fight3.ogg")
+        if not os.path.exists(background_music_path):
+            background_music_path = resource_path("music/fight3.mp3")
+        if os.path.exists(background_music_path):
+            pygame.mixer.music.load(background_music_path)
+            pygame.mixer.music.set_volume(0.6)
+            pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+        else:
+            print("Background music file not found.")
+    except Exception as e:
+        print(f"Warning: could not load battle music: {e}")
 
 # positive difficulty modifiers are easier
 def roll_string(roll, skill_name, stat_name, difficulty_modifier):

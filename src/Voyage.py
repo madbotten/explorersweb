@@ -1307,6 +1307,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
 
         # Update the display
         pygame.display.flip()
+        await asyncio.sleep(0)
 
     # Save characters upon exit
     if stage < 1000:

@@ -1,5 +1,6 @@
 import pygame
 import sys
+import asyncio
 
 from Utils import *
 
@@ -84,8 +85,7 @@ async def load_game():
         # ---- Events ----
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                raise SystemExit(0)
 
             if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
                     and ng_rect.collidepoint(event.pos)):
@@ -251,6 +251,7 @@ async def load_game():
                 y += SECTION_GAP
 
         pygame.display.flip()
+        await asyncio.sleep(0)
         clock.tick(60)
 
     pygame.quit()

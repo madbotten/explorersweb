@@ -59,10 +59,22 @@ async def run_mission(stage, loop, team_name, team_data):
         print("Starting Stage: Mission")
         stage, team_data = await go_mission(team_data, team_name, loop)
 
+    # Team died or player quit during mission — restart from load screen
+    if stage >= 1000:
+        print("Restarting from load screen (team death or quit).")
+        await main(0, 0)
+        return
+
     # Stage 6: Return Voyage
     if stage == 6:
         print("Starting Stage: Return Voyage")
         stage, team_data = await return_voyage(team_data, team_name, loop)
+
+    # Team died during return voyage — restart from load screen
+    if stage >= 1000:
+        print("Restarting from load screen (team death or quit).")
+        await main(0, 0)
+        return
 
     # Stage 7: Score
     if stage == 7:

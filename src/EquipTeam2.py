@@ -442,6 +442,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
         blit_item_descriptions_with_hover(screen, items_by_tab[selected_tab], ITEM_DESC_FONT, mouse_pos)
 
         pygame.display.flip()
+        await asyncio.sleep(0)
 
     # modifications for traitors, psychos, and unvetted characters
     for member in team:

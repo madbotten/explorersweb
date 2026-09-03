@@ -1,5 +1,6 @@
 import pygame
 import sys
+import asyncio
 
 from Utils import *
 from Character import Character
@@ -176,6 +177,7 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
             checkbox.draw(screen)
 
         pygame.display.flip()
+        await asyncio.sleep(0)
 
     # save characters upon exit
     add_team_mission_param(team, "mission_index", mission_index)
