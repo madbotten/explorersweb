@@ -11,7 +11,7 @@ TEXT_AREA_HEIGHT = SCREEN_HEIGHT * 0.8
 CREDITS_BAR_HEIGHT = SCREEN_HEIGHT // 20
 ITEM_PANEL_WIDTH = int(SCREEN_WIDTH * 0.3) - 6
 TEAM_PANEL_WIDTH = int(SCREEN_WIDTH * 0.7)
-TEAM_BOX_HEIGHT = (SCREEN_HEIGHT - CREDITS_BAR_HEIGHT) // 8  # Adjust for 8 characters, reserving space for credits
+TEAM_BOX_HEIGHT = (SCREEN_HEIGHT - CREDITS_BAR_HEIGHT) // 8
 BASE_TEXT_X_OFFSET = 50
 
 TOPMOST = 10
@@ -20,13 +20,6 @@ INSTRUCTIONS_TOP = 50
 INSTRUCTIONS_LEFT_EDGE = 180
 PROCEED_RECT = pygame.Rect(1130, TOP_BAR_Y, 105, 25)
 EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
-
-ORDERS_RECT = pygame.Rect(1130, 100, 105, 25)
-EQUIP_RECT = pygame.Rect(1130, 150, 105, 25)
-VOYAGE_RECT = pygame.Rect(1130, 200, 105, 25)
-MISSION_RECT = pygame.Rect(1130, 250, 105, 25)
-RETURN_RECT = pygame.Rect(1130, 300, 105, 25)
-SCORE_RECT = pygame.Rect(1130, 350, 105, 25)
 
 async def introduction3() :
     global text_x_offset
@@ -47,12 +40,6 @@ async def introduction3() :
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
     DEFAULT_FONT = pygame.font.Font(font_path, 16)
 
-    ORDERS_TEXT = DEFAULT_FONT.render("Resume Orders Stage", True, CYAN)
-    EQUIP_TEXT = DEFAULT_FONT.render("Resume Equip Stage", True, CYAN)
-    VOYAGE_TEXT = DEFAULT_FONT.render("Resume Voyage Stage", True, CYAN)
-    MISSION_TEXT = DEFAULT_FONT.render("Resume Mission Stage", True, CYAN)
-    RETURN_TEXT = DEFAULT_FONT.render("Resume Return Stage", True, CYAN)
-    SCORE_TEXT = DEFAULT_FONT.render("Resume Score Stage", True, CYAN)
     PROCEED_TEXT = DEFAULT_FONT.render("PROCEED", True, CYAN)
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
 
@@ -64,7 +51,7 @@ async def introduction3() :
         "Use the PROCEED button to skip all instructions.",
         "The game has 6 stages.",
         "Your team is persisted between each stage.",
-        "You can resume from the last position in each stage using the links on the right.",
+        "You can resume from the last position in each stage using first loading screen.",
         "You can EXIT from any stage, but you can only resume from between completed stages.",
         "Click anywhere to continue..."
     ])
@@ -115,7 +102,7 @@ async def introduction3() :
     instruction_screens = [instructions[i] for i in range(0, 7)]
 
     # Load and play background music
-    play_background_music("music/track3.mp3", pygame)
+    play_background_music("music/track3.ogg", pygame)
 
     # Load and scale background image
     background_image = pygame.image.load(resource_path("backgrounds/backgroundstage3.jpg"))
@@ -141,12 +128,6 @@ async def introduction3() :
 
         # Display buttons
         screen.blit(PROCEED_TEXT, PROCEED_RECT.topleft)
-        screen.blit(ORDERS_TEXT, ORDERS_RECT.topleft)
-        screen.blit(EQUIP_TEXT, EQUIP_RECT.topleft)
-        screen.blit(VOYAGE_TEXT, VOYAGE_RECT.topleft)
-        screen.blit(MISSION_TEXT, MISSION_RECT.topleft)
-        screen.blit(RETURN_TEXT, RETURN_RECT.topleft)
-        screen.blit(SCORE_TEXT, SCORE_RECT.topleft)
         screen.blit(EXIT_TEXT, EXIT_RECT.topleft)
 
         pygame.display.flip()
@@ -155,33 +136,13 @@ async def introduction3() :
         # Event loop
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                print("exited due to QUIT")
-                running = False
+                raise SystemExit(0)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if EXIT_RECT.collidepoint(event.pos):
                     stage = 1000
                     running = False
-                elif ORDERS_RECT.collidepoint(event.pos):
-                    stage = 2
-                    running = False
-                elif EQUIP_RECT.collidepoint(event.pos):
-                    stage = 3
-                    running = False
-                elif VOYAGE_RECT.collidepoint(event.pos):
-                    stage = 4
-                    running = False
-                elif MISSION_RECT.collidepoint(event.pos):
-                    stage = 5
-                    running = False
-                elif RETURN_RECT.collidepoint(event.pos):
-                    stage = 6
-                    running = False
-                elif SCORE_RECT.collidepoint(event.pos):
-                    stage = 7
-                    running = False
                 elif PROCEED_RECT.collidepoint(event.pos):
                     stage = 1
-                    print("exited due to proceed button")
                     running = False
                 else:
                     # Advance to the next screen or exit if at the last screen
@@ -189,16 +150,6 @@ async def introduction3() :
                         current_screen += 1
                     else:
                         stage = 1
-                        print("exited due to end of instructions")
                         running = False
 
-    pygame.quit()
-
     return stage
-
-async def main():
-    print("Starting Stage: Introduction")
-    introduction3()
-
-if __name__ == "__main__":
-    main()
