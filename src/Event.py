@@ -276,8 +276,15 @@ class Event:
         await type_out_text(screen, self.context.pre_description, font)
 
         # Run the battle, if any
+        evaded = False
         if self.context.enemies:
-            await self.run_battle()
+            evaded = await self.run_battle()
+
+        if evaded:
+            reset_x_offset()
+            await type_out_text(screen, "The enemies were avoided.", font)
+            await type_out_text(screen, "Click to proceed.", font)
+            return
 
         # If the team died during battle, mission_failure() already handled the click — stop here
         if team_dead(team):
@@ -304,7 +311,7 @@ class Event:
         if methods == "stealth" and not self.context.is_goal:
             if team_evades_notice(self.context.team):
                 await type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
-                return  # skip combat entirely
+                return True  # evaded — caller skips calculate_outcome
             else:
                 await type_out_text(self.context.screen, "The team is spotted! Combat ensues.", self.context.font)
         await type_out_text(self.context.screen, random.choice(enemies_present_statements), self.context.font)
@@ -334,3 +341,4 @@ class Event:
         # Display the post-battle description
         if self.context.post_description is not None:
             await type_out_text(self.context.screen, self.context.post_description, self.context.font)
+        return False  # not evaded
