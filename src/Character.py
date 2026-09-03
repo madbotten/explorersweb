@@ -432,7 +432,7 @@ class Character:
 
     # If encumbered and team has no mulebot, evasion will suffer
     def is_encumbered(self):
-        if self.team and any(m.occupation == "mulebot" for m in self.team):
+        if self.team and any(m.occupation == "mulebot" and m.is_alive() for m in self.team):
             return False
         total_mass = self.get_carried_mass()
         return total_mass > (self.get_effective_stat_level("strength") / 2)
@@ -579,7 +579,7 @@ class Character:
                 total += 50
         if "evasion" == stat_name:
             if self.is_encumbered():
-                total -= 20
+                total -= 10
         if "analyze" == stat_name:
             if self.has_item("scanner"):
                 total += 30
@@ -593,7 +593,7 @@ class Character:
         evasion = round((intelligence + coordination) / 2)
         evasion += military_science / 10
         if self.is_encumbered():
-            evasion = max(0, evasion - 50)
+            evasion = max(0, evasion - 20)
         return max(1, evasion * self.get_health_ratio())
 
     # Effective offense with health ratio
@@ -627,7 +627,7 @@ class Character:
         evasion = (strength + coordination) / 2
         evasion = evasion + (military_science / 10)
         if self.is_encumbered():
-            evasion = max(0, evasion - 50)
+            evasion = max(0, evasion - 20)
         if self.has_item("exoskeleton") or self.has_item("powered armor"):
             if self.has_skill("Exoskeleton Systems"):
                 evasion += self.get_effective_skill_level("Exoskeleton Systems") / 4

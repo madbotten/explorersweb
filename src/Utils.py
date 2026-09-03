@@ -316,6 +316,83 @@ def team_has_item(team, item_name):
             return True
     return False
 
+
+# Tier ordering for upgrade logic
+_TIER_ORDER = {"C": 0, "B": 1, "A": 2, "S": 3}
+_TIER_UPGRADE_CHANCE = {"C": 1.0, "B": 0.5, "A": 0.25}
+
+def get_needed_item(team, all_items):
+    """Analyse the team and return (recipient, Item) for one useful unkeyed item,
+    or None if nothing can be found.
+
+    On each call a 50/50 mode is chosen:
+      Mode A (gap-first): per character, try to fill a gear gap; fall back to
+                          a tier upgrade if no gap is found.
+      Mode B (upgrade-first): per character, attempt a tier upgrade only.
+
+    Characters are examined in random order. Robots are never recipients.
+    """
+    from Item import item_base_name, item_class, upgrade_item_class
+
+    candidates = [m for m in team if m.is_alive() and not m.is_robot()]
+    random.shuffle(candidates)
+
+    gap_first = random.random() < 0.5
+
+    def _gap_item(member):
+        """Return the item key for the first gear gap found, or None."""
+        if not member.has_ranged_weapon():
+            return "laser pistol C"
+        if not member.has_melee_weapon():
+            return "slicer C"
+        if member.has_skill("Exoskeleton Systems") and \
+                not member.has_item("exoskeleton") and \
+                not member.has_item("powered armor"):
+            return "exoskeleton C"
+        if member.has_skill("Medicine") and not member.has_item("medikit"):
+            return "medikit C"
+        if member.has_skill("Stealth") and not member.has_item("stealth orb"):
+            return "stealth orb C"
+        if not any(i.type == "armor" for i in member.equipment):
+            return "veer suit C"
+        return None
+
+    def _upgrade_item(member):
+        """Return (old_item, new_item) for the best upgrade opportunity, or None."""
+        upgradeable = [
+            i for i in member.equipment
+            if i.type in ("weapon", "armor") and item_class(i.name) in _TIER_UPGRADE_CHANCE
+        ]
+        if not upgradeable:
+            return None
+        # Find best current tier across the member's gear
+        best_tier = max(upgradeable, key=lambda i: _TIER_ORDER[item_class(i.name)])
+        tier = item_class(best_tier.name)
+        if random.random() > _TIER_UPGRADE_CHANCE[tier]:
+            return None  # Probability check failed
+        # Among items at that tier, pick the highest-effect one
+        at_tier = [i for i in upgradeable if item_class(i.name) == tier]
+        old_item = max(at_tier, key=lambda i: i.effect)
+        new_item = upgrade_item_class(old_item, all_items)
+        if new_item is None:
+            return None
+        return old_item, new_item
+
+    for member in candidates:
+        if gap_first:
+            gap_key = _gap_item(member)
+            if gap_key and gap_key in all_items:
+                return member, all_items[gap_key]
+            result = _upgrade_item(member)
+            if result:
+                return member, result[1]
+        else:
+            result = _upgrade_item(member)
+            if result:
+                return member, result[1]
+
+    return None
+
 # Returns true if anyone on team can make skill check against skill_name
 # positive difficulty modifiers are easier
 def team_skill_check(team, skill_name, difficulty_modifier):
@@ -346,7 +423,8 @@ def heal_team_by(team, amount):
 
 class EventContext:
     def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location,
-                 calculate_outcome, all_items):
+                 calculate_outcome, all_items, name=None):
+        self.name = name
         self.num_enemies = num_enemies
         self.location = location
         self.stat_name = stat_name

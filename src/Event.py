@@ -169,6 +169,35 @@ async def team_heals(team, screen, font):
 
     await team_status(team, screen, font)
 
+async def calculate_outcome_found_items(team, stat_name, skill_name, screen, font):
+    """Outcome for the 'found items' event. Finds one useful unkeyed item for a
+    team member (gap-fill or tier upgrade) and grants it to them."""
+    from Item import load_items, item_base_name, replace_item_in_inventory
+    all_items = load_items()
+    await type_out_text(screen, "The team roots around for useful unkeyed items.", font)
+    result = get_needed_item(team, all_items)
+    if result is None:
+        await type_out_text(screen, "The team finds nothing of value.", font)
+        return
+    recipient, item = result
+    old_item = recipient.get_item(item_base_name(item.name))
+    if old_item is not None:
+        # Upgrade path: swap out the old tier
+        replace_item_in_inventory(recipient, old_item, item)
+        await type_out_text(
+            screen,
+            f"Among the supplies, {recipient.name} finds a superior {item.name} and swaps out their old gear.",
+            font, GREEN
+        )
+    else:
+        # Gap-fill: character had nothing of this type
+        recipient.equipment.append(item)
+        await type_out_text(
+            screen,
+            f"{recipient.name} finds a {item.name} \u2014 exactly what they needed.",
+            font, GREEN
+        )
+
 def pirate_enemies(num_pirates, items):
     pirates = []
 
@@ -229,8 +258,9 @@ async def pause_to_clear_screen(screen, background, font):
     clear_screen(screen, background)
 
 class Event:
-    def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items):
-        self.context = EventContext(pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items)
+    def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=None):
+        self.name = name
+        self.context = EventContext(pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=name)
 
     async def run(self, team, screen, font, background, location_font):
         self.context.add_run_params(team, screen, font, background, location_font)

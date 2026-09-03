@@ -798,6 +798,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["crew quarters"],
             calculate_outcome_interaction_private_professional,
             all_items,
+            name="interaction_private_professional",
         ),
         Event(
             "A crew member addresses a teammate openly on the bridge.",
@@ -805,6 +806,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["bridge"],
             calculate_outcome_interaction_public_professional,
             all_items,
+            name="interaction_public_professional",
         ),
         Event(
             "Two crew members share a private personal exchange in their quarters.",
@@ -812,6 +814,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["quarters"],
             calculate_outcome_interaction_private_personal,
             all_items,
+            name="interaction_private_personal",
         ),
         Event(
             "Two crew members have a candid personal conversation in the mess hall.",
@@ -819,6 +822,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["mess"],
             calculate_outcome_interaction_public_personal,
             all_items,
+            name="interaction_public_personal",
         ),
         # Empty outcomes
         Event(
@@ -827,6 +831,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, "intelligence", None, locations["crew quarters"],
             empty_outcome,
             all_items,
+            name="midnight_stare_debate",
         ),
         Event(
             "The team languishes in their quarters, eager for the mission to begin.",
@@ -834,6 +839,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, "intelligence", None, locations["quarters"],
             empty_outcome,
             all_items,
+            name="languish_quarters",
         ),
         Event(
             "The team decides they would like to practice hacking.",
@@ -841,6 +847,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Hacking", locations["bridge"],
             calculate_outcome_training,
             all_items,
+            name="training_hacking_bridge",
         ),
         Event(
             "The team conducts a virtual shooting practice session in the holo room.",
@@ -848,6 +855,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Projectile Weapons", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_projectile_weapons",
         ),
         Event(
             "The team tries to manipulate each other to get their favorite food bars.",
@@ -855,6 +863,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Social Engineering", locations["mess"],
             calculate_outcome_training,
             all_items,
+            name="training_social_engineering_mess",
         ),
         Event(
             "The team is restless and decide to spar in the holo room.",
@@ -862,6 +871,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Martial Arts", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_martial_arts",
         ),
         Event(
             "The team plays hide and seek to pass the time.",
@@ -869,6 +879,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Stealth", locations["supply room"],
             calculate_outcome_training,
             all_items,
+            name="training_stealth_supply",
         ),
         Event(
             "While eating in the mess hall, the team discusses what aliens they might encounter on the mission.",
@@ -876,6 +887,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Xenobiology", locations["mess"],
             calculate_outcome_training,
             all_items,
+            name="training_xenobiology_mess",
         ),
         Event(
             "The team plans out how to conduct themselves on the mission.",
@@ -883,6 +895,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Squad Tactics", locations["mission planning"],
             calculate_outcome_training,
             all_items,
+            name="training_squad_tactics",
         ),
         Event(
             "The team debates what model of combat mech is the most effective.",
@@ -890,6 +903,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Mech Combat", locations["robot bay"],
             calculate_outcome_training,
             all_items,
+            name="training_mech_combat",
         ),
         Event(
             "The team simulates flying maneuvers in the holo room.",
@@ -897,6 +911,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Piloting", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_piloting",
         ),
         Event(
             "The team attempts to bypass a simulated security system.",
@@ -904,6 +919,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Hacking", locations["tech lab"],
             calculate_outcome_training,
             all_items,
+            name="training_hacking_techlab",
         ),
         Event(
             "The team practices negotiating resource agreements with an AI facilitator.",
@@ -911,6 +927,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Negotiation", locations["mission planning"],
             calculate_outcome_training,
             all_items,
+            name="training_negotiation",
         ),
         Event(
             "The team participates in a sharpshooting competition using holographic targets.",
@@ -918,6 +935,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Sharpshooting", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_sharpshooting",
         ),
         Event(
             "The team practices infiltrating a simulated enemy facility.",
@@ -925,6 +943,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Stealth", locations["mission planning"],
             calculate_outcome_training,
             all_items,
+            name="training_stealth_planning",
         ),
         Event(
             "The team learns advanced first aid techniques.",
@@ -932,6 +951,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Medicine", locations["sickbay"],
             calculate_outcome_training,
             all_items,
+            name="training_medicine_sickbay",
         ),
         Event(
             "The team practices using sonic weapons.",
@@ -939,6 +959,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Sonic Weapons", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_sonic_weapons",
         ),
         Event(
             "The team analyzes historical military conflicts in the planning room.",
@@ -946,6 +967,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Military Science", locations["mission planning"],
             calculate_outcome_training,
             all_items,
+            name="training_military_science",
         ),
         Event(
             "The team safely defuses a mock explosive device.",
@@ -953,6 +975,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Explosives", locations["hangar"],
             calculate_outcome_training,
             all_items,
+            name="training_explosives",
         ),
         Event(
             "The team experiments with prosthetic enhancements in the tech lab.",
@@ -960,6 +983,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Cybernetics", locations["tech lab"],
             calculate_outcome_training,
             all_items,
+            name="training_cybernetics",
         ),
         Event(
             "The team studies alien biology specimens in hydroponics.",
@@ -967,6 +991,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Xenobiology", locations["hydroponics"],
             calculate_outcome_training,
             all_items,
+            name="training_xenobiology_hydro",
         ),
         Event(
             "The team practices building shelters in a survival simulation.",
@@ -974,6 +999,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Survival", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_survival",
         ),
         Event(
             "The team simulates high-stakes diplomatic negotiations with an AI moderator.",
@@ -981,6 +1007,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Diplomacy", locations["communications"],
             calculate_outcome_training,
             all_items,
+            name="training_diplomacy",
         ),
         Event(
             "The team practices star map navigation.",
@@ -988,6 +1015,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Navigation", locations["bridge"],
             calculate_outcome_training,
             all_items,
+            name="training_navigation",
         ),
         Event(
             "The team interrogates a simulated suspect to uncover vital information.",
@@ -995,6 +1023,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Interrogation", locations["brig"],
             calculate_outcome_training,
             all_items,
+            name="training_interrogation",
         ),
         Event(
             "The team repairs malfunctioning droids in the robot bay.",
@@ -1002,6 +1031,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Robot Repair", locations["robot bay"],
             calculate_outcome_training,
             all_items,
+            name="training_robot_repair",
         ),
         Event(
             "The team works on repairing the ship's life support systems.",
@@ -1009,6 +1039,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Ships Systems", locations["life support"],
             calculate_outcome_training,
             all_items,
+            name="training_ships_systems",
         ),
         Event(
             "The team practices gathering intelligence from a simulated enemy base.",
@@ -1016,6 +1047,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Espionage", locations["mission planning"],
             calculate_outcome_training,
             all_items,
+            name="training_espionage",
         ),
         Event(
             "The team fabricates essential mission tools using the onboard fabricator.",
@@ -1023,6 +1055,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Fabrication", locations["engineering"],
             calculate_outcome_training,
             all_items,
+            name="training_fabrication",
         ),
         Event(
             "The team practices using high-energy weapons in a controlled environment.",
@@ -1030,6 +1063,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Energy Weapons", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_energy_weapons",
         ),
         Event(
             "The team solves complex physics problems to optimize their equipment.",
@@ -1037,6 +1071,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Physics", locations["tech lab"],
             calculate_outcome_training,
             all_items,
+            name="training_physics",
         ),
         Event(
             "The team analyzes mock artifacts for potential functionality.",
@@ -1044,6 +1079,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Artifact Analysis", locations["tech lab"],
             calculate_outcome_training,
             all_items,
+            name="training_artifact_analysis",
         ),
         Event(
             "The team tests exoskeleton systems for improved mobility and strength.",
@@ -1051,6 +1087,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Exoskeleton Systems", locations["engineering"],
             calculate_outcome_training,
             all_items,
+            name="training_exoskeleton",
         ),
         Event(
             "The team conducts an advanced medical emergency response drill.",
@@ -1058,6 +1095,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Medicine", locations["sickbay"],
             calculate_outcome_training,
             all_items,
+            name="training_medicine_drill",
         ),
         Event(
             "The team learns efficient methods for extracting resources in simulated terrain.",
@@ -1065,6 +1103,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Resource Extraction", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_resource_extraction",
         ),
         Event(
             "The team practices detecting anomalies in a simulated operational environment.",
@@ -1072,6 +1111,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Detection", locations["holo room"],
             calculate_outcome_training,
             all_items,
+            name="training_detection",
         ),
         # Crafting events
         Event(
@@ -1080,6 +1120,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Weaponsmithing", locations["engineering"],
             calculate_outcome_weaponsmithing,
             all_items,
+            name="weaponsmithing",
         ),
         Event(
             "A team member spends time in the workshop attempting to improve a piece of armor.",
@@ -1087,6 +1128,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Armorsmithing", locations["engineering"],
             calculate_outcome_armorsmithing,
             all_items,
+            name="armorsmithing",
         ),
         Event(
             "A team member retreats to the tech lab to tinker with a piece of gear.",
@@ -1094,6 +1136,16 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Tinkering", locations["tech lab"],
             calculate_outcome_tinkering,
             all_items,
+            name="tinkering",
+        ),
+        # Found-items event
+        Event(
+            "The team discovers an unlocked supply room.",
+            "The search is complete.",
+            0, None, None, locations["supply room"],
+            calculate_outcome_found_items,
+            all_items,
+            name="found_items",
         ),
     ]
 
@@ -1211,6 +1263,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
     events_completed = 0
     max_events_in_voyage = random.randint(25, 32)
     speech_done = False
+    last_repeatable_event_name = None
 
     # Pre-schedule trigger points for required events (not at step 0 or the last step)
     _req_count   = len(required_singular_events)
@@ -1282,8 +1335,11 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
                 else:
                     selector = random.randint(0, 100)
                     if selector < 75:
-                        event_index = random.randint(0, len(repeatable_events) - 1)
-                        event = repeatable_events[event_index]
+                        # Don't repeat the same repeatable event back-to-back
+                        available = repeatable_events if len(repeatable_events) == 1 else \
+                            [e for e in repeatable_events if e.name != last_repeatable_event_name]
+                        event = random.choice(available)
+                        last_repeatable_event_name = event.name
                         location = event.context.location
                         draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                         await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)

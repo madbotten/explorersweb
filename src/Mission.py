@@ -43,7 +43,7 @@ async def update_screen(surface, background, hour, font):
 async def calculate_outcome_sickbay(team, stat_name, skill_name, screen, font):
     member = determine_best_team_member(team, stat_name, skill_name)
     if member:
-        await type_out_text(screen, f"{member.name} grabs a spare medikit from the corner.", font)
+        await type_out_text(screen, f"{member.name} grabs a unkeyed medikit from the corner.", font)
     return
 
 async def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
@@ -452,6 +452,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             5, None, None, locations["barracks"],
             empty_outcome,
             all_items,
+            name="barracks",
         ),
         Event(
             "The team enters a medical bay.",
@@ -459,6 +460,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             1, None, "Medicine", locations["medical bay"],
             calculate_outcome_sickbay,
             all_items,
+            name="medical_bay",
         ),
         Event(
             "The team passes into an unfinished room.",
@@ -466,6 +468,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             2, None, None, locations["new chamber"],
             empty_outcome,
             all_items,
+            name="new_chamber",
         ),
         Event(
             "The team finds a colorful room with chairs and a bar.",
@@ -473,6 +476,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["canteen"],
             empty_outcome,
             all_items,
+            name="canteen",
         ),
         Event(
             "The team breaches a hatch and enters a bay.",
@@ -480,6 +484,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             2, None, None, locations["bioaugmentation"],
             empty_outcome,
             all_items,
+            name="bioaugmentation",
         ),
         Event(
             "The team travels through another long corridor.",
@@ -487,6 +492,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["corridor"],
             empty_outcome,
             all_items,
+            name="corridor",
         ),
         Event(
             "The team's path is blocked by a locked portal.",
@@ -494,6 +500,16 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["corridor"],
             calculate_outcome_locked_portal,
             all_items,
+            name="locked_portal",
+        ),
+        # Found-items event
+        Event(
+            "The team spots a cluttered storage room off the main corridor.",
+            "The search is complete.",
+            0, None, None, locations["storage"],
+            calculate_outcome_found_items,
+            all_items,
+            name="found_items",
         ),
     ]
 
@@ -566,6 +582,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     location = locations["entrance"]
     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
     rooms_to_goal = 5 # random.randint(10, 15)
+    last_repeatable_event_name = None
 
     if team is None:
         if DEBUG:
@@ -629,8 +646,11 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
                     hour += 1
                 else:
                     # repeatable event
-                    event_index = random.randint(0, len(repeatable_events) - 1)
-                    event = repeatable_events[event_index]
+                    # Don't repeat the same repeatable event back-to-back
+                    available = repeatable_events if len(repeatable_events) == 1 else \
+                        [e for e in repeatable_events if e.name != last_repeatable_event_name]
+                    event = random.choice(available)
+                    last_repeatable_event_name = event.name
                     location = event.context.location
                     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                     await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
