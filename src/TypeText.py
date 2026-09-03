@@ -1,6 +1,13 @@
+import sys
 import pygame
 import random
 import asyncio
+
+# True when running inside pygbag / browser (WASM); False for local Python
+IS_WEB = sys.platform == "emscripten"
+# Per-character typing delay: web already spends ~16 ms per asyncio.sleep(0) frame;
+# locally we add an explicit pause so the text feels the same speed.
+_CHAR_DELAY = 0 if IS_WEB else 0.03
 
 from Utils import *
 
@@ -55,9 +62,11 @@ def advance_text_y(amount=30):
     global text_y_offset
     text_y_offset += amount
 
-async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=0.005):
+async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=None):
     global text_x_offset
     global text_y_offset
+
+    char_delay = _CHAR_DELAY if delay is None else delay
 
     lines = text.splitlines()
 
@@ -72,7 +81,7 @@ async def type_out_text(surface, text, font, color=WHITE, line_spacing=5, delay=
             surface.fill((0, 0, 0), line_rect)  # Black background
             surface.blit(text_surface, (text_x_offset, text_y_offset))
             pygame.display.flip()
-            await asyncio.sleep(0)  # one frame (~16ms) per char in WASM
+            await asyncio.sleep(char_delay)  # 0 on web (one WASM frame ≈ 16 ms); explicit delay locally
 
 def clear_screen(surface, background):
     global text_x_offset

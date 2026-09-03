@@ -155,7 +155,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                 total_mass = character.get_carried_mass()
                 if total_mass > (character.get_effective_stat_level("strength") / 2):
                     encumbered_text = DEFAULT_FONT.render("Encumbered", True, RED)
-                    screen.blit(encumbered_text, (character_rect.x + 110, character_rect.y + 70))
+                    screen.blit(encumbered_text, (character_rect.x + 110, character_rect.y + 65))
 
     def display_tabs():
         """Displays tabs for item categories."""

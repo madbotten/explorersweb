@@ -187,7 +187,7 @@ async def calculate_goal_outcome_negotiation(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.skill_check(roll, "Negotiation", None, 10)
+    skill_check = member.skill_check(roll, "Negotiation", 10)
     if skill_check:
         color = GREEN
     else:
@@ -599,7 +599,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
         for event in pygame.event.get():
             if team_dead(team) or mission_failed:
                 if team_dead(team):
-                    await mission_failure(screen, font)
+                    await mission_failure(screen, DEFAULT_FONT)
                 running = False
                 stage = 999  # sentinel: will return 1000 → StageController restarts
                 break
@@ -633,6 +633,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
                 location = event.context.location
                 draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                 await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                pygame.event.clear()   # discard clicks buffered during the battle/event
                 hour += 1
                 voyage_complete = True
                 if not mission_failed:
