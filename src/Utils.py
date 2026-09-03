@@ -423,8 +423,9 @@ def heal_team_by(team, amount):
 
 class EventContext:
     def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location,
-                 calculate_outcome, all_items, name=None):
+                 calculate_outcome, all_items, name=None, is_goal=False):
         self.name = name
+        self.is_goal = is_goal
         self.num_enemies = num_enemies
         self.location = location
         self.stat_name = stat_name

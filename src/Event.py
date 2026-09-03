@@ -258,9 +258,9 @@ async def pause_to_clear_screen(screen, background, font):
     clear_screen(screen, background)
 
 class Event:
-    def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=None):
+    def __init__(self, pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=None, is_goal=False):
         self.name = name
-        self.context = EventContext(pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=name)
+        self.context = EventContext(pre_description, post_description, num_enemies, stat_name, skill_name, location, calculate_outcome, all_items, name=name, is_goal=is_goal)
 
     async def run(self, team, screen, font, background, location_font):
         self.context.add_run_params(team, screen, font, background, location_font)
@@ -301,7 +301,7 @@ class Event:
         methods = self.context.team[0].mission.get("methods") if self.context.team else None
 
         # --- Stealth check ---
-        if methods == "stealth":
+        if methods == "stealth" and not self.context.is_goal:
             if team_evades_notice(self.context.team):
                 await type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
                 return  # skip combat entirely

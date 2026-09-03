@@ -419,6 +419,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             5, "Intelligence", "Hacking", locations["vault"],
             calculate_outcome_pirate_vault,
             all_items,
+            is_goal=True,
         ),
         Event(
             "The team breaches a hatch and discovers the officer's quarters!",
@@ -426,13 +427,15 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             6, None, None, locations["officer's quarters"],
             calculate_outcome_officers_quarters_jalorith,
             all_items,
+            is_goal=True,
         ),
         Event(
             "The team breaches a hatch and discovers the officer's quarters!",
-            "All pirates have been neutralized. The mission is a success!",
+            "Pirate officers have been neutralized. The mission is a success!",
             5, None, None, locations["officer's quarters"],
             calculate_outcome_officers_quarters_neutralize,
             all_items,
+            is_goal=True,
         ),
         Event(
             "The team breaches a hatch and discovers the ai core room!",
@@ -440,6 +443,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
             5, None, None, locations["ai core"],
             calculate_outcome_ai_core,
             all_items,
+            is_goal=True,
         ),
     ]
 
