@@ -594,6 +594,8 @@ class Character:
         evasion += military_science / 10
         if self.is_encumbered():
             evasion = max(0, evasion - 20)
+        if self.has_item("stealth orb"):
+            evasion += 30
         return max(1, evasion * self.get_health_ratio())
 
     # Effective offense with health ratio
