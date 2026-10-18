@@ -113,18 +113,20 @@ async def calculate_outcome_training(team, stat_name, skill_name, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.skill_check(roll, skill_name, 0)
+    modifier = round(member.get_effective_skill_level("Instruction") / 2)
+    skill_check = member.skill_check(roll, skill_name, modifier)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
+    await type_out_text(screen, roll_string(roll, skill_name, stat_name, modifier), font, color)
 
     if skill_check:
         result_text = f"{member.name} {random.choice(teaches_statements)}\n(Mission points + 1)"
         member.mission_points += 1
         for member in team:
           member.increase_skill(skill_name, 2)
+          member.encourage(1)
     else:
         result_text = f"{member.name} {random.choice(train_fail_statements)}\n "
 
@@ -698,6 +700,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["crew quarters"],
             calculate_outcome_interaction_private_professional,
             all_items,
+            name="interaction_private_professional",
         ),
         Event(
             "A crew member addresses a teammate openly on the bridge.",
@@ -705,6 +708,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["bridge"],
             calculate_outcome_interaction_public_professional,
             all_items,
+            name="interaction_public_professional",
         ),
         Event(
             "Two crew members share a private personal exchange in their quarters.",
@@ -712,6 +716,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["quarters"],
             calculate_outcome_interaction_private_personal,
             all_items,
+            name="interaction_private_personal",
         ),
         Event(
             "Two crew members have a candid personal conversation in the mess hall.",
@@ -719,6 +724,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, None, locations["mess"],
             calculate_outcome_interaction_public_personal,
             all_items,
+            name="interaction_public_personal",
         ),
         # Empty outcomes
         Event(
@@ -727,258 +733,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, "intelligence", None, locations["quarters"],
             empty_outcome,
             all_items,
-        ),
-        Event(
-            "The team decides they would like to practice hacking.",
-            None,
-            0, None, "Hacking", locations["bridge"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team conducts a virtual shooting practice session in the holo room.",
-            None,
-            0, None, "Projectile Weapons", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team tries to manipulate each other to get their favorite food bars.",
-            "Eventually everyone accepts their ration.",
-            0, None, "Social Engineering", locations["mess"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team is restless and decide to spar in the holo room.",
-            "The sparring is over.",
-            0, None, "Martial Arts", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team plays hide and seek to pass the time.",
-            "The time for games is over.",
-            0, None, "Stealth", locations["supply room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "While eating in the mess hall, the team discusses what aliens they might encounter on the mission.",
-            "The meal ends.",
-            0, None, "Xenobiology", locations["mess"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team plans out how to conduct the mission.",
-            None,
-            0, None, "Squad Tactics", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team debates what model of combat mech is the most effective.",
-            "The debate subsides.",
-            0, None, "Mech Combat", locations["robot bay"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team simulates flying maneuvers in the holo room.",
-            "The training session is over.",
-            0, None, "Piloting", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team attempts to bypass a simulated security system.",
-            None,
-            0, None, "Hacking", locations["tech lab"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices negotiating resource agreements with an AI facilitator.",
-            None,
-            0, None, "Negotiation", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team participates in a sharpshooting competition using holographic targets.",
-            None,
-            0, None, "Sharpshooting", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices infiltrating a simulated enemy facility.",
-            None,
-            0, None, "Stealth", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team learns advanced first aid techniques.",
-            None,
-            0, None, "Medicine", locations["sickbay"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices with sonic weapons in a virtual environment.",
-            None,
-            0, None, "Sonic Weapons", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team analyzes historical military conflicts in the planning room.",
-            None,
-            0, None, "Military Science", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team safely defuses a mock explosive device.",
-            None,
-            0, None, "Explosives", locations["hangar"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team experiments with prosthetic enhancements in the tech lab.",
-            None,
-            0, None, "Cybernetics", locations["tech lab"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team studies alien biology specimens in hydroponics.",
-            None,
-            0, None, "Xenobiology", locations["hydroponics"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices building shelters in a survival simulation.",
-            None,
-            0, None, "Survival", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team simulates high-stakes diplomatic negotiations with an AI moderator.",
-            None,
-            0, None, "Diplomacy", locations["communications"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team develops tactical plans for various combat scenarios.",
-            None,
-            0, None, "Tactics", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices star map navigation.",
-            None,
-            0, None, "Navigation", locations["bridge"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team interrogates a simulated suspect to uncover vital information.",
-            None,
-            0, None, "Interrogation", locations["brig"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team repairs malfunctioning droids in the robot bay.",
-            None,
-            0, None, "Robot Repair", locations["robot bay"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team works on repairing the ship's life support systems.",
-            None,
-            0, None, "Ships Systems", locations["life support"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices gathering intelligence from a simulated enemy base.",
-            None,
-            0, None, "Espionage", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team fabricates essential mission tools using the onboard fabricator.",
-            None,
-            0, None, "Fabrication", locations["engineering"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices using high-energy weapons in a controlled environment.",
-            None,
-            0, None, "Energy Weapons", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team solves complex physics problems to optimize their equipment.",
-            None,
-            0, None, "Physics", locations["tech lab"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team analyzes mock artifacts for potential functionality.",
-            None,
-            0, None, "Artifact Analysis", locations["tech lab"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team runs squad drills in simulated battle conditions.",
-            None,
-            0, None, "Squad Tactics", locations["mission planning"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team tests exoskeleton systems for improved mobility and strength.",
-            None,
-            0, None, "Exoskeleton Systems", locations["engineering"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team conducts an advanced medical emergency response drill.",
-            None,
-            0, None, "Medicine", locations["sickbay"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team learns efficient methods for extracting resources in simulated terrain.",
-            None,
-            0, None, "Resource Extraction", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
-        ),
-        Event(
-            "The team practices detecting anomalies in a simulated operational environment.",
-            None,
-            0, None, "Detection", locations["holo room"],
-            calculate_outcome_training,
-            all_items,
+            name="recuperate_quarters",
         ),
         # Crafting events
         Event(
@@ -987,6 +742,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Weaponsmithing", locations["engineering"],
             calculate_outcome_weaponsmithing,
             all_items,
+            name="weaponsmithing",
         ),
         Event(
             "A team member spends time in the workshop attempting to improve a piece of armor.",
@@ -994,6 +750,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Armorsmithing", locations["engineering"],
             calculate_outcome_armorsmithing,
             all_items,
+            name="armorsmithing",
         ),
         Event(
             "A team member retreats to the tech lab to tinker with a piece of gear.",
@@ -1001,6 +758,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
             0, None, "Tinkering", locations["tech lab"],
             calculate_outcome_tinkering,
             all_items,
+            name="tinkering",
         ),
     ]
 
@@ -1069,6 +827,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
     events_completed = 0
     max_events_in_voyage = random.randint(10, 15)
     speech_done = False
+    last_repeatable_event_name = None
 
     # Pre-schedule trigger points for required events (not at step 0 or the last step)
     _req_count = len(required_singular_events)
@@ -1142,10 +901,22 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
                     events_completed += 1
                     day += 1
                 else:
-                    selector = random.randint(0, 100)
-                    if selector < 75:
-                        event_index = random.randint(0, len(repeatable_events) - 1)
-                        event = repeatable_events[event_index]
+                    selector = random.randint(0, 99)
+                    if selector < 55:
+                        event = build_procedural_training_event(team, locations, all_items, calculate_outcome_training)
+                        if event.name == last_repeatable_event_name:
+                            event = build_procedural_training_event(team, locations, all_items, calculate_outcome_training)
+                        last_repeatable_event_name = event.name
+                        location = event.context.location
+                        draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                        await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                        events_completed += 1
+                        day += 1
+                    elif selector < 80:
+                        available = repeatable_events if len(repeatable_events) == 1 else \
+                            [e for e in repeatable_events if e.name != last_repeatable_event_name]
+                        event = random.choice(available)
+                        last_repeatable_event_name = event.name
                         location = event.context.location
                         draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                         await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)

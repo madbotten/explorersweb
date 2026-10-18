@@ -156,3 +156,148 @@ def blit_location_description(surface, text, pos, font, color=GREEN, max_width=5
             surface.blit(text_surface, (pos[0], y))
             y += font.get_linesize()
         y += 10
+
+
+TRAINING_SCENARIOS = {
+    "Hacking": [
+        ("bridge", "The team decides they would like to practice hacking.", None),
+        ("tech lab", "The team attempts to bypass a simulated security system.", None),
+    ],
+    "Projectile Weapons": [
+        ("holo room", "The team conducts a virtual shooting practice session in the holo room.", None),
+    ],
+    "Social Engineering": [
+        ("mess", "The team tries to manipulate each other to get their favorite food bars.", "Eventually everyone accepts their ration."),
+    ],
+    "Martial Arts": [
+        ("holo room", "The team is restless and decide to spar in the holo room.", "The sparring is over."),
+    ],
+    "Stealth": [
+        ("supply room", "The team plays hide and seek to pass the time.", "The time for games is over."),
+        ("mission planning", "The team practices infiltrating a simulated enemy facility.", None),
+    ],
+    "Xenobiology": [
+        ("mess", "While eating in the mess hall, the team discusses what aliens they might encounter on the mission.", "The meal ends."),
+        ("hydroponics", "The team studies alien biology specimens in hydroponics.", None),
+    ],
+    "Squad Tactics": [
+        ("mission planning", "The team plans out how to conduct themselves on the mission.", None),
+        ("mission planning", "The team runs squad drills in simulated battle conditions.", None),
+    ],
+    "Mech Combat": [
+        ("robot bay", "The team debates what model of combat mech is the most effective.", "The debate subsides."),
+    ],
+    "Piloting": [
+        ("holo room", "The team simulates flying maneuvers in the holo room.", "The training session is over."),
+    ],
+    "Negotiation": [
+        ("mission planning", "The team practices negotiating resource agreements with an AI facilitator.", None),
+    ],
+    "Sharpshooting": [
+        ("holo room", "The team participates in a sharpshooting competition using holographic targets.", None),
+    ],
+    "Medicine": [
+        ("sickbay", "The team learns advanced first aid techniques.", None),
+        ("sickbay", "The team conducts an advanced medical emergency response drill.", None),
+    ],
+    "Sonic Weapons": [
+        ("holo room", "The team practices using sonic weapons.", None),
+    ],
+    "Military Science": [
+        ("mission planning", "The team analyzes historical military conflicts in the planning room.", None),
+    ],
+    "Explosives": [
+        ("hangar", "The team safely defuses a mock explosive device.", None),
+    ],
+    "Cybernetics": [
+        ("tech lab", "The team experiments with prosthetic enhancements in the tech lab.", None),
+    ],
+    "Survival": [
+        ("holo room", "The team practices building shelters in a survival simulation.", None),
+    ],
+    "Diplomacy": [
+        ("communications", "The team simulates high-stakes diplomatic negotiations with an AI moderator.", None),
+    ],
+    "Navigation": [
+        ("bridge", "The team practices star map navigation.", None),
+    ],
+    "Interrogation": [
+        ("brig", "The team interrogates a simulated suspect to uncover vital information.", None),
+    ],
+    "Robot Repair": [
+        ("robot bay", "The team repairs malfunctioning droids in the robot bay.", None),
+    ],
+    "Ships Systems": [
+        ("life support", "The team works on repairing the ship's life support systems.", None),
+    ],
+    "Espionage": [
+        ("mission planning", "The team practices gathering intelligence from a simulated enemy base.", None),
+    ],
+    "Fabrication": [
+        ("engineering", "The team fabricates essential mission tools using the onboard fabricator.", None),
+    ],
+    "Energy Weapons": [
+        ("holo room", "The team practices using high-energy weapons in a controlled environment.", None),
+    ],
+    "Physics": [
+        ("tech lab", "The team solves complex physics problems to optimize their equipment.", None),
+    ],
+    "Artifact Analysis": [
+        ("tech lab", "The team analyzes mock artifacts for potential functionality.", None),
+    ],
+    "Exoskeleton Systems": [
+        ("engineering", "The team tests exoskeleton systems for improved mobility and strength.", None),
+    ],
+    "Resource Extraction": [
+        ("holo room", "The team learns efficient methods for extracting resources in simulated terrain.", None),
+    ],
+    "Detection": [
+        ("holo room", "The team practices detecting anomalies in a simulated operational environment.", None),
+    ],
+}
+
+
+def build_procedural_training_event(team, locations, all_items, outcome_fn=None):
+    """Build a voyage training Event dynamically, weighted toward skills known by the crew.
+
+    - 70% of the time picks a skill from TRAINING_SCENARIOS that at least one living
+      non-robot crew member has at proficiency >= 50 (if any exist).
+    - 30% of the time picks any skill from TRAINING_SCENARIOS at random.
+    """
+    from Event import Event
+    if outcome_fn is None:
+        from Voyage import calculate_outcome_training
+        outcome_fn = calculate_outcome_training
+
+    team_skills = [
+        skill_name
+        for skill_name in TRAINING_SCENARIOS
+        if any(
+            m is not None
+            and not m.is_robot()
+            and m.is_alive()
+            and m.skills.get(skill_name, 0) >= 50
+            for m in (team or [])
+        )
+    ]
+
+    if team_skills and random.random() < 0.70:
+        chosen_skill = random.choice(team_skills)
+    else:
+        chosen_skill = random.choice(list(TRAINING_SCENARIOS.keys()))
+
+    loc_key, pre_desc, post_desc = random.choice(TRAINING_SCENARIOS[chosen_skill])
+    location = locations.get(loc_key) if isinstance(locations, dict) else None
+
+    return Event(
+        pre_desc,
+        post_desc,
+        0,
+        None,
+        chosen_skill,
+        location,
+        outcome_fn,
+        all_items,
+        name=f"training_{chosen_skill.lower().replace(' ', '_')}",
+    )
+
