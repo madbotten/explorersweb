@@ -22,15 +22,6 @@ DARK_CYAN = (15, 33, 32)
 SCREEN_WIDTH = 1500 # 1600
 SCREEN_HEIGHT = 900 # 1000
 
-# description, required item, required people, required kills
-# locations: vault, officer's quarters, officer's quarters, ai core
-MISSION_GOALS = [
-    ("MISSION: The team must obtain a Trilisk artifact known to be in pirate possession at the mission point.", ["valneeth"], [], []),
-    ("MISSION: The team must capture the pirate named Jalorith known to be at the mission point.", [], ["Jalorith"], []),
-    ("MISSION: The team must neutralize all pirate officers at the mission point.", [], [], [6]),
-    ("MISSION: The team must discover the location of a secret base called Yoria.", ["datachip"], [], []),
-]
-
 def team_alive(team):
     for member in team:
         if member.is_alive():

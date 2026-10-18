@@ -101,7 +101,7 @@ async def load_game():
                 del_rect = pygame.Rect(
                     MARGIN + CONT_W + 12 + DEV_W + 10, y, DEL_W, DEL_H)
                 if saves:
-                    latest_stage = max(saves.keys())
+                    latest_stage = max(saves.keys(), key=lambda st: (saves[st], st))
                     lp = saves[latest_stage]
                     cont_rect = pygame.Rect(MARGIN, y, CONT_W, CONT_H)
                     dev_rect  = pygame.Rect(MARGIN + CONT_W + 12, y, DEV_W, DEV_H)
@@ -184,7 +184,7 @@ async def load_game():
                 y += TEAM_ROW_H
 
                 if saves:
-                    latest_stage = max(saves.keys())
+                    latest_stage = max(saves.keys(), key=lambda st: (saves[st], st))
                     lp = saves[latest_stage]
                     stage_label = STAGE_LABELS.get(latest_stage, f"Stage {latest_stage}")
 

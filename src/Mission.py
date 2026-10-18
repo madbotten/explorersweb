@@ -10,6 +10,7 @@ from Location import *
 from Utils import *
 from Event import *
 from TypeText import *
+from MissionOrders import MISSION_GOALS, DERELICT_MISSION_GOALS, get_theatre_for_loop, get_mission_goals_for_theatre
 from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
@@ -747,32 +748,90 @@ async def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
 
+async def calculate_outcome_derelict_warpchamber(team, stat_name, skill_name, screen, font):
+    global mission_failed
+    await calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font)
+    if not mission_failed:
+        await type_out_text(screen, "The Xeno-Relic is extracted from the warp containment core!", font, GREEN)
+
+
+async def calculate_outcome_derelict_throneroom(team, stat_name, skill_name, screen, font):
+    global mission_failed
+    mission_failed = False
+    await type_out_text(screen, "Broodmother Xylarx has been defeated. The mission objective has been achieved!", font)
+
+
+async def calculate_outcome_derelict_biolab(team, stat_name, skill_name, screen, font):
+    global mission_failed
+    mission_failed = False
+    await type_out_text(screen, "The Klackon bio-nest has been purged. The mission objective has been achieved!", font)
+
+
+async def calculate_outcome_derelict_bridge(team, stat_name, skill_name, screen, font):
+    global mission_failed
+    mission_failed = True
+
+    for skill in ("Hacking", "Ships Systems", "Navigation", "Artifact Analysis"):
+        member = determine_best_team_member(team, "intelligence", skill)
+        if member and member.has_skill(skill):
+            await type_out_text(screen, f"{member.name} attempts to extract the flight core using {skill}:", font)
+            if await standard_skill_check(member, screen, "intelligence", skill, font, 10):
+                member.mission_points += 10
+                member.increase_skill(skill, 4)
+                mission_failed = False
+                break
+
+    if mission_failed:
+        await calculate_outcome_ai_core(team, stat_name, skill_name, screen, font)
+    else:
+        await type_out_text(screen, "The derelict's black-box flight core is secured.\nThe mission objective has been achieved!", font)
+
+
 ROOM_ENTRY_TEXT = {
-    # combat
+    # combat (pirates & derelict)
     "barracks": ("The team breaches a hatch and enters the pirate barracks.", "The barracks have been cleared."),
+    "barracks1": ("The team steps into a deserted crew barracks strewn with chitin carapaces.", "The barracks have been cleared."),
+    "barracks2": ("The team breaches a secondary troop berth converted into a Klackon nesting den.", "The nesting den has been cleared."),
     "guard room": ("The team pushes into a fortified guard room.", "The guard post is secure."),
     "checkpoint": ("The team approaches an internal security checkpoint.", "The checkpoint has been secured."),
     "training room": ("The team enters a sprawling combat training hall.", "The training room is clear."),
     "drone launch": ("The team steps into a drafty drone launch bay.", "The drone bay has been cleared."),
-    # tech
+    "shipsweapons": ("The team enters the derelict's heavy weapons battery deck.", "The weapons deck is secure."),
+    # tech (pirates & derelict)
     "radar tower": ("The team ascends into the radar observation tower.", "The radar tower is secure."),
     "war room": ("The team slips into a tactical war room lined with holomaps.", "The war room has been searched."),
     "environmental control": ("The team enters the environmental control hub.", "Environmental control is stabilized."),
     "artifact analysis": ("The team enters a chamber equipped to scan unknown artifacts.", "The analysis lab is clear."),
-    # medical
+    "analysisbay": ("The team enters an alien specimen and artifact analysis bay.", "The analysis bay is clear."),
+    "captainquarters": ("The team enters the former captain's quarters.", "The captain's quarters have been searched."),
+    "engineering": ("The team enters main engineering, where damaged conduits hiss with plasma.", "Engineering has been secured."),
+    "generator": ("The team steps into a cavernous auxiliary power generator chamber.", "The generator room is clear."),
+    "navigation": ("The team enters a stellar navigation dome displaying dead star charts.", "The navigation dome is clear."),
+    # medical (pirates & derelict)
     "medical bay": ("The team enters a bloodstained pirate medical facility.", "The medical bay has been cleared."),
+    "medbay": ("The team enters an abandoned sickbay with overturned stasis beds.", "The medbay has been cleared."),
     "implant room": ("The team enters a surgical suite filled with implant rigs.", "The implant room is clear."),
+    "implant": ("The team enters a cybernetic surgical bay with flickering diagnostic screens.", "The implant bay is clear."),
     "bioaugmentation": ("The team breaches a hatch into a bioaugmentation lab.", "Bioaugmentation has been cleared."),
-    # supply
+    # supply (pirates & derelict)
     "armory": ("The team discovers a workroom stacked with weapons and ordinance.", "The armory has been searched."),
     "depot": ("The team enters a fuel and energy storage depot.", "The depot has been cleared."),
     "parts bay": ("The team steps into a bay lined with spare parts and machinery.", "The parts bay is clear."),
+    "parts": ("The team enters a spare-parts warehouse stacked with salvaged hull plating.", "The parts bay is clear."),
     "storage": ("The team spots a cluttered storage room off the main passage.", "The storage room has been searched."),
     "fabrication": ("The team enters an industrial fabrication room.", "The fabrication bay is clear."),
     "workshop": ("The team enters a cluttered mechanical workshop.", "The workshop has been cleared."),
     "vehicle bay": ("The team enters a cavernous vehicle maintenance bay.", "The vehicle bay is secure."),
-    # corridor & prison
-    "corridor": ("The team travels through a narrow stronghold corridor.", "The corridor is clear."),
+    "orechamber": ("The team enters a raw ore processing chamber hollowed out by mandibles.", "The ore chamber is clear."),
+    "robotshop": ("The team enters a robotics maintenance shop littered with dismantled chassis.", "The robot shop is clear."),
+    "suitroom": ("The team enters an EVA suit locker room.", "The suit room has been searched."),
+    # corridor & prison (pirates & derelict)
+    "corridor": ("The team travels through a narrow corridor.", "The corridor is clear."),
+    "s-corridor": ("The team moves along a curved service corridor winding through the hull.", "The service corridor is clear."),
+    "empty": ("The team crosses a stripped, depressurized hull compartment.", "The hull compartment is clear."),
+    "quarters1": ("The team passes through abandoned crew quarters smelling of ozone and chitin.", "The crew quarters are clear."),
+    "quarters2": ("The team searches dimly lit officer berths scored with claw marks.", "The officer berths are clear."),
+    "shuttlebay": ("The team moves through a cavernous shuttle bay.", "The shuttle bay is secure."),
     "cargo lift": ("The team steps onto a heavy industrial cargo lift.", "The cargo lift area is clear."),
     "new chamber": ("The team passes into an unfinished chamber carved from rock.", "This chamber has been cleared."),
     "well": ("The team crosses a damp water extraction and storage room.", "The well room is clear."),
@@ -796,7 +855,7 @@ def build_procedural_mission_room_event(
     last_room_name=None,
     supply_locker_state=None,
 ):
-    """Build a procedural mission room Event using Pirate room tags and MissionOrders options.
+    """Build a procedural mission room Event using Pirate or Derelict room tags and MissionOrders options.
 
     Keeping usable item drops rare:
     - 'supply' rooms usually present LOCKED_PORTAL, HAZARD_LEAK, or INTEL_CONSOLE challenges.
@@ -810,8 +869,12 @@ def build_procedural_mission_room_event(
 
     # Group available non-goal rooms by tag (plus 'prison' under 'corridor' for CAPTIVE_CELL)
     rooms_by_tag = {"combat": [], "tech": [], "medical": [], "supply": [], "corridor": []}
+    excluded_goal_rooms = (
+        "entrance", "ai core", "officer's quarters", "vault",
+        "throneroom", "warpchamber", "biolab", "bridge",
+    )
     for name, loc in locations.items():
-        if name == last_room_name or name in ("entrance", "ai core", "officer's quarters", "vault"):
+        if name == last_room_name or name in excluded_goal_rooms:
             continue
         tags = getattr(loc, "tags", ())
         if name == "prison":
@@ -846,13 +909,13 @@ def build_procedural_mission_room_event(
             archetype_key = "SECURITY_GRID"
     elif chosen_tag == "tech":
         num_enemies = random.choice([0, 1, 2])
-        if room_name == "environmental control":
+        if room_name in ("environmental control", "engineering", "generator"):
             archetype_key = "HAZARD_LEAK"
         else:
             archetype_key = "INTEL_CONSOLE" if random.random() < 0.75 else "SECURITY_GRID"
     elif chosen_tag == "medical":
         num_enemies = random.choice([0, 1, 2])
-        if room_name in ("implant room", "bioaugmentation"):
+        if room_name in ("implant room", "bioaugmentation", "implant"):
             archetype_key = "CYBER_IMPLANT_BAY"
         else:
             archetype_key = "MEDICAL_CACHE"
@@ -872,6 +935,15 @@ def build_procedural_mission_room_event(
             archetype_key = "LOCKED_PORTAL"
         elif roll < 0.55:
             archetype_key = "SECURITY_GRID"
+
+    # For the 'defeat 20 enemies' objective (mission_index == 4), ensure steady hostile patrols
+    mission_idx = (
+        team[0].mission.get("mission_index")
+        if team and getattr(team[0], "mission", None)
+        else None
+    )
+    if mission_idx == 4 and num_enemies == 0 and random.random() < 0.65:
+        num_enemies = random.randint(2, 4)
 
     outcome_fn = make_challenge_outcome(archetype_key) if archetype_key else empty_outcome
     return Event(
@@ -925,45 +997,107 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     # Load sounds
     play_background_music("music/track3.mp3", pygame)
 
-    # Load locations and attributes
-    locations = load_pirate_locations()
+    theatre = (
+        (team[0].mission.get("theatre") if team and getattr(team[0], "mission", None) else None)
+        or get_theatre_for_loop(loop)
+    )
+    add_team_mission_param(team, "theatre", theatre)
+    add_team_mission_param(team, "loop", loop)
+    add_team_mission_param(team, "enemies_defeated", 0)
+
+    # Load locations and attributes for current theatre
+    if theatre == "derelict":
+        locations = load_derelict_locations()
+    else:
+        locations = load_pirate_locations()
     all_items = load_items_battle()
 
-    # preevent, postevent, team, rangedbots, meleebots, enemies, stat_name, skill_name, items, locations, outcome, all_items
-    goal_event = [
-        Event(
-            "The team breaches a hatch and discovers a vault room beyond.",
-            "The vault must be breached to obtain the mission objective.",
-            5, "Intelligence", "Hacking", locations["vault"],
-            calculate_outcome_pirate_vault,
-            all_items,
-            is_goal=True,
-        ),
-        Event(
-            "The team breaches a hatch and discovers the officer's quarters!",
-            "Jalorith is neutralized. The mission has been completed!",
-            6, None, None, locations["officer's quarters"],
-            calculate_outcome_officers_quarters_jalorith,
-            all_items,
-            is_goal=True,
-        ),
-        Event(
-            "The team breaches a hatch and discovers the officer's quarters!",
-            "Pirate officers have been neutralized. The mission is a success!",
-            5, None, None, locations["officer's quarters"],
-            calculate_outcome_officers_quarters_neutralize,
-            all_items,
-            is_goal=True,
-        ),
-        Event(
-            "The team breaches a hatch and discovers the ai core room!",
-            "The team must obtain secrets held by the AI core to succeed.",
-            5, None, None, locations["ai core"],
-            calculate_outcome_ai_core,
-            all_items,
-            is_goal=True,
-        ),
-    ]
+    if theatre == "derelict":
+        goal_event = [
+            Event(
+                "The team breaches a sealed bulkhead and enters the derelict's warp chamber.",
+                "The warp containment vault must be breached to recover the Xeno-Relic.",
+                5, "Intelligence", "Hacking", locations["warpchamber"],
+                calculate_outcome_derelict_warpchamber,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a chitin-encrusted hatch into the hive throne room!",
+                "Broodmother Xylarx is neutralized. The mission has been completed!",
+                6, None, None, locations["throneroom"],
+                calculate_outcome_derelict_throneroom,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a hatch and enters the overgrown derelict biolab!",
+                "The Klackon bio-nest has been purged. The mission is a success!",
+                5, None, None, locations["biolab"],
+                calculate_outcome_derelict_biolab,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team reaches the dark command bridge of the derelict vessel!",
+                "The team must extract the black-box flight core to succeed.",
+                5, None, None, locations["bridge"],
+                calculate_outcome_derelict_bridge,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team sweeps a Klackon staging chamber aboard the derelict vessel!",
+                "The Klackon swarm in this sector has been neutralized.",
+                5, None, None, locations["guard room"],
+                empty_outcome,
+                all_items,
+                is_goal=True,
+            ),
+        ]
+    else:
+        goal_event = [
+            Event(
+                "The team breaches a hatch and discovers a vault room beyond.",
+                "The vault must be breached to obtain the mission objective.",
+                5, "Intelligence", "Hacking", locations["vault"],
+                calculate_outcome_pirate_vault,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a hatch and discovers the officer's quarters!",
+                "Jalorith is neutralized. The mission has been completed!",
+                6, None, None, locations["officer's quarters"],
+                calculate_outcome_officers_quarters_jalorith,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a hatch and discovers the officer's quarters!",
+                "Pirate officers have been neutralized. The mission is a success!",
+                5, None, None, locations["officer's quarters"],
+                calculate_outcome_officers_quarters_neutralize,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a hatch and discovers the ai core room!",
+                "The team must obtain secrets held by the AI core to succeed.",
+                5, None, None, locations["ai core"],
+                calculate_outcome_ai_core,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team storms a heavily guarded pirate barracks!",
+                "The pirate patrol has been neutralized.",
+                5, None, None, locations["guard room"],
+                empty_outcome,
+                all_items,
+                is_goal=True,
+            ),
+        ]
 
     rando_atmosphere_strings = [
         " the scent of oil and burnt metal fills the air, mingling with the faint aroma of alien spices.",
@@ -1002,17 +1136,21 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     screen.blit(ship_text, (120, 10))
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
 
-    intro_text = "The team arrives on planet at the mission point..."
+    if theatre == "derelict":
+        intro_text = "The team docks with the derelict vessel at the mission point..."
+    else:
+        intro_text = "The team arrives on planet at the mission point..."
     await type_out_text(screen, intro_text, DEFAULT_FONT)
 
     mission_index = team[0].mission["mission_index"]
-    intro_text = MISSION_GOALS[mission_index][0]
+    goals_list = get_mission_goals_for_theatre(theatre)
+    intro_text = goals_list[mission_index][0]
     await type_out_text(screen, intro_text, DEFAULT_FONT)
     await share_spare_weapons(team, screen, DEFAULT_FONT)
     intro_text = "Click to proceed."
     await type_out_text(screen, intro_text, DEFAULT_FONT)
 
-    location = locations["entrance"]
+    location = locations.get("entrance") or locations.get("shuttlebay") or next(iter(locations.values()))
     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
     mission_options = team[0].mission.get("options") if team and getattr(team[0], "mission", None) else None
     if mission_options == "focus":
@@ -1063,7 +1201,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
 
         # Move to next event
         if not waiting:
-            if rooms_to_goal <= 0:
+            if mission_index != 4 and rooms_to_goal <= 0:
                 # goal event for mission
                 event = goal_event[mission_index]
                 location = event.context.location
@@ -1086,8 +1224,24 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
                 location = event.context.location
                 draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
                 await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                pygame.event.clear()   # discard clicks buffered during the battle/event
                 rooms_to_goal -= 1
                 hour += 1
+                if (
+                    mission_index == 4
+                    and not team_dead(team)
+                    and not mission_failed
+                    and team[0].mission.get("enemies_defeated", 0) >= 20
+                ):
+                    await type_out_text(
+                        screen,
+                        "All 20 hostiles have been neutralized! The mission objective has been achieved!",
+                        DEFAULT_FONT,
+                        GREEN,
+                    )
+                    voyage_complete = True
+                    mission_failed = False
+                    team_mission_success(team)
             waiting = True
 
         # Update the display

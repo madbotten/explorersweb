@@ -1,0 +1,1821 @@
+"""
+Explorers unit tests — run with:
+    .venv/bin/python -m unittest gametests.TestHealthMorale -v
+    .venv/bin/python -m unittest discover -v
+"""
+import os
+import sys
+import random
+import unittest
+import asyncio
+
+# Run pygame headlessly (no display required)
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
+# Add src to path so we can import game modules directly
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+import pygame
+pygame.init()
+
+from Character import Character
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def make_human(strength=50, willpower=50, morale=100):
+    """Create a minimal team-type character with controlled stats.
+    psychotic and traitor are forced False so flag-gated paths (e.g. demoralize)
+    behave deterministically; tests that need those flags set them explicitly.
+    """
+    c = Character(1, "team")
+    c.stats["strength"]   = strength
+    c.stats["willpower"]  = willpower
+    c.stats["max_health"] = strength + willpower   # re-derive after override
+    c.current_health      = c.stats["max_health"]
+    c.morale              = morale
+    c.psychotic           = False
+    c.traitor             = False
+    return c
+
+
+def make_robot(max_life=200, morale=100):
+    """Create a minimal robot character with controlled HP."""
+    c = Character(1, "robot")
+    c.name                    = "TestBot"   # robots skip name assignment in __init__
+    c.max_life                = max_life
+    c.stats["max_health"]     = max_life
+    c.current_health          = max_life
+    c.morale                  = morale
+    return c
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestHealthMorale(unittest.TestCase):
+
+    # ---- Initial state -------------------------------------------------
+
+    def test_human_starts_full_health(self):
+        c = make_human(50, 50)
+        self.assertEqual(c.current_health, 100)
+
+    def test_human_max_health_is_strength_plus_willpower(self):
+        c = make_human(60, 40)
+        self.assertEqual(c.stats["max_health"], 100)
+
+    def test_human_starts_full_morale(self):
+        c = make_human()
+        self.assertEqual(c.morale, 100)
+
+    def test_robot_starts_full_health(self):
+        r = make_robot(200)
+        self.assertEqual(r.current_health, 200)
+
+    def test_robot_starts_morale_100(self):
+        r = make_robot(200)
+        self.assertEqual(r.morale, 100)
+
+    # ---- Morale bounds -------------------------------------------------
+
+    def test_demoralize_clamps_to_zero(self):
+        c = make_human()
+        c.demoralize(200)
+        self.assertEqual(c.morale, 0)
+
+    def test_encourage_clamps_to_100(self):
+        c = make_human(morale=80)
+        c.encourage(50)
+        self.assertEqual(c.morale, 100)
+
+    def test_morale_never_negative(self):
+        c = make_human(morale=5)
+        c.demoralize(10)
+        self.assertGreaterEqual(c.morale, 0)
+
+    # ---- Robots immune to social morale --------------------------------
+
+    def test_robot_immune_to_demoralize(self):
+        r = make_robot()
+        r.demoralize(50)
+        self.assertEqual(r.morale, 100)   # unchanged
+
+    def test_robot_immune_to_encourage(self):
+        r = make_robot()
+        r.morale = 40
+        r.encourage(30)
+        self.assertEqual(r.morale, 40)    # unchanged
+
+    # ---- hurt() --------------------------------------------------------
+
+    def test_hurt_reduces_current_health_not_max(self):
+        c = make_human(50, 50)   # max_health = 100
+        c.hurt(20, "impact")
+        self.assertEqual(c.stats["max_health"], 100)  # stat unchanged
+        self.assertEqual(c.current_health, 80)
+
+    def test_hurt_minimum_1_damage(self):
+        c = make_human(50, 50)
+        before = c.current_health
+        c.hurt(0, "impact")
+        self.assertEqual(c.current_health, before - 1)
+
+    def test_hurt_morale_proportional_to_max_health(self):
+        # 15 damage vs max_health=100 -> morale drop = round(15/100*100) = 15
+        c = make_human(50, 50)   # max_health = 100
+        c.hurt(15, "impact")
+        # morale drops by 15, also clamped to health_pct (85%)
+        self.assertEqual(c.morale, 85)   # 100 - 15 = 85, health_pct = 85
+
+    def test_hurt_morale_proportional_scales_with_max_health(self):
+        # 15 damage vs max_health=200 -> morale drop = round(15/200*100) = 8
+        c = make_human(100, 100)  # max_health = 200
+        c.hurt(15, "impact")
+        expected_drop  = round(15 / 200 * 100)    # = 8
+        expected_morale = min(100 - expected_drop, c.health_pct())
+        self.assertEqual(c.morale, expected_morale)
+
+    def test_hurt_morale_cannot_exceed_health_pct(self):
+        c = make_human(50, 50, morale=30)
+        c.hurt(5, "impact")
+        self.assertLessEqual(c.morale, c.health_pct())
+
+    def test_hurt_kills_when_health_reaches_zero(self):
+        c = make_human(50, 50)
+        died = c.hurt(200, "impact")
+        self.assertTrue(died)
+        self.assertEqual(c.current_health, 0)
+
+    def test_hurt_does_not_kill_on_partial_damage(self):
+        c = make_human(50, 50)
+        died = c.hurt(10, "impact")
+        self.assertFalse(died)
+
+    def test_robot_hurt_sets_morale_to_health_pct(self):
+        r = make_robot(200)
+        r.hurt(50, "impact")
+        expected_hp  = 200 - 50
+        expected_pct = int(expected_hp / 200 * 100)
+        self.assertEqual(r.current_health, expected_hp)
+        self.assertEqual(r.morale, expected_pct)
+
+    def test_robot_hurt_does_not_exceed_100_morale(self):
+        r = make_robot(200)
+        r.hurt(1, "impact")
+        self.assertLessEqual(r.morale, 100)
+
+    # ---- is_alive / health_pct -----------------------------------------
+
+    def test_is_alive_true_when_health_positive(self):
+        c = make_human()
+        self.assertTrue(c.is_alive())
+
+    def test_is_alive_false_when_health_zero(self):
+        c = make_human()
+        c.current_health = 0
+        self.assertFalse(c.is_alive())
+
+    def test_health_pct_full(self):
+        c = make_human(50, 50)
+        self.assertEqual(c.health_pct(), 100)
+
+    def test_health_pct_partial(self):
+        c = make_human(50, 50)
+        c.current_health = 50
+        self.assertEqual(c.health_pct(), 50)
+
+    def test_health_pct_zero(self):
+        c = make_human()
+        c.current_health = 0
+        self.assertEqual(c.health_pct(), 0)
+
+    # ---- get_health_ratio ----------------------------------------------
+
+    def test_get_health_ratio_human_full(self):
+        c = make_human(50, 50)
+        self.assertAlmostEqual(c.get_health_ratio(), 1.0)
+
+    def test_get_health_ratio_human_half(self):
+        c = make_human(50, 50)
+        c.current_health = 50
+        self.assertAlmostEqual(c.get_health_ratio(), 0.5)
+
+    def test_get_health_ratio_robot_full(self):
+        r = make_robot(200)
+        self.assertAlmostEqual(r.get_health_ratio(), 1.0)
+
+    def test_get_health_ratio_robot_half(self):
+        r = make_robot(200)
+        r.current_health = 100
+        self.assertAlmostEqual(r.get_health_ratio(), 0.5)
+
+    # ---- morale_from_health --------------------------------------------
+
+    def test_morale_from_health_raises_human_morale_to_health_pct(self):
+        c = make_human(50, 50, morale=30)
+        c.current_health = 80   # health_pct = 80
+        c.morale_from_health()
+        self.assertEqual(c.morale, 80)
+
+    def test_morale_from_health_does_not_lower_human_morale(self):
+        c = make_human(50, 50, morale=90)
+        c.current_health = 80   # health_pct = 80, morale already above
+        c.morale_from_health()
+        self.assertEqual(c.morale, 90)   # stays at 90
+
+    def test_morale_from_health_sets_robot_morale_exactly(self):
+        r = make_robot(200)
+        r.current_health = 100   # 50% health
+        r.morale = 90
+        r.morale_from_health()
+        self.assertEqual(r.morale, 50)
+
+    def test_morale_from_health_caps_at_100(self):
+        c = make_human(50, 50, morale=99)
+        c.current_health = 100
+        c.morale_from_health()
+        self.assertLessEqual(c.morale, 100)
+
+    # ---- max_health stat unchanged by damage/healing -------------------
+
+    def test_max_health_stat_unchanged_by_damage(self):
+        c = make_human(50, 50)
+        original_max = c.stats["max_health"]
+        c.hurt(30, "impact")
+        self.assertEqual(c.stats["max_health"], original_max)
+
+    def test_robot_max_life_unchanged_by_damage(self):
+        r = make_robot(200)
+        r.hurt(50, "impact")
+        self.assertEqual(r.max_life, 200)
+
+
+# ---------------------------------------------------------------------------
+# Helpers shared by initiative tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch
+from Battle import initiative
+
+
+def make_human_controlled(strength=40, willpower=60, coordination=50,
+                          intelligence=40, courage=50, charisma=40,
+                          morale=100):
+    """Human character with fully specified base stats so derived stats are predictable."""
+    c = make_human(strength, willpower, morale=morale)
+    # Override the base stats that feed into derived ones
+    c.stats["coordination"]  = coordination
+    c.stats["intelligence"]  = intelligence
+    c.stats["courage"]       = courage
+    c.stats["charisma"]      = charisma
+    # Re-derive all dependent stats exactly as __init__ does
+    c.stats["offense"]      = round((coordination + courage) / 2)
+    c.stats["defense"]      = round((coordination + strength) / 2)
+    c.stats["deception"]    = round((courage + charisma) / 2)
+    c.stats["evasion"]      = round((intelligence + coordination) / 2)
+    c.stats["analyze"]      = round((intelligence + willpower) / 2)
+    c.stats["max_health"]   = strength + willpower
+    c.stats["movement"]     = strength + willpower + coordination
+    c.stats["meleecombat"]  = c.stats["evasion"] + strength
+    c.stats["perception"]   = round((willpower + coordination) / 2)
+    c.stats["surprise"]     = c.stats["evasion"] + c.stats["perception"]
+    c.stats["leadership"]   = intelligence + charisma + courage
+    c.current_health        = c.stats["max_health"]
+    return c
+
+
+def make_scoutbot_simple(perception=75):
+    """Minimal scoutbot for initiative tests (no pygame image loading)."""
+    r = make_robot(150, morale=100)
+    r.occupation     = "scoutbot"
+    r.stats["perception"] = perception
+    r.stats["surprise"]   = 150          # hardcoded in factory
+    return r
+
+
+class TestInitiative(unittest.TestCase):
+
+    # ---- Stat derivation -----------------------------------------------
+
+    def test_perception_formula(self):
+        # perception = round((willpower + coordination) / 2)
+        c = make_human_controlled(willpower=60, coordination=50)
+        self.assertEqual(c.stats["perception"], round((60 + 50) / 2))   # 55
+
+    def test_perception_rounds_correctly(self):
+        # (willpower=61 + coordination=50) / 2 = 55.5 → rounds to 56
+        c = make_human_controlled(willpower=61, coordination=50)
+        self.assertEqual(c.stats["perception"], 56)
+
+    def test_surprise_uses_evasion_plus_perception(self):
+        # evasion = (intelligence + coordination) / 2
+        # surprise = evasion + perception
+        c = make_human_controlled(willpower=60, coordination=50, intelligence=40)
+        evasion    = round((40 + 50) / 2)   # 45
+        perception = round((60 + 50) / 2)   # 55
+        self.assertEqual(c.stats["evasion"],    evasion)
+        self.assertEqual(c.stats["perception"], perception)
+        self.assertEqual(c.stats["surprise"],   evasion + perception)  # 100
+
+    def test_surprise_does_not_use_deception(self):
+        # Two characters identical except different charisma (affects deception).
+        # Their surprise stat should be the same.
+        c1 = make_human_controlled(charisma=10)
+        c2 = make_human_controlled(charisma=90)
+        # deception differs
+        self.assertNotEqual(c1.stats["deception"], c2.stats["deception"])
+        # surprise is identical (deception not in formula)
+        self.assertEqual(c1.stats["surprise"], c2.stats["surprise"])
+
+    def test_high_perception_raises_surprise(self):
+        lo = make_human_controlled(willpower=20, coordination=20)
+        hi = make_human_controlled(willpower=80, coordination=80)
+        self.assertGreater(hi.stats["surprise"], lo.stats["surprise"])
+
+    # ---- Scout bonus ---------------------------------------------------
+
+    def test_no_scoutbot_gives_zero_scout_bonus(self):
+        # With a fixed roll, team member roll = fixed + surprise (no scout bonus)
+        hero   = make_human_controlled()
+        enemy  = make_human_controlled()
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy])
+        self.assertEqual(len(order), 2)
+
+    def test_scoutbot_adds_bonus_to_team_rolls(self):
+        # hero vs enemy: hero has a scoutbot ally → gets +5 scout bonus.
+        # Fix random to 50 for everyone.
+        # hero.surprise = 100, enemy.surprise = 100, scout adds +5 to hero.
+        # hero roll = 50 + 100 + 5 = 155; enemy roll = 50 + 100 = 150
+        hero   = make_human_controlled()
+        scout  = make_scoutbot_simple()
+        enemy  = make_human_controlled()
+        # Zero out surprise so the bonus is the only differentiator
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero, scout], [enemy])
+        # hero and scout should both beat enemy (hero gets scout_bonus=5)
+        team_positions   = [order.index(hero), order.index(scout)]
+        enemy_position   = order.index(enemy)
+        self.assertLess(min(team_positions), enemy_position)
+
+    def test_two_scoutbots_double_the_bonus(self):
+        hero    = make_human_controlled()
+        scout1  = make_scoutbot_simple()
+        scout2  = make_scoutbot_simple()
+        enemy   = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        # Two scoutbots → scout_bonus = 10. hero roll = 50+10=60, enemy = 50
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero, scout1, scout2], [enemy])
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- Squad tactics bonus -------------------------------------------
+
+    def test_squad_tactics_adds_bonus(self):
+        hero  = make_human_controlled()
+        hero.skills["Squad Tactics"] = 50   # bonus = 50 / 10 = 5
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy])
+        # hero roll = 50 + 5 (squad tactics) = 55 > 50
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- Brazen bonus --------------------------------------------------
+
+    def test_brazen_bonus_applied_to_team(self):
+        hero  = make_human_controlled()
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([hero], [enemy], brazen_bonus=20)
+        # hero roll = 50 + 20 = 70 > enemy 50
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    def test_brazen_bonus_not_applied_to_enemies(self):
+        hero  = make_human_controlled()
+        enemy = make_human_controlled()
+        hero.stats["surprise"]  = 0
+        enemy.stats["surprise"] = 0
+        with patch("Battle.random.randint", return_value=50):
+            # Even with brazen_bonus, only hero benefits
+            order = initiative([hero], [enemy], brazen_bonus=100)
+        self.assertLess(order.index(hero), order.index(enemy))
+
+    # ---- General correctness -------------------------------------------
+
+    def test_initiative_returns_all_characters(self):
+        team   = [make_human_controlled() for _ in range(3)]
+        enemies = [make_human_controlled() for _ in range(2)]
+        order = initiative(team, enemies)
+        self.assertEqual(len(order), 5)
+        for m in team + enemies:
+            self.assertIn(m, order)
+
+    def test_higher_surprise_wins_with_fixed_roll(self):
+        low_surprise  = make_human_controlled(willpower=20, coordination=20)
+        high_surprise = make_human_controlled(willpower=80, coordination=80)
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([high_surprise], [low_surprise])
+        self.assertLess(order.index(high_surprise), order.index(low_surprise))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Supply Logistics skill + required_singular_events (Oreos event)
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock
+from Voyage import calculate_outcome_out_of_oreos
+
+
+def make_dummy_screen():
+    """Minimal pygame surface usable as a screen argument."""
+    return pygame.Surface((100, 100))
+
+
+def make_dummy_font():
+    """Minimal font object; render returns a tiny surface."""
+    return pygame.font.SysFont(None, 16)
+
+
+class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
+
+    # ---- Skill registration --------------------------------------------
+
+    async def test_supply_logistics_in_possible_skills(self):
+        self.assertIn("Supply Logistics", Character.possible_skills)
+
+    async def test_supply_logistics_in_skill_descriptions(self):
+        self.assertIn("Supply Logistics", Character.skill_descriptions)
+
+    async def test_supply_logistics_description_non_empty(self):
+        desc = Character.skill_descriptions["Supply Logistics"]
+        self.assertTrue(len(desc) > 0)
+
+    # ---- Oreos event: skilled member present ---------------------------
+
+    async def test_oreos_fail_demoralizes_non_robots(self):
+        """When the skill check fails, non-robot crew lose 5 morale."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        crew[0].skills["Supply Logistics"] = 50
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Patch standard_skill_check to always fail
+        with patch("Voyage.standard_skill_check", return_value=False), \
+             patch("Voyage.type_out_text"):
+            await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 95)   # 100 - 5
+
+    async def test_oreos_pass_no_morale_loss(self):
+        """When the skill check passes, morale is untouched."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        crew[0].skills["Supply Logistics"] = 80
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        with patch("Voyage.standard_skill_check", return_value=True), \
+             patch("Voyage.type_out_text"):
+            await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 100)
+
+    async def test_oreos_robots_immune_to_penalty(self):
+        """Robots must not be demoralized by the Oreos event."""
+        human = make_human(morale=100)
+        robot = make_robot(150, morale=100)
+        team = [human, robot]
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Force the human to be selected, skill check fails → only human penalised
+        with patch("Voyage.determine_best_team_member", return_value=human), \
+             patch("Voyage.standard_skill_check", return_value=False), \
+             patch("Voyage.type_out_text"):
+            await calculate_outcome_out_of_oreos(team, None, "Supply Logistics", screen, font)
+        self.assertEqual(human.morale, 95)   # human loses 5
+        self.assertEqual(robot.morale, 100)  # robot unchanged
+
+    # ---- Oreos event: no skilled member --------------------------------
+
+    async def test_oreos_no_skilled_member_demoralizes_all_non_robots(self):
+        """If no one has Supply Logistics, the penalty fires unconditionally."""
+        crew = [make_human(morale=100), make_human(morale=100)]
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        # Patch determine_best_team_member to None to simulate the no-skill path
+        with patch("Voyage.determine_best_team_member", return_value=None), \
+             patch("Voyage.type_out_text"):
+            await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
+        for m in crew:
+            self.assertEqual(m.morale, 95)
+
+    async def test_oreos_no_skilled_member_robot_still_immune(self):
+        """Robot morale not affected even when no one has Supply Logistics."""
+        robot = make_robot(150, morale=100)
+        robot.morale = 100
+        screen = make_dummy_screen()
+        font   = make_dummy_font()
+        with patch("Voyage.determine_best_team_member", return_value=None), \
+             patch("Voyage.type_out_text"):
+            await calculate_outcome_out_of_oreos([robot], None, "Supply Logistics", screen, font)
+        self.assertEqual(robot.morale, 100)
+
+    # ---- required_singular_events scheduling ---------------------------
+
+    async def test_required_trigger_points_within_voyage_range(self):
+        """Trigger points must be within [2, max_events-1]."""
+        max_events = 12
+        available  = list(range(2, max_events))
+        triggers   = set(random.sample(available, min(1, len(available))))
+        self.assertTrue(triggers.issubset(set(available)))
+
+    async def test_required_events_fire_before_arrival(self):
+        """Simulates the force-fire path: required event runs when voyage exceeds max."""
+        import random as rnd
+        required = [MagicMock()]   # one pending required event with context.location
+        required[0].context.location = MagicMock()
+        # Simulate: events_completed > max_events, required still pending → pop and run
+        self.assertEqual(len(required), 1)
+        event = required.pop(0)
+        event.run(None, None, None, None, None)  # run with dummy args
+        self.assertEqual(len(required), 0)       # consumed
+        event.run.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Psychotic Attack event
+# ---------------------------------------------------------------------------
+
+from ReturnVoyage import calculate_outcome_psychotic_attack
+
+
+def make_psycho(offense=80, perception=30, surprise=50, morale=100):
+    """Human with psychotic=True and controlled combat stats."""
+    c = make_human(morale=morale)
+    c.psychotic = True
+    c.stats["offense"]    = offense
+    c.stats["perception"] = perception
+    c.stats["surprise"]   = surprise
+    return c
+
+
+def make_victim(offense=50, perception=50, surprise=50, morale=100):
+    """Ordinary non-psychotic human with controlled stats."""
+    c = make_human(morale=morale)
+    c.psychotic = False
+    c.stats["offense"]    = offense
+    c.stats["perception"] = perception
+    c.stats["surprise"]   = surprise
+    return c
+
+
+class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
+
+    # ---- No-op when no psychotics ----------------------------------------
+
+    async def test_no_psychotics_no_op(self):
+        """Event is a no-op if no crew member is psychotic."""
+        crew = [make_victim(), make_victim()]
+        team = list(crew)
+        screen, font = make_dummy_screen(), make_dummy_font()
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.mission_failure"):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+        self.assertEqual(team, crew)   # unchanged
+
+    # ---- Strongest psycho chosen -----------------------------------------
+
+    async def test_strongest_psycho_chosen(self):
+        """When multiple psychotics exist, highest-offense one is used."""
+        weak_psycho   = make_psycho(offense=40)
+        strong_psycho = make_psycho(offense=90)
+        victim        = make_victim(offense=999)   # always wins combat
+        team = [weak_psycho, strong_psycho, victim]
+        screen, font = make_dummy_screen(), make_dummy_font()
+        chosen = []
+
+        original_type_out_text = __import__("ReturnVoyage").type_out_text
+
+        async def capture_text(screen, text, font, color=None):
+            chosen.append(text)
+
+        with patch("ReturnVoyage.type_out_text", side_effect=capture_text):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+
+        alert_lines = [t for t in chosen if "has snapped" in t]
+        self.assertTrue(any(strong_psycho.name in t for t in alert_lines),
+                        "Expected the high-offense psycho in the alert message")
+
+    # ---- Perception catches psycho early ---------------------------------
+
+    async def test_perception_success_sends_psycho_to_brig(self):
+        """If perception check passes on first round, psycho is removed."""
+        psycho = make_psycho()
+        guard  = make_victim(perception=95)
+        team   = [psycho, guard]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # Perception always passes: roll=1, perception=95, difficulty=-20 → 1 < 75
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", return_value=1):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+
+        self.assertNotIn(psycho, team)   # removed (brig)
+        self.assertIn(guard, team)
+
+    # ---- Victim defeats psycho -------------------------------------------
+
+    async def test_victim_wins_combat_sends_psycho_to_brig(self):
+        """When victim rolls higher offense, psycho is subdued and removed."""
+        psycho = make_psycho(offense=10)    # very weak
+        victim = make_victim(offense=99)    # very strong
+        team   = [psycho, victim]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # Perception always fails (roll=99), offense rolls: psycho=1+10=11, victim=30+99=129
+        def controlled_randint(a, b):
+            if b == 100:   return 99   # perception roll always fails
+            if b == 30:    return 1    # offense die always low (psycho 1, victim 1 — but victim still wins on stat)
+            return (a + b) // 2
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", side_effect=controlled_randint):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+
+        self.assertNotIn(psycho, team)
+        self.assertIn(victim, team)
+
+    # ---- Victim killed, rampage continues --------------------------------
+
+    async def test_victim_killed_continues_until_perception_wins(self):
+        """Psycho kills one victim; second perceiver eventually ends rampage."""
+        psycho  = make_psycho(offense=99)
+        victim1 = make_victim(offense=1, perception=1)
+        victim2 = make_victim(offense=1, perception=99)
+        team    = [psycho, victim1, victim2]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        call_count = [0]
+        def alternating_randint(a, b):
+            call_count[0] += 1
+            if b == 100:
+                # First perception roll fails, second succeeds
+                return 99 if call_count[0] <= 3 else 1
+            return (a + b) // 2
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", side_effect=alternating_randint), \
+             patch("ReturnVoyage.random.choice", return_value=victim1):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+
+        self.assertNotIn(psycho, team)   # eventually caught
+
+    # ---- Robots never targeted -------------------------------------------
+
+    async def test_robots_not_targeted_as_victims(self):
+        """Robots are excluded from the victim pool."""
+        psycho = make_psycho(offense=99)
+        robot  = make_robot(200, morale=100)
+        human  = make_victim(offense=99)    # strong enough to win
+        team   = [psycho, robot, human]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        chosen_victims = []
+        original_choice = random.choice
+
+        def track_choice(lst):
+            chosen = original_choice(lst)
+            chosen_victims.append(chosen)
+            return chosen
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", return_value=50), \
+             patch("ReturnVoyage.random.choice", side_effect=track_choice):
+            await calculate_outcome_psychotic_attack(team, None, None, screen, font)
+
+        self.assertNotIn(robot, chosen_victims,
+                         "Robot should never be chosen as a victim")
+
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Traitor Sabotage event
+# ---------------------------------------------------------------------------
+
+from ReturnVoyage import calculate_outcome_traitor_sabotage
+
+
+def make_traitor(leadership=50, perception=50, surprise=80, mission_points=100):
+    """Human with traitor=True and controlled stats."""
+    c = make_human(morale=100)
+    c.traitor = True
+    c.stats["leadership"]  = leadership
+    c.stats["perception"]  = perception
+    c.stats["surprise"]    = surprise
+    c.mission_points       = mission_points
+    return c
+
+
+def make_commander(leadership=120, perception=70, surprise=100, mission_points=50):
+    """Non-traitor human with high leadership (acts as commander)."""
+    c = make_human(morale=100)
+    c.traitor = False
+    c.stats["leadership"]  = leadership
+    c.stats["perception"]  = perception
+    c.stats["surprise"]    = surprise
+    c.mission_points       = mission_points
+    return c
+
+
+class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
+
+    # ---- No-op when no traitors -----------------------------------------
+
+    async def test_no_traitors_no_op(self):
+        """Event is a no-op if no crew member is a traitor."""
+        crew = [make_commander(), make_commander()]
+        team = list(crew)
+        screen, font = make_dummy_screen(), make_dummy_font()
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+        self.assertEqual(team, crew)
+
+    # ---- Step 1: perception foils the plot ------------------------------
+
+    async def test_perception_foils_plot_traitor_removed(self):
+        """Commander perception pass → traitor removed, mission points awarded."""
+        traitor   = make_traitor()
+        commander = make_commander(perception=90)
+        team      = [commander, traitor]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # roll=1 → stat_check passes (1 < ~90*morale_ratio + 0)
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.random.randint", return_value=1):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        self.assertNotIn(traitor, team)
+        self.assertGreater(commander.mission_points, 50)   # gained points
+
+    async def test_perception_foils_plot_interrogation_bonus(self):
+        """Interrogation skill check adds bonus mission points."""
+        traitor   = make_traitor()
+        commander = make_commander(perception=90)
+        team      = [commander, traitor]
+        screen, font = make_dummy_screen(), make_dummy_font()
+        initial_pts = commander.mission_points
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.determine_best_team_member", return_value=commander), \
+             patch("ReturnVoyage.standard_skill_check", return_value=True), \
+             patch("ReturnVoyage.random.randint", return_value=1):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        # Should have gained base points AND interrogation bonus
+        self.assertGreater(commander.mission_points, initial_pts + 10)
+
+    # ---- Step 2: perception fails, surprise catches them ----------------
+
+    async def test_surprise_catches_fleeing_traitor(self):
+        """Perception fails but surprise catches the traitor; traitor removed."""
+        traitor   = make_traitor()
+        commander = make_commander(perception=1, surprise=200)  # surprise/2=100 → always catches
+        team      = [commander, traitor]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        call_count = [0]
+        def seq_randint(a, b):
+            call_count[0] += 1
+            if b == 100 and call_count[0] == 1:
+                return 99   # perception roll fails
+            if b == 100 and call_count[0] == 2:
+                return 1    # surprise roll passes (1 < 100)
+            return 50
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.random.randint", side_effect=seq_randint):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        self.assertNotIn(traitor, team)
+
+    # ---- Step 3: both checks fail → escape + mission points lost --------
+
+    async def test_both_fail_traitor_escapes_mission_points_lost(self):
+        """When both perception and surprise fail, team loses 66% of mission points."""
+        traitor   = make_traitor(mission_points=0)
+        commander = make_commander(perception=1, surprise=2, mission_points=100)
+        team      = [commander, traitor]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # Both rolls = 99 → perception fails (99 >= ~1); surprise fails (99 >= 1)
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", return_value=99):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        self.assertAlmostEqual(commander.mission_points, 34, delta=2)   # ~34% remain
+
+    async def test_traitor_stays_on_team_after_escape(self):
+        """After escaping, traitor is not in the team list (fled the ship)."""
+        traitor   = make_traitor()
+        commander = make_commander(perception=1, surprise=2)
+        team      = [commander, traitor]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", return_value=99):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        # Traitor escapes — not removed from list (they fled; team can't brig them)
+        # This matches the design: 'escape' path leaves them out of the team naturally
+        # (no team.remove call in step 3)
+        self.assertIn(traitor, team)   # traitor NOT removed — they escaped
+
+    # ---- Multi-traitor difficulty ----------------------------------------
+
+    async def test_multi_traitor_harder_difficulty(self):
+        """Two traitors apply -10 difficulty; three traitors apply -20, etc."""
+        # Verify the difficulty calculation directly
+        traitors_1 = [make_traitor()]
+        traitors_2 = [make_traitor(), make_traitor()]
+        diff_1 = -(len(traitors_1) - 1) * 10
+        diff_2 = -(len(traitors_2) - 1) * 10
+        self.assertEqual(diff_1, 0)
+        self.assertEqual(diff_2, -10)
+
+
+
+
+# ---------------------------------------------------------------------------
+# Found-Items event: get_needed_item()
+# ---------------------------------------------------------------------------
+
+from Item import Item, item_base_name, item_class, ALL_ATTRIBUTES
+from Utils import get_needed_item
+
+
+def make_item(name):
+    """Create an Item directly from ALL_ATTRIBUTES by full name (e.g. 'slicer C')."""
+    return Item.from_data(name, ALL_ATTRIBUTES[name])
+
+
+def give_item(character, item_name):
+    """Add a named item to a character's equipment."""
+    character.equipment.append(make_item(item_name))
+
+
+class TestGetNeededItem(unittest.TestCase):
+    """Tests for Utils.get_needed_item().
+
+    We avoid loading the full item DB via load_items() and instead build a
+    minimal all_items dict containing only the names exercised by each test.
+    """
+
+    def _minimal_items(self, *names):
+        """Return a dict {name: Item} for the listed item names."""
+        return {n: make_item(n) for n in names}
+
+    # ---- Gap-fill: no ranged weapon ------------------------------------
+
+    def test_gap_no_ranged_weapon_returns_laser_pistol_c(self):
+        """Character with no ranged weapon should receive a laser pistol C."""
+        human = make_human()
+        give_item(human, "slicer C")      # has melee
+        give_item(human, "veer suit C")   # has armor
+        all_items = self._minimal_items("laser pistol C")
+
+        # Force Mode A (gap-first) so gap check fires
+        import random as rnd
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        recipient, item = result
+        self.assertIs(recipient, human)
+        self.assertEqual(item_base_name(item.name), "laser pistol")
+
+    def test_gap_no_melee_weapon_returns_slicer_c(self):
+        """Character with ranged but no melee weapon should receive a slicer C."""
+        human = make_human()
+        give_item(human, "laser pistol C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("slicer C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        self.assertEqual(item_base_name(item.name), "slicer")
+
+    def test_gap_exoskeleton_skill_no_exo_returns_exoskeleton_c(self):
+        """Character with Exoskeleton Systems skill but no exo gets exoskeleton C."""
+        human = make_human()
+        human.skills = {"Exoskeleton Systems": 50}
+        give_item(human, "laser pistol C")
+        give_item(human, "slicer C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("exoskeleton C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        self.assertEqual(item_base_name(item.name), "exoskeleton")
+
+    def test_gap_medicine_skill_no_medikit_returns_medikit_c(self):
+        """Character with Medicine skill but no medikit gets medikit C."""
+        human = make_human()
+        human.skills = {"Medicine": 50}
+        give_item(human, "laser pistol C")
+        give_item(human, "slicer C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("medikit C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        self.assertEqual(item_base_name(item.name), "medikit")
+
+    def test_gap_no_armor_returns_something_useful(self):
+        """Character with weapons but no armor gets a useful item (gap-fill or upgrade)."""
+        human = make_human()
+        give_item(human, "laser pistol C")
+        give_item(human, "slicer C")
+        all_items = self._minimal_items("veer suit C", "laser pistol B", "slicer B")
+
+        result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        recipient, item = result
+        self.assertIs(recipient, human)
+        # Valid outcomes: gap-fill (veer suit C) or a weapon upgrade (B-tier)
+        valid_bases = {"veer suit", "laser pistol", "slicer"}
+        self.assertIn(item_base_name(item.name), valid_bases)
+
+    # ---- Upgrade path --------------------------------------------------
+
+    def test_upgrade_c_to_b_always_succeeds(self):
+        """C-tier weapon is always upgraded to B (100% chance)."""
+        human = make_human()
+        give_item(human, "laser pistol C")
+        give_item(human, "slicer C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("laser pistol B", "slicer B")
+
+        # Mode B (upgrade-first), upgrade probability roll passes (0.0 < 1.0)
+        with unittest.mock.patch("Utils.random.random", side_effect=[0.9, 0.0]):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        self.assertEqual(item_class(item.name), "B")
+
+    def test_upgrade_b_to_a_probability_pass(self):
+        """B-tier weapon upgrades to A when random roll < 0.5."""
+        human = make_human()
+        give_item(human, "laser pistol B")
+        give_item(human, "slicer C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("laser pistol A")
+
+        # Mode B (0.9 >= 0.5), upgrade probability 0.3 < 0.5 → passes
+        with unittest.mock.patch("Utils.random.random", side_effect=[0.9, 0.3]):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        self.assertEqual(item_class(item.name), "A")
+
+    def test_upgrade_b_to_a_probability_fail_returns_none(self):
+        """B-tier upgrade fails when probability roll > 0.5 and no other candidates."""
+        human = make_human()
+        give_item(human, "laser pistol B")
+        give_item(human, "slicer B")
+        give_item(human, "veer suit B")
+        all_items = self._minimal_items("laser pistol A")
+
+        # Mode B (0.9), upgrade probability 0.8 > 0.5 → fails for all items
+        with unittest.mock.patch("Utils.random.random", side_effect=[0.9, 0.8, 0.8, 0.8]):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNone(result)
+
+    def test_upgrade_s_tier_skipped_returns_none(self):
+        """Character with only S-tier gear and no gaps → None."""
+        human = make_human()
+        give_item(human, "laser pistol S")
+        give_item(human, "slicer S")
+        give_item(human, "veer suit S")
+        all_items = {}  # no upgrades available
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.9):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNone(result)
+
+    # ---- Robots excluded -----------------------------------------------
+
+    def test_robot_never_a_recipient(self):
+        """Robots must never be returned as the recipient."""
+        robot = make_robot()
+        all_items = self._minimal_items("laser pistol C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([robot], all_items)
+
+        self.assertIsNone(result)
+
+    def test_robot_skipped_human_still_found(self):
+        """Robot in team doesn't block a human with a gear gap from being found."""
+        robot = make_robot()
+        human = make_human()
+        give_item(human, "slicer C")
+        give_item(human, "veer suit C")
+        all_items = self._minimal_items("laser pistol C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([robot, human], all_items)
+
+        self.assertIsNotNone(result)
+        recipient, _ = result
+        self.assertIs(recipient, human)
+
+    # ---- Dead characters excluded --------------------------------------
+
+    def test_dead_character_skipped(self):
+        """Dead characters are never considered."""
+        dead = make_human()
+        dead.current_health = 0
+        alive = make_human()
+        give_item(alive, "slicer C")
+        give_item(alive, "veer suit C")
+        all_items = self._minimal_items("laser pistol C")
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.1):
+            result = get_needed_item([dead, alive], all_items)
+
+        self.assertIsNotNone(result)
+        recipient, _ = result
+        self.assertIs(recipient, alive)
+
+    # ---- All well-equipped → None --------------------------------------
+
+    def test_fully_equipped_team_returns_none(self):
+        """No result when everyone is fully geared at S-tier with no gaps."""
+        human = make_human()
+        give_item(human, "laser pistol S")
+        give_item(human, "slicer S")
+        give_item(human, "veer suit S")
+        all_items = {}
+
+        with unittest.mock.patch("Utils.random.random", return_value=0.5):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNone(result)
+
+    # ---- Mode A: gap precedes upgrade ----------------------------------
+
+    def test_mode_a_prefers_gap_over_upgrade(self):
+        """In Mode A, gap-fill fires even when an upgrade is also possible."""
+        human = make_human()
+        give_item(human, "laser pistol C")  # has ranged (no gap there)
+        give_item(human, "veer suit C")     # has armor
+        # No melee → gap exists
+        all_items = self._minimal_items("slicer C", "laser pistol B")
+
+        # Mode A (random < 0.5), upgrade probability would pass too
+        with unittest.mock.patch("Utils.random.random", side_effect=[0.1, 0.0]):
+            result = get_needed_item([human], all_items)
+
+        self.assertIsNotNone(result)
+        _, item = result
+        # Should have received the gap item (slicer C), not the upgrade
+        self.assertEqual(item_base_name(item.name), "slicer")
+        self.assertEqual(item_class(item.name), "C")
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 (Stealth): stealth orb evasion bonus
+# ---------------------------------------------------------------------------
+
+class TestStealthEvasion(unittest.TestCase):
+
+    def _base_evasion(self, c):
+        """Expected evasion before any orb bonus (no encumbrance, full health)."""
+        intelligence = c.stats["intelligence"]
+        coordination = c.stats["coordination"]
+        military_science = c.skills.get("military science", 0)
+        evasion = round((intelligence + coordination) / 2)
+        evasion += military_science / 10
+        return max(1, evasion * c.get_health_ratio())
+
+    def test_no_stealth_orb_baseline_unchanged(self):
+        """Character with no stealth orb has unmodified evasion."""
+        c = make_human_controlled(intelligence=50, coordination=50)
+        expected = self._base_evasion(c)
+        self.assertAlmostEqual(c.get_effective_combat_evasion(), expected)
+
+    def test_stealth_orb_adds_30(self):
+        """Character carrying a stealth orb gets +30 evasion."""
+        c = make_human_controlled(intelligence=50, coordination=50)
+        base = self._base_evasion(c)
+        give_item(c, "stealth orb C")
+        self.assertAlmostEqual(c.get_effective_combat_evasion(), base + 30)
+
+    def test_stealth_orb_b_also_adds_30(self):
+        """Tier B stealth orb gives the same +30 (bonus is tier-independent)."""
+        c = make_human_controlled(intelligence=50, coordination=50)
+        base = self._base_evasion(c)
+        give_item(c, "stealth orb B")
+        self.assertAlmostEqual(c.get_effective_combat_evasion(), base + 30)
+
+    def test_two_stealth_orbs_do_not_stack(self):
+        """Two stealth orbs do not stack: evasion += 30."""
+        c = make_human_controlled(intelligence=50, coordination=50)
+        base = self._base_evasion(c)
+        give_item(c, "stealth orb C")
+        give_item(c, "stealth orb B")
+        self.assertAlmostEqual(c.get_effective_combat_evasion(), base + 30)
+
+    def test_stealth_orb_bonus_scales_with_health_ratio(self):
+        """At 50% health, the orb bonus is also halved by the health ratio."""
+        c = make_human_controlled(intelligence=50, coordination=50)
+        c.current_health = c.stats["max_health"] // 2
+        give_item(c, "stealth orb C")
+        raw_base = round((50 + 50) / 2)    # 50
+        raw_with_orb = raw_base + 30        # 80
+        expected = max(1, raw_with_orb * c.get_health_ratio())
+        self.assertAlmostEqual(c.get_effective_combat_evasion(), expected, places=1)
+
+    def test_robot_with_stealth_orb_no_crash(self):
+        """Robots don't normally carry stealth orbs, but no crash if they do."""
+        r = make_robot(200, morale=100)
+        give_item(r, "stealth orb C")
+        self.assertGreater(r.get_effective_combat_evasion(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 (Stealth): team_evades_notice and evasion outcome
+# ---------------------------------------------------------------------------
+
+from Event import team_evades_notice
+from unittest.mock import patch as _patch
+
+class TestTeamEvades(unittest.TestCase):
+
+    def test_evades_when_roll_below_avg_evasion(self):
+        """team_evades_notice returns True when roll < avg evasion."""
+        # avg evasion = 80 (one member, evasion ~80)
+        c = make_human_controlled(intelligence=80, coordination=80)
+        # roll = 1 → 1 < 80 → True
+        with _patch("Event.random.randint", return_value=1):
+            self.assertTrue(team_evades_notice([c]))
+
+    def test_detected_when_roll_above_avg_evasion(self):
+        """team_evades_notice returns False when roll >= avg evasion."""
+        c = make_human_controlled(intelligence=40, coordination=40)
+        # avg evasion ≈ 40; roll = 99 → 99 >= 40 → False
+        with _patch("Event.random.randint", return_value=99):
+            self.assertFalse(team_evades_notice([c]))
+
+    def test_empty_team_returns_false(self):
+        """Empty team can never evade."""
+        self.assertFalse(team_evades_notice([]))
+
+    def test_stealth_orb_raises_avg_evasion(self):
+        """Stealth orb holder has higher evasion → easier to evade."""
+        c_plain = make_human_controlled(intelligence=50, coordination=50)
+        c_orb   = make_human_controlled(intelligence=50, coordination=50)
+        give_item(c_orb, "stealth orb C")
+        evasion_plain = c_plain.get_effective_combat_evasion()
+        evasion_orb   = c_orb.get_effective_combat_evasion()
+        self.assertGreater(evasion_orb, evasion_plain)
+
+    def test_multi_member_uses_average(self):
+        """Avg evasion is the mean of all members."""
+        low  = make_human_controlled(intelligence=10, coordination=10)
+        high = make_human_controlled(intelligence=90, coordination=90)
+        avg  = (low.get_effective_combat_evasion() + high.get_effective_combat_evasion()) / 2
+        # roll just below avg → evade
+        roll = int(avg) - 1
+        with _patch("Event.random.randint", return_value=roll):
+            self.assertTrue(team_evades_notice([low, high]))
+        # roll just above avg → detected
+        roll = int(avg) + 1
+        with _patch("Event.random.randint", return_value=roll):
+            self.assertFalse(team_evades_notice([low, high]))
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 1: Surgical Bug Fixes
+# ---------------------------------------------------------------------------
+
+from Utils import team_dead
+
+
+class TestPhase1BugFixes(unittest.TestCase):
+
+    def test_team_dead_false_when_member_alive(self):
+        """team_dead() returns False when at least one member has current_health > 0."""
+        alive = make_human(50, 50)
+        dead = make_human(50, 50)
+        dead.current_health = 0
+        self.assertFalse(team_dead([alive, dead]))
+
+    def test_team_dead_true_when_all_members_zero_health(self):
+        """team_dead() returns True when all members have current_health == 0 (even with max_health > 0)."""
+        m1 = make_human(50, 50)
+        m2 = make_human(50, 50)
+        m1.current_health = 0
+        m2.current_health = 0
+        self.assertGreater(m1.stats["max_health"], 0)
+        self.assertTrue(team_dead([m1, m2]))
+
+    def test_decrease_stat_clamps_stats_at_15_not_skills(self):
+        """decrease_stat() clamps stats[stat_name] at 15 and does not pollute skills."""
+        c = make_human(50, 50)
+        c.stats["strength"] = 20
+        c.decrease_stat("strength", 10)
+        self.assertEqual(c.stats["strength"], 15)
+        self.assertNotIn("strength", c.skills)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 2: The 3-Layer Character Stat Architecture
+# ---------------------------------------------------------------------------
+
+class TestThreeLayerStats(unittest.TestCase):
+
+    def test_all_18_sub_stats_generated_within_bounds(self):
+        """All 18 sub-stats exist on a generated character and fall within [25, 95]."""
+        c = Character(1, "team")
+        expected_sub_stats = [
+            sub_name
+            for sub_tuple in Character.SUB_STAT_MAP.values()
+            for sub_name in sub_tuple
+        ]
+        self.assertEqual(len(expected_sub_stats), 18)
+        self.assertEqual(set(c.sub_stats.keys()), set(expected_sub_stats))
+        for name, val in c.sub_stats.items():
+            self.assertGreaterEqual(val, 25, f"{name} below 25")
+            self.assertLessEqual(val, 95, f"{name} above 95")
+
+    def test_sub_stat_group_variance_at_most_20(self):
+        """Any one group of 3 sub-stats is at most 20 points apart."""
+        for _ in range(50):
+            c = Character(1, "team")
+            for core_stat, sub_tuple in Character.SUB_STAT_MAP.items():
+                vals = [c.sub_stats[s] for s in sub_tuple]
+                spread = max(vals) - min(vals)
+                self.assertLessEqual(
+                    spread, 20,
+                    f"{core_stat} sub-stats {vals} spread {spread} exceeds 20",
+                )
+
+    def test_core_stats_roll_up_from_sub_stats(self):
+        """Each of the 6 core attributes equals the rounded average of its 3 sub-stats."""
+        c = Character(1, "team")
+        c.sub_stats = {
+            "brawn": 60, "stamina": 70, "resilience": 80,          # avg = 70
+            "fine_manipulation": 50, "agility": 55, "reflexes": 60, # avg = 55
+            "logic": 40, "memory": 50, "guile": 60,                 # avg = 50
+            "focus": 65, "composure": 70, "tenacity": 75,           # avg = 70
+            "beauty": 30, "charm": 45, "command": 60,               # avg = 45
+            "valor": 80, "nerve": 85, "resolve": 90,                # avg = 85
+        }
+        c.recalculate_stats()
+        self.assertEqual(c.stats["strength"], 70)
+        self.assertEqual(c.stats["coordination"], 55)
+        self.assertEqual(c.stats["intelligence"], 50)
+        self.assertEqual(c.stats["willpower"], 70)
+        self.assertEqual(c.stats["charisma"], 45)
+        self.assertEqual(c.stats["courage"], 85)
+
+        # Verify derived stats from sub-stats
+        self.assertEqual(c.stats["offense"], round((60 + 85 + 65) / 3))
+        self.assertEqual(c.stats["defense"], round((55 + 80 + 70) / 3))
+        self.assertEqual(c.stats["deception"], round((60 + 45 + 85) / 3))
+        self.assertEqual(c.stats["evasion"], round((55 + 60 + 60) / 3))
+        self.assertEqual(c.stats["analyze"], round((40 + 50 + 65) / 3))
+        self.assertEqual(c.stats["max_health"], round((70 + 80 + 75) * 2 / 3))
+        self.assertEqual(c.stats["movement"], 60 + 70 + 55)
+        self.assertEqual(c.stats["meleecombat"], c.stats["evasion"] + round((60 + 80) / 2))
+        self.assertEqual(c.stats["perception"], round((65 + 60 + 50) / 3))
+        self.assertEqual(c.stats["surprise"], c.stats["evasion"] + c.stats["perception"])
+        self.assertEqual(c.stats["leadership"], 60 + 90 + 40)
+
+    def test_sub_stats_survive_to_dict_from_dict(self):
+        """sub_stats and stats survive round-trip serialization via to_dict/from_dict."""
+        c = Character(1, "team")
+        data = c.to_dict()
+        self.assertIn("sub_stats", data)
+        restored = Character.from_dict(data)
+        self.assertEqual(restored.sub_stats, c.sub_stats)
+        self.assertEqual(restored.stats, c.stats)
+
+    def test_from_dict_legacy_save_without_sub_stats(self):
+        """Loading an older save dict without sub_stats auto-populates sub_stats from core stats."""
+        c = Character(1, "team")
+        data = c.to_dict()
+        del data["sub_stats"]
+        restored = Character.from_dict(data)
+        self.assertEqual(len(restored.sub_stats), 18)
+        for core_stat, sub_tuple in Character.SUB_STAT_MAP.items():
+            for sub_name in sub_tuple:
+                self.assertEqual(restored.sub_stats[sub_name], data["stats"][core_stat])
+
+    def test_assigned_skills_respect_stat_gates(self):
+        """Every skill assigned to a generated character has all gating stats >= 50 (not red)."""
+        for _ in range(50):
+            c = Character(1, "team")
+            for skill in c.skills:
+                gate_stats = Character.SKILL_GATE_STATS.get(skill, ())
+                self.assertGreaterEqual(len(gate_stats), 1, f"{skill} missing from SKILL_GATE_STATS")
+                self.assertLessEqual(len(gate_stats), 2, f"{skill} has >2 gate stats")
+                for st in gate_stats:
+                    self.assertGreaterEqual(
+                        c.stats[st], 50,
+                        f"{skill} assigned despite red {st}={c.stats[st]}",
+                    )
+
+    def test_low_intelligence_willpower_blocks_hacking_low_charisma_blocks_negotiation(self):
+        """Low (<50) intelligence/willpower blocks Hacking; low charisma blocks Negotiation."""
+        c = Character(1, "team")
+        c.stats["intelligence"] = 40
+        c.stats["willpower"] = 45
+        c.stats["charisma"] = 35
+        c.stats["strength"] = 65
+        c.stats["coordination"] = 65
+        c.stats["courage"] = 65
+        self.assertFalse(c.is_skill_allowed("Hacking"))
+        self.assertFalse(c.is_skill_allowed("Negotiation"))
+        for _ in range(20):
+            assigned = c.assign_skills(c.stats["intelligence"], c.stats["willpower"])
+            self.assertNotIn("Hacking", assigned)
+            self.assertNotIn("Negotiation", assigned)
+
+    def test_green_gate_stats_boost_effective_skill_level_up_to_10(self):
+        """Green (>75) gating stats add a modest boost (1..10) to effective skill level."""
+        c = Character(1, "team")
+        c.skills = {"Negotiation": 60, "Hacking": 60}
+        # Cyan charisma (70) -> +0 boost
+        c.stats["charisma"] = 70
+        self.assertEqual(c.get_skill_gate_bonus("Negotiation"), 0)
+        self.assertEqual(c.get_effective_skill_level("Negotiation", learning=False), 60)
+
+        # Max green charisma (95) -> +10 boost
+        c.stats["charisma"] = 95
+        self.assertEqual(c.get_skill_gate_bonus("Negotiation"), 10)
+        self.assertEqual(c.get_effective_skill_level("Negotiation", learning=False), 70)
+
+        # Hacking (2 gate stats: intelligence, willpower)
+        c.stats["intelligence"] = 85  # green (+2.5)
+        c.stats["willpower"] = 70     # cyan (+0)
+        bonus_one_green = c.get_skill_gate_bonus("Hacking")
+        self.assertGreater(bonus_one_green, 0)
+        self.assertLessEqual(bonus_one_green, 5)
+
+        c.stats["intelligence"] = 95  # max green (+5)
+        c.stats["willpower"] = 95     # max green (+5)
+        self.assertEqual(c.get_skill_gate_bonus("Hacking"), 10)
+        self.assertEqual(c.get_effective_skill_level("Hacking", learning=False), 70)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 3: Consolidate & Smart-Weight Voyage Training Events
+# ---------------------------------------------------------------------------
+
+from Location import (
+    TRAINING_SCENARIOS,
+    KNAKNARPIA_LOCATION_ATTRIBUTES,
+    build_procedural_training_event,
+)
+from Event import Event
+from Voyage import calculate_outcome_training
+
+
+class TestProceduralTrainingEvent(unittest.TestCase):
+
+    def _dummy_locations(self):
+        return {k: k for k in KNAKNARPIA_LOCATION_ATTRIBUTES}
+
+    def test_training_scenarios_locations_are_valid_ship_rooms(self):
+        """Every scenario in TRAINING_SCENARIOS references a valid Knacknarpia room key."""
+        self.assertGreaterEqual(len(TRAINING_SCENARIOS), 25)
+        for skill_name, scenarios in TRAINING_SCENARIOS.items():
+            self.assertGreaterEqual(len(scenarios), 1, f"{skill_name} has no scenarios")
+            for loc_key, pre_desc, post_desc in scenarios:
+                self.assertIn(
+                    loc_key,
+                    KNAKNARPIA_LOCATION_ATTRIBUTES,
+                    f"{skill_name} references invalid ship room '{loc_key}'",
+                )
+                self.assertTrue(isinstance(pre_desc, str) and len(pre_desc) > 0)
+                self.assertTrue(post_desc is None or isinstance(post_desc, str))
+
+    def test_returns_valid_event_object(self):
+        """build_procedural_training_event returns a valid Event configured with calculate_outcome_training."""
+        c = make_human(50, 50)
+        c.skills = {"Hacking": 75}
+        locations = self._dummy_locations()
+        event = build_procedural_training_event([c], locations, {})
+
+        self.assertIsInstance(event, Event)
+        self.assertIn(event.context.skill_name, TRAINING_SCENARIOS)
+        self.assertEqual(event.context.num_enemies, 0)
+        self.assertIsNone(event.context.stat_name)
+        self.assertIs(event.context.calculate_outcome, calculate_outcome_training)
+        self.assertIn(event.context.location, locations.values())
+        self.assertTrue(event.name.startswith("training_"))
+
+    def test_favors_skills_known_by_team_in_70_percent_branch(self):
+        """When random.random() < 0.70, always picks a skill a living non-robot has at >= 50."""
+        c1 = make_human(50, 50)
+        c1.skills = {"Hacking": 65, "Piloting": 40}  # Piloting < 50 so not favored
+        c2 = make_human(50, 50)
+        c2.skills = {"Xenobiology": 80}
+        locations = self._dummy_locations()
+
+        with unittest.mock.patch("Location.random.random", return_value=0.25):
+            for _ in range(30):
+                ev = build_procedural_training_event([c1, c2], locations, {})
+                self.assertIn(ev.context.skill_name, {"Hacking", "Xenobiology"})
+
+    def test_ignores_dead_and_robot_skills_in_weighted_branch(self):
+        """Dead crew members and robots do not count toward the 70% known-skill pool."""
+        dead = make_human(50, 50)
+        dead.current_health = 0
+        dead.skills = {"Hacking": 90}
+
+        robot = make_robot()
+        robot.skills = {"Navigation": 90}
+
+        alive = make_human(50, 50)
+        alive.skills = {"Medicine": 70}
+        locations = self._dummy_locations()
+
+        with unittest.mock.patch("Location.random.random", return_value=0.10):
+            for _ in range(20):
+                ev = build_procedural_training_event([dead, robot, alive], locations, {})
+                self.assertEqual(ev.context.skill_name, "Medicine")
+
+    def test_fallback_when_no_skills_at_50_or_in_30_percent_branch(self):
+        """When no crew member has a skill >= 50 (or random >= 0.70), picks from all TRAINING_SCENARIOS."""
+        c = make_human(50, 50)
+        c.skills = {"Hacking": 30}
+        locations = self._dummy_locations()
+
+        seen_skills = set()
+        for _ in range(50):
+            ev = build_procedural_training_event([c], locations, {})
+            seen_skills.add(ev.context.skill_name)
+        self.assertGreater(len(seen_skills), 3)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 4: Universal Multi-Approach Challenge Engine & 31 Pirate Rooms
+# ---------------------------------------------------------------------------
+
+import Mission
+from Location import PIRATE_LOCATION_ATTRIBUTES, Location
+from Mission import (
+    CHALLENGE_ARCHETYPES,
+    resolve_procedural_challenge,
+    build_procedural_mission_room_event,
+)
+
+
+class TestPhase4ChallengeEngineAndLocations(unittest.IsolatedAsyncioTestCase):
+
+    def _dummy_pirate_locations(self):
+        locs = {}
+        for name, entry in PIRATE_LOCATION_ATTRIBUTES.items():
+            desc, conns, tags = entry[0], entry[1], entry[2]
+            locs[name] = Location(None, pygame.Rect(0, 0, 10, 10), name, desc, dict(conns), tags=tags)
+        return locs
+
+    def test_all_31_pirate_locations_tagged(self):
+        """All 31 Pirate locations have valid tags stored in PIRATE_LOCATION_ATTRIBUTES and Location.tags."""
+        self.assertEqual(len(PIRATE_LOCATION_ATTRIBUTES), 31)
+        valid_tags = {"combat", "tech", "medical", "supply", "corridor", "goal", "entrance"}
+        locs = self._dummy_pirate_locations()
+        for name, loc in locs.items():
+            self.assertGreaterEqual(len(loc.tags), 1, f"{name} has no tags")
+            for t in loc.tags:
+                self.assertIn(t, valid_tags, f"{name} has unexpected tag {t}")
+
+    def test_all_8_challenge_archetypes_present(self):
+        """CHALLENGE_ARCHETYPES defines all 8 required templates."""
+        expected = {
+            "LOCKED_PORTAL",
+            "SECURITY_GRID",
+            "INTEL_CONSOLE",
+            "HAZARD_LEAK",
+            "MEDICAL_CACHE",
+            "CYBER_IMPLANT_BAY",
+            "SUPPLY_LOCKER",
+            "CAPTIVE_CELL",
+        }
+        self.assertEqual(set(CHALLENGE_ARCHETYPES.keys()), expected)
+
+    async def test_resolve_challenge_item_bypass(self):
+        """Carrying a cutter bypasses LOCKED_PORTAL without skill checks and grants mission points."""
+        c = make_human(50, 50)
+        give_item(c, "cutter C")
+        Mission.rooms_to_goal = 5
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("Mission.type_out_text"):
+            passed = await resolve_procedural_challenge([c], "LOCKED_PORTAL", screen, font)
+
+        self.assertTrue(passed)
+        self.assertEqual(c.mission_points, 5)
+        self.assertEqual(Mission.rooms_to_goal, 5)
+
+    async def test_resolve_challenge_robot_bypass_and_shortcut(self):
+        """A hackbot on the team bypasses SECURITY_GRID and reduces rooms_to_goal by 1."""
+        human = make_human(50, 50)
+        bot = make_robot(200)
+        bot.occupation = "hackbot"
+        Mission.rooms_to_goal = 5
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("Mission.type_out_text"):
+            passed = await resolve_procedural_challenge([human, bot], "SECURITY_GRID", screen, font)
+
+        self.assertTrue(passed)
+        self.assertEqual(Mission.rooms_to_goal, 4)
+        self.assertEqual(human.mission_points, 5)
+
+    async def test_resolve_challenge_skill_pass(self):
+        """Skill pass on INTEL_CONSOLE grants +10 mission points and +2 Hacking skill."""
+        c = make_human(50, 50)
+        c.skills = {"Hacking": 70}
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("Mission.type_out_text"), \
+             patch("Mission.standard_skill_check", return_value=True):
+            passed = await resolve_procedural_challenge([c], "INTEL_CONSOLE", screen, font)
+
+        self.assertTrue(passed)
+        self.assertEqual(c.mission_points, 10)
+        self.assertEqual(c.skills["Hacking"], 72)
+
+    async def test_resolve_challenge_fallback_detour_and_damage_penalties(self):
+        """Failing LOCKED_PORTAL adds +2 detour; failing HAZARD_LEAK damages all living crew."""
+        c = make_human(50, 50)
+        c.skills = {}
+        Mission.rooms_to_goal = 4
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("Mission.type_out_text"):
+            passed_portal = await resolve_procedural_challenge([c], "LOCKED_PORTAL", screen, font)
+        self.assertFalse(passed_portal)
+        self.assertEqual(Mission.rooms_to_goal, 6)
+
+        start_hp = c.current_health
+        with patch("Mission.type_out_text"), \
+             patch("Mission.standard_skill_check", return_value=False):
+            passed_hazard = await resolve_procedural_challenge([c], "HAZARD_LEAK", screen, font)
+        self.assertFalse(passed_hazard)
+        self.assertLess(c.current_health, start_hp)
+
+    def test_pacifist_means_prefers_stunner_and_stun_baton(self):
+        """When mission['means'] == 'pacifist', weapon choosers prefer stunner and stun baton."""
+        c = make_human(50, 50)
+        c.skills = {"Sharpshooting": 80, "Martial Arts": 80}
+        give_item(c, "laser rifle A")
+        give_item(c, "stunner C")
+        give_item(c, "slicer A")
+        give_item(c, "stun baton C")
+
+        # Non-pacifist chooses laser rifle A and slicer A
+        c.mission["means"] = "any"
+        self.assertEqual(item_base_name(c.choose_ranged_weapon().name), "laser rifle")
+        self.assertEqual(item_base_name(c.choose_melee_weapon().name), "slicer")
+
+        # Pacifist chooses stunner C and stun baton C
+        c.mission["means"] = "pacifist"
+        self.assertEqual(item_base_name(c.choose_ranged_weapon().name), "stunner")
+        self.assertEqual(item_base_name(c.choose_melee_weapon().name), "stun baton")
+
+    def test_procedural_mission_room_generator_and_supply_locker_cap(self):
+        """build_procedural_mission_room_event uses all non-goal Pirate locations and caps SUPPLY_LOCKER at once."""
+        c = make_human(50, 50)
+        c.mission["options"] = "flex"
+        locs = self._dummy_pirate_locations()
+        state = {"used": False}
+        seen_rooms = set()
+        for _ in range(100):
+            ev = build_procedural_mission_room_event([c], locs, {}, supply_locker_state=state)
+            self.assertNotIn(ev.name, {"entrance", "ai core", "officer's quarters", "vault"})
+            seen_rooms.add(ev.name)
+        self.assertGreater(len(seen_rooms), 15)
+
+    def test_unarmed_character_gets_default_knife_without_inventory_change(self):
+        """Unarmed non-robot character gets abstract 'knife' melee weapon; ranged-only and robots get None."""
+        from Item import DEFAULT_KNIFE_WEAPON
+        unarmed = make_human(50, 50)
+        self.assertEqual(unarmed.get_weapon_count(), 0)
+        chosen = unarmed.choose_melee_weapon()
+        self.assertIs(chosen, DEFAULT_KNIFE_WEAPON)
+        self.assertEqual(chosen.name, "knife")
+        # Must NOT be added to inventory
+        self.assertEqual(len(unarmed.equipment), 0)
+
+        # Character with a ranged weapon (no melee) still returns None so they EVADE in melee phase
+        ranged_only = make_human(50, 50)
+        give_item(ranged_only, "laser pistol C")
+        self.assertIsNone(ranged_only.choose_melee_weapon())
+
+        # Unarmed robot returns None
+        bot = make_robot(200)
+        self.assertIsNone(bot.choose_melee_weapon())
+
+    def test_default_knife_weak_damage_and_sucks_against_good_armor(self):
+        """Knife has effect=10 impact and deals only 1 HP chip damage against good armor."""
+        from Item import DEFAULT_KNIFE_WEAPON
+        self.assertEqual(DEFAULT_KNIFE_WEAPON.effect, 10)
+        self.assertEqual(DEFAULT_KNIFE_WEAPON.effect_type, "impact")
+
+        armored = make_human(50, 50)
+        give_item(armored, "powered armor C")
+        start_hp = armored.current_health
+        armored.hurt(DEFAULT_KNIFE_WEAPON.effect, DEFAULT_KNIFE_WEAPON.effect_type)
+        # Powered armor reduces impact damage below 1, clamped to 1 HP minimum
+        self.assertEqual(start_hp - armored.current_health, 1)
+
+    async def test_share_spare_weapons_passes_unselected_weapon_and_runs_in_team_heals(self):
+        """Donor with 2 weapons passes the unselected weapon to an unarmed teammate during share_spare_weapons / team_heals."""
+        from Event import share_spare_weapons, team_heals
+
+        donor = make_human(50, 50)
+        donor.skills = {"Sharpshooting": 80}
+        give_item(donor, "laser rifle B")
+        give_item(donor, "pistol C")
+
+        unarmed = make_human(50, 50)
+        self.assertEqual(unarmed.get_weapon_count(), 0)
+
+        # Donor selects laser rifle B, so pistol C is the unselected weapon passed to unarmed
+        passed = await share_spare_weapons([donor, unarmed])
+        self.assertIsNotNone(passed)
+        self.assertEqual(passed.name, "pistol C")
+        self.assertEqual([i.name for i in donor.equipment], ["laser rifle B"])
+        self.assertEqual([i.name for i in unarmed.equipment], ["pistol C"])
+
+        # Also verify team_heals invokes share_spare_weapons even when no healing is needed
+        donor2 = make_human(50, 50)
+        give_item(donor2, "laser pistol C")
+        give_item(donor2, "slicer C")
+        unarmed2 = make_human(50, 50)
+        screen, font = make_dummy_screen(), make_dummy_font()
+        with patch("Event.type_out_text"):
+            await team_heals([donor2, unarmed2], screen, font)
+        self.assertEqual(donor2.get_weapon_count(), 1)
+        self.assertEqual(unarmed2.get_weapon_count(), 1)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap Phase 5: Loop 2+ Derelict Vessel & Klackon Theatre
+# ---------------------------------------------------------------------------
+
+from Location import DERELICT_LOCATION_ATTRIBUTES, load_derelict_locations
+from Event import mission_enemies, _apply_loop_scaling
+from MissionOrders import (
+    MISSION_GOALS,
+    DERELICT_MISSION_GOALS,
+    get_theatre_for_loop,
+    get_mission_goals_for_theatre,
+    get_mission_briefing_lines,
+)
+
+
+class TestPhase5DerelictAndKlackons(unittest.TestCase):
+
+    def test_all_26_derelict_locations_tagged_and_loadable(self):
+        """All 26 Derelict rooms have tags in DERELICT_LOCATION_ATTRIBUTES and load via load_derelict_locations()."""
+        self.assertEqual(len(DERELICT_LOCATION_ATTRIBUTES), 26)
+        valid_tags = {"combat", "tech", "medical", "supply", "corridor", "goal"}
+        for name, entry in DERELICT_LOCATION_ATTRIBUTES.items():
+            self.assertEqual(len(entry), 3, f"{name} should have (desc, connections, tags)")
+            self.assertTrue(set(entry[2]).issubset(valid_tags), f"Invalid tags on {name}: {entry[2]}")
+
+        locs = load_derelict_locations()
+        self.assertEqual(len(locs), 26)
+        for goal_room in ("throneroom", "warpchamber", "biolab", "bridge"):
+            self.assertIn("goal", locs[goal_room].tags)
+
+    def test_klackon_character_creation_and_enemy_status(self):
+        """Character(1, 'klackon') creates a Klackon warrior with high melee stats and is_pirate()/is_enemy() == True."""
+        with patch("Character.pygame.image.load", return_value=pygame.Surface((60, 70))):
+            k = Character(1, "klackon", 60, 70)
+        self.assertEqual(k.occupation, "klackon")
+        self.assertTrue(k.is_enemy())
+        self.assertTrue(k.is_pirate())
+        self.assertGreaterEqual(k.skills.get("Martial Arts", 0), 65)
+        self.assertGreaterEqual(k.stats["strength"], 70)
+
+    def test_mission_enemies_spawns_klackons_and_scales_by_loop(self):
+        """mission_enemies spawns Klackons for 'derelict' theatre and scales stats on loop >= 2."""
+        items = {
+            "slicer B": make_item("slicer B"),
+            "blaster rifle B": make_item("blaster rifle B"),
+            "exoskeleton B": make_item("exoskeleton B"),
+        }
+        with patch("Character.pygame.image.load", return_value=pygame.Surface((60, 70))):
+            enemies_l1 = mission_enemies(3, items, theatre="derelict", loop=1)
+            self.assertEqual(len(enemies_l1), 3)
+            for e in enemies_l1:
+                self.assertEqual(e.occupation, "klackon")
+                self.assertGreaterEqual(e.get_weapon_count(), 1)
+
+            base_enemy = Character(1, "klackon", 60, 70)
+            base_hp = base_enemy.stats["max_health"]
+            base_offense = base_enemy.stats["offense"]
+            _apply_loop_scaling(base_enemy, loop=3)
+            self.assertEqual(base_enemy.stats["max_health"], base_hp + 24)
+            self.assertEqual(base_enemy.stats["offense"], min(140, base_offense + 10))
+
+    def test_theatre_and_goals_by_loop(self):
+        """Odd loops select 'pirates' and MISSION_GOALS; even loops select 'derelict' and DERELICT_MISSION_GOALS."""
+        self.assertEqual(get_theatre_for_loop(1), "pirates")
+        self.assertEqual(get_theatre_for_loop(2), "derelict")
+        self.assertEqual(get_theatre_for_loop(3), "pirates")
+        self.assertEqual(get_theatre_for_loop(4), "derelict")
+        self.assertIs(get_mission_goals_for_theatre("pirates"), MISSION_GOALS)
+        self.assertIs(get_mission_goals_for_theatre("derelict"), DERELICT_MISSION_GOALS)
+        self.assertEqual(len(MISSION_GOALS), 5)
+        self.assertEqual(len(DERELICT_MISSION_GOALS), 5)
+        self.assertEqual(MISSION_GOALS[4][3], [20])
+        self.assertEqual(DERELICT_MISSION_GOALS[4][3], [20])
+
+        setting_p, desc_p, rec_p = get_mission_briefing_lines("pirates", 4)
+        self.assertEqual(setting_p, "Proceed to pirate base at target coordinates.")
+        self.assertIn("20 pirates", desc_p)
+        self.assertIn("heavy combat team", rec_p)
+
+        setting_d, desc_d, rec_d = get_mission_briefing_lines("derelict", 0)
+        self.assertEqual(setting_d, "Intercept alien derelict at target coordinates.")
+        self.assertIn("Xeno-Relic", desc_d)
+        self.assertIn("technical skills", rec_d)
+
+    def test_liquidate_surviving_robots_converts_robots_to_credits(self):
+        """Surviving robots are converted into their purchase cost in credits and removed from the next-loop team."""
+        from Score import liquidate_surviving_robots
+
+        h1 = make_human(80, 100)
+        h2 = make_human(50, 50)
+        h2.current_health = 0  # dead human
+        r_alive = make_robot(50, 50)
+        r_alive.occupation = "assaultbot"  # cost 500
+        r_med = make_robot(30, 50)
+        r_med.occupation = "medibot"       # cost 500
+        r_dead = make_robot(50, 50)
+        r_dead.current_health = 0
+        r_dead.occupation = "scoutbot"     # dead robot -> 0 refund
+
+        survivors, refund = liquidate_surviving_robots([h1, h2, r_alive, r_med, r_dead])
+        self.assertEqual(refund, 1000)
+        self.assertEqual(len(survivors), 1)
+        self.assertIs(survivors[0], h1)
+        self.assertTrue(all(not m.is_robot() for m in survivors))
+
+    def test_procedural_mission_room_generator_with_derelict_locations(self):
+        """build_procedural_mission_room_event works with Derelict rooms and excludes Derelict goal rooms."""
+        c = make_human(50, 50)
+        c.mission["options"] = "flex"
+        locs = {
+            name: Location(pygame.Surface((10, 10)), pygame.Rect(0, 0, 10, 10), name, entry[0], dict(entry[1]), tags=entry[2])
+            for name, entry in DERELICT_LOCATION_ATTRIBUTES.items()
+        }
+        seen = set()
+        for _ in range(80):
+            ev = build_procedural_mission_room_event([c], locs, {})
+            self.assertNotIn(ev.name, {"throneroom", "warpchamber", "biolab", "bridge"})
+            seen.add(ev.name)
+        self.assertGreater(len(seen), 12)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+
+
+

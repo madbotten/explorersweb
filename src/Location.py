@@ -48,6 +48,35 @@ PIRATE_LOCATION_ATTRIBUTES = {
     "workshop": ("A cluttered mechanical workshop.", {"south": True}, ("supply",)),
 }
 
+DERELICT_LOCATION_ATTRIBUTES = {
+    "analysisbay": ("An alien specimen and artifact analysis bay.", {"south": True}, ("tech",)),
+    "armory": ("A derelict weapons locker lined with chitin-encrusted racks.", {"south": True}, ("supply",)),
+    "barracks1": ("A deserted crew barracks strewn with shattered carapaces.", {"south": True}, ("combat",)),
+    "barracks2": ("A secondary troop berth converted into a Klackon nesting den.", {"south": True}, ("combat",)),
+    "biolab": ("A bio-research laboratory overgrown with pulsing alien resin.", {"south": True}, ("goal",)),
+    "bridge": ("The dark, silent command bridge of the derelict vessel.", {"south": True}, ("goal",)),
+    "captainquarters": ("The former captain's quarters, ransacked and eerie.", {"south": True}, ("tech",)),
+    "corridor": ("A scarred ship corridor flickering with emergency lighting.", {"south": True}, ("corridor",)),
+    "empty": ("A stripped, depressurized hull compartment.", {"south": True}, ("corridor",)),
+    "engineering": ("Main engineering, where damaged conduits hiss with plasma.", {"south": True}, ("tech",)),
+    "fabrication": ("An automated fabrication bay covered in alien webbing.", {"south": True}, ("supply",)),
+    "generator": ("A cavernous auxiliary power generator chamber.", {"south": True}, ("tech",)),
+    "implant": ("A cybernetic surgical bay with flickering diagnostic screens.", {"south": True}, ("medical",)),
+    "medbay": ("An abandoned sickbay with overturned stasis beds.", {"south": True}, ("medical",)),
+    "navigation": ("A stellar navigation dome displaying dead star charts.", {"south": True}, ("tech",)),
+    "orechamber": ("A raw ore processing chamber hollowed out by mandibles.", {"south": True}, ("supply",)),
+    "parts": ("A spare-parts warehouse stacked with salvaged hull plating.", {"south": True}, ("supply",)),
+    "quarters1": ("Abandoned crew quarters smelling of ozone and chitin.", {"south": True}, ("corridor",)),
+    "quarters2": ("Dimly lit officer berths with claw marks across the bulkheads.", {"south": True}, ("corridor",)),
+    "robotshop": ("A robotics maintenance shop littered with dismantled chassis.", {"south": True}, ("supply",)),
+    "s-corridor": ("A curved service corridor winding through the hull.", {"south": True}, ("corridor",)),
+    "shipsweapons": ("A heavy weapons battery deck patrolled by Klackon warriors.", {"south": True}, ("combat",)),
+    "shuttlebay": ("A cavernous shuttle bay where the boarding craft docked.", {"south": True}, ("corridor",)),
+    "suitroom": ("An EVA suit locker room with rows of vacuum-sealed armor.", {"south": True}, ("supply",)),
+    "throneroom": ("A monumental hive-throne chamber at the heart of the derelict.", {"south": True}, ("goal",)),
+    "warpchamber": ("The unstable warp core chamber humming with dimensional energy.", {"south": True}, ("goal",)),
+}
+
 # name: description, items (items can be picked up)
 KNAKNARPIA_LOCATION_ATTRIBUTES = {
     "atrium": ("An open intersection between wings of the complex", {"south":True}),
@@ -76,20 +105,20 @@ KNAKNARPIA_LOCATION_ATTRIBUTES = {
     "tech lab": ("A sophisticated lab for simulating and repairing high\ntech items", {"south":True}),
 }
 
-GOAL_LOCATION_NAMES = ("ai core", "officer's quarters", "vault")
+GOAL_LOCATION_NAMES = ("ai core", "officer's quarters", "vault", "throneroom", "warpchamber", "biolab", "bridge")
 
 def get_goal_location(locations, mission_index):
     if mission_index == 0:
-        return locations["vault"]
+        return locations.get("vault") or locations.get("warpchamber")
     if mission_index == 1:
-        return locations["officer's quarters"]
+        return locations.get("officer's quarters") or locations.get("throneroom")
     if mission_index == 2:
-        return locations["officer's quarters"]
+        return locations.get("officer's quarters") or locations.get("biolab")
     if mission_index == 3:
-        return locations["ai core"]
+        return locations.get("ai core") or locations.get("bridge")
 
 def get_next_mission_location(locations, last_location):
-    spot = locations["vault"]
+    spot = next(iter(locations.values()))
     while spot.name in GOAL_LOCATION_NAMES or spot.name == last_location.name:
         spot = locations[random.choice(list(locations.keys()))]
     return spot
@@ -140,6 +169,20 @@ def load_pirate_locations():
             item_surface = pygame.transform.scale(location_surface, (LOCATION_WIDTH, LOCATION_HEIGHT))
             name = file_name.split(".")[0]
             entry = PIRATE_LOCATION_ATTRIBUTES[name]
+            description, connections = entry[0], entry[1]
+            tags = entry[2] if len(entry) > 2 else ()
+            locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections, tags=tags)
+    return locations
+
+def load_derelict_locations():
+    locations = {}
+    location_dir = resource_path("locations/derelict/")
+    for file_name in os.listdir(location_dir):
+        if file_name.endswith(".jpg"):
+            location_surface = pygame.image.load(resource_path("locations/derelict/" + file_name))
+            item_surface = pygame.transform.scale(location_surface, (LOCATION_WIDTH, LOCATION_HEIGHT))
+            name = file_name.split(".")[0]
+            entry = DERELICT_LOCATION_ATTRIBUTES[name]
             description, connections = entry[0], entry[1]
             tags = entry[2] if len(entry) > 2 else ()
             locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections, tags=tags)

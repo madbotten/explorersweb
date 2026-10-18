@@ -7,9 +7,73 @@ from Character import Character
 from constants import TOP_BAR_Y, DEBUG
 
 CREDITS_BAR_HEIGHT = SCREEN_HEIGHT // 20
-METHODS_OFFSET = 60
-MEANS_OFFSET = 170
-OPTIONS_OFFSET = 320
+BRIEFING_OFFSET = 70
+METHODS_OFFSET = 190
+MEANS_OFFSET = 300
+OPTIONS_OFFSET = 450
+
+# description, required item, required people, required kills
+# locations: vault, officer's quarters, officer's quarters, ai core, sweep (any)
+MISSION_GOALS = [
+    ("MISSION: The team must obtain a Trilisk artifact known to be in pirate possession at the mission point.", ["valneeth"], [], []),
+    ("MISSION: The team must capture the pirate named Jalorith known to be at the mission point.", [], ["Jalorith"], []),
+    ("MISSION: The team must neutralize all pirate officers at the mission point.", [], [], [6]),
+    ("MISSION: The team must discover the location of a secret base called Yoria.", ["datachip"], [], []),
+    ("MISSION: The team must defeat 20 pirates at the mission point.", [], [], [20]),
+]
+
+# Derelict vessel & Klackon goals (even loops: 2, 4, 6...)
+# locations: warpchamber, throneroom, biolab, bridge, sweep (any)
+DERELICT_MISSION_GOALS = [
+    ("MISSION: The team must recover a Xeno-Relic from the warp chamber of the derelict vessel.", ["xeno-relic"], [], []),
+    ("MISSION: The team must neutralize the Klackon Broodmother Xylarx in the derelict throne room.", [], ["Xylarx"], []),
+    ("MISSION: The team must purge the Klackon bio-nest inside the derelict biolab.", [], [], [6]),
+    ("MISSION: The team must extract the black-box flight core from the derelict bridge.", ["flightcore"], [], []),
+    ("MISSION: The team must defeat 20 Klackons aboard the derelict vessel.", [], [], [20]),
+]
+
+THEATRE_SETTING_LINES = {
+    "pirates": "Proceed to pirate base at target coordinates.",
+    "derelict": "Intercept alien derelict at target coordinates.",
+}
+
+MISSION_RECOMMENDATIONS = [
+    "Recommend balanced team with strong technical skills for this mission.",
+    "Recommend stealthy or highly combat-capable team for this mission.",
+    "Recommend heavy combat team for this mission.",
+    "Recommend balanced team with strong technical skills for this mission.",
+    "Recommend heavy combat team for this mission.",
+]
+
+DERELICT_MISSION_RECOMMENDATIONS = [
+    "Recommend balanced team with strong technical skills for this mission.",
+    "Recommend stealthy or highly combat-capable team for this mission.",
+    "Recommend heavy combat team for this mission.",
+    "Recommend balanced team with strong technical skills for this mission.",
+    "Recommend heavy combat team for this mission.",
+]
+
+
+def get_theatre_for_loop(loop: int = 1) -> str:
+    """Return 'pirates' on odd loops (1, 3, 5...) and 'derelict' on even loops (2, 4, 6...)."""
+    return "derelict" if (loop and loop % 2 == 0) else "pirates"
+
+
+def get_mission_goals_for_theatre(theatre: str = "pirates"):
+    """Return the mission goals list for the given theatre ('pirates' or 'derelict')."""
+    return DERELICT_MISSION_GOALS if theatre == "derelict" else MISSION_GOALS
+
+
+def get_mission_briefing_lines(theatre: str = "pirates", mission_index: int = 0) -> tuple[str, str, str]:
+    """Return (setting_line, mission_description, recommendation_line) for the theatre and mission index."""
+    goals = get_mission_goals_for_theatre(theatre)
+    idx = mission_index % len(goals)
+    setting_line = THEATRE_SETTING_LINES.get(theatre, THEATRE_SETTING_LINES["pirates"])
+    mission_description = goals[idx][0]
+    recs = DERELICT_MISSION_RECOMMENDATIONS if theatre == "derelict" else MISSION_RECOMMENDATIONS
+    recommendation_line = recs[idx % len(recs)]
+    return setting_line, mission_description, recommendation_line
+
 
 # Checkbox class
 class Checkbox:
@@ -72,7 +136,8 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
     PROCEED_RECT = pygame.Rect(1200, TOP_BAR_Y, 105, 20)
     PROCEED_TEXT = TITLE_FONT.render("PROCEED", True, CYAN)
 
-    mission_index = random.randint(0, len(MISSION_GOALS) - 1)
+    theatre = get_theatre_for_loop(loop)
+    goals = get_mission_goals_for_theatre(theatre)
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Mission Briefing")
 
@@ -87,6 +152,12 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
         team_data = load_team_named(team_name, loop, 1)
     team = [Character.from_dict(data) for data in team_data]
 
+    existing_mission = team[0].mission if (team and getattr(team[0], "mission", None)) else {}
+    if existing_mission.get("loop") == loop and "mission_index" in existing_mission:
+        mission_index = existing_mission["mission_index"] % len(goals)
+    else:
+        mission_index = random.randint(0, len(goals) - 1)
+
     # if not vetted, chance their skills are exaggerated
     for member in team:
         if not member.vetted and random.randint(1, 100) < 15:
@@ -99,8 +170,11 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
                 # prevent further drop in later missions
                 member.vetted = True
 
-    # Mission statement
-    mission_description, required_items, required_people, required_kills = MISSION_GOALS[mission_index]
+    # Mission statement & briefing lines
+    mission_description, required_items, required_people, required_kills = goals[mission_index]
+    setting_line, mission_description, recommendation_line = get_mission_briefing_lines(
+        theatre, mission_index
+    )
 
     stage = 2
 
@@ -111,6 +185,8 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
     ]
     for checkbox in methods_group:
         checkbox.group = methods_group
+        if existing_mission.get("methods") == checkbox.param:
+            checkbox.checked = True
 
     means_group = [
         Checkbox("Wipe 'em out - Use any and all means necessary to accomplish the mission.", "any", 100, MEANS_OFFSET + 30, OPTION_FONT, None),
@@ -119,6 +195,8 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
     ]
     for checkbox in means_group:
         checkbox.group = means_group
+        if existing_mission.get("means") == checkbox.param:
+            checkbox.checked = True
 
     options_group = [
         Checkbox("Eyes on the prize - Focus only on the mission and don't be distracted by anything else.", "focus", 100, OPTIONS_OFFSET + 30, OPTION_FONT, None),
@@ -126,6 +204,8 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
     ]
     for checkbox in options_group:
         checkbox.group = options_group
+        if existing_mission.get("options") == checkbox.param:
+            checkbox.checked = True
 
     running = True
     while running:
@@ -152,9 +232,14 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
         # Draw the screen
         screen.blit(background_image, (0, 0))
 
-        # Draw the mission statement
+        # Draw the mission briefing in the main part of the screen
+        setting_surface = TITLE_FONT.render(setting_line, True, CYAN)
+        screen.blit(setting_surface, (50, BRIEFING_OFFSET))
         title_surface = TITLE_FONT.render(mission_description, True, WHITE)
-        screen.blit(title_surface, (50, 5))
+        screen.blit(title_surface, (50, BRIEFING_OFFSET + 32))
+        rec_surface = OPTION_FONT.render(recommendation_line, True, GREEN)
+        screen.blit(rec_surface, (50, BRIEFING_OFFSET + 64))
+
         # Draw group titles
         methods_surface = TITLE_FONT.render("Methods", True, WHITE)
         screen.blit(methods_surface, (50, METHODS_OFFSET))
@@ -181,6 +266,8 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
 
     # save characters upon exit
     add_team_mission_param(team, "mission_index", mission_index)
+    add_team_mission_param(team, "theatre", theatre)
+    add_team_mission_param(team, "loop", loop)
     for checkbox in methods_group:
         if checkbox.checked:
             add_team_mission_param(team, "methods", checkbox.param)

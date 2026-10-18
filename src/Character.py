@@ -113,12 +113,18 @@ class Character:
         if type == "pirate":
             self.name = "pirate" + str(index)
             self.occupation = "pirate"
-        if type == "team":
+        elif type == "klackon":
+            self.name = "Klackon " + str(index)
+            self.occupation = "klackon"
+        elif type == "team":
             self.name = self.make_name()
             self.occupation = random.choice(self.occupations)
         self.index = index
         self.rect = pygame.Rect(22, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
         self.sub_stats = self.generate_random_sub_stats()
+        if type == "klackon":
+            for sub_key in ("brawn", "stamina", "resilience", "agility", "reflexes", "valor", "tenacity"):
+                self.sub_stats[sub_key] = max(self.sub_stats.get(sub_key, 70), random.randint(72, 92))
         self.stats = {}
         self.recalculate_stats()
 
@@ -127,7 +133,9 @@ class Character:
         self.goal = random.choice(self.goals)
         # "mission_index", "methods", "means", "options"
         self.mission = {}
-        if type != "robot":
+        if type == "klackon":
+            self.history = "A chitinous Klackon warrior defending the hive."
+        elif type != "robot":
             self.history = f"{self.name}, a {self.occupation} from {self.homeworld}, {self.event}. They now aim to {self.goal}."
         else:
             self.history = "A robot."
@@ -170,7 +178,7 @@ class Character:
         self.psychotic = random.randint(1, 100) <= 5   # 5% start psychotic
         self.traitor   = random.randint(1, 100) <= 5   # 5% start as traitor
 
-        if type != "robot":
+        if type not in ("robot", "klackon"):
             if random.randint(1, 100) < 25:
                 self.history += "\nPassed a truth test against stated goals."
                 self.traitor = False
@@ -206,18 +214,25 @@ class Character:
 
         # Generate and assign major skills
         self.skills = self.assign_skills(self.stats["intelligence"], self.stats["willpower"])
+        if type == "klackon":
+            self.skills["Martial Arts"] = max(self.skills.get("Martial Arts", 0), random.randint(65, 90))
 
         # Learning progress tracker — one entry per possible skill, starts at 0
         self.learning_skills_dict: dict[str, int] = {skill: 0 for skill in self.possible_skills}
 
         if type != "robot":
+          portrait_path = None
           if type == "team":
             portrait_path = resource_path(f"portraits/characters/character{index}.jpg")
           elif type == "pirate":
             portrait_path = resource_path(f"portraits/pirates/pirate{index}.jpg")
+          elif type == "klackon":
+            klackon_idx = ((index - 1) % 3) + 1 if isinstance(index, int) and index > 0 else random.randint(1, 3)
+            portrait_path = resource_path(f"portraits/klackons/klackon{klackon_idx}.jpg")
           try:
-            self.portrait = pygame.image.load(portrait_path)  # Load the portrait image
-            self.portrait = pygame.transform.scale(self.portrait, (width, height))
+            if portrait_path:
+              self.portrait = pygame.image.load(portrait_path)  # Load the portrait image
+              self.portrait = pygame.transform.scale(self.portrait, (width, height))
           except pygame.error:
             print(f"Failed to load image")
 
@@ -289,8 +304,11 @@ class Character:
         if any(sub in self.history for sub in ("narcissist", "aggressive")) or self.psychotic:
             return True
 
+    def is_enemy(self):
+        return self.occupation in ("pirate", "klackon") or self.type in ("pirate", "klackon")
+
     def is_pirate(self):
-       return self.occupation == "pirate"
+        return self.is_enemy()
 
     def get_health_ratio(self):
         """Current HP as a 0.0-1.0 fraction of max HP."""

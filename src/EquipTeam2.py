@@ -4,6 +4,7 @@ from Character import *
 from DrawUtils import DrawingContext
 from Item import *
 from Utils import *
+from MissionOrders import get_theatre_for_loop, get_mission_goals_for_theatre
 from constants import TOP_BAR_Y, DEBUG
 
 
@@ -46,8 +47,19 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
     selected_tab = tabs[0]
     all_items = load_items_battle()
 
-    # Credits
+    # Credits & Mission Objective
     credits = team[0].mission.get("credits", 5000) if (team and loop > 1) else 5000
+    theatre = (
+        (team[0].mission.get("theatre") if team and getattr(team[0], "mission", None) else None)
+        or get_theatre_for_loop(loop)
+    )
+    goals = get_mission_goals_for_theatre(theatre)
+    mission_idx = (
+        team[0].mission.get("mission_index", 0)
+        if team and getattr(team[0], "mission", None)
+        else 0
+    ) % len(goals)
+    mission_description = goals[mission_idx][0]
     stage = 3
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
     DEFAULT_FONT = pygame.font.Font(font_path, 18)
@@ -63,10 +75,12 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
     MESSAGE_LEFT = 300
 
     def display_credits():
-        """Displays the current balance of credits in the top bar."""
+        """Displays the current balance of credits and mission objective in the top bar."""
         #pygame.draw.rect(screen, BLACK, pygame.Rect(0, 0, SCREEN_WIDTH, CREDITS_BAR_HEIGHT))  # Background for credits bar
         credits_text = DEFAULT_FONT.render(f"Credits: {credits}", True, WHITE)
         screen.blit(credits_text, (40, 10))
+        mission_text = ITEM_DESC_FONT.render(mission_description, True, CYAN)
+        screen.blit(mission_text, (230, 12))
 
     async def display_message(text, surface, font):
         action_text_surface = font.render(text, True, CYAN)

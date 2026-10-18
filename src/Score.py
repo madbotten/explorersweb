@@ -10,6 +10,7 @@ from pygame.sprite import collide_rect
 from Character import Character
 from Utils import *
 from TypeText import *
+from MissionOrders import get_theatre_for_loop, get_mission_goals_for_theatre
 from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
@@ -151,6 +152,24 @@ def draw_hover_popup(member, screen, mouse_pos, popup_font, header_font):
         ty += line_h
 
 
+def liquidate_surviving_robots(team):
+    """Convert any surviving robots into credits and return (surviving_humanoids, robot_refund)."""
+    from Item import ROBOT_ATTRIBUTES
+
+    robot_refund = sum(
+        ROBOT_ATTRIBUTES.get(getattr(m, "occupation", ""), (0,))[0]
+        for m in team
+        if m is not None and m.is_robot() and m.is_alive()
+    )
+    humanoid_team = [
+        m for m in team
+        if m is not None and not m.is_robot() and m.is_alive()
+    ]
+    for member in humanoid_team:
+        member.team = humanoid_team
+    return humanoid_team, robot_refund
+
+
 async def score(team_data, team_name="Debug Team", loop=1):
     global text_x_offset
     global text_y_offset
@@ -181,11 +200,12 @@ async def score(team_data, team_name="Debug Team", loop=1):
         team_data = load_team_named(team_name, loop, 6)
     team = [Character.from_dict(data) for data in team_data]
 
-    # ---- Credit calculation ----
+    # ---- Credit calculation (including converting surviving robots to credits) ----
     total_score      = sum(m.mission_points for m in team)
     credits_earned   = total_score // 10
+    humanoid_team, robot_refund = liquidate_surviving_robots(team)
     existing_credits = team[0].mission.get("credits", 0) if team else 0
-    new_credits      = existing_credits + credits_earned
+    new_credits      = existing_credits + credits_earned + robot_refund
 
     # Load and play background music
     play_background_music("music/track3.mp3", pygame)
@@ -212,8 +232,13 @@ async def score(team_data, team_name="Debug Team", loop=1):
         # Credits summary — below the team list
         credits_y    = INSTRUCTIONS_TOP + len(team) * ROW_H + 12
         total_line   = SMALL_FONT.render(f"Total mission score: {total_score}", True, WHITE)
-        credits_line = SMALL_FONT.render(
-            f"Credits earned: {credits_earned}   |   Team balance: {new_credits}", True, CYAN)
+        if robot_refund > 0:
+            credits_line = SMALL_FONT.render(
+                f"Credits earned: {credits_earned}   |   Robot refund: {robot_refund}   |   Team balance: {new_credits}",
+                True, CYAN)
+        else:
+            credits_line = SMALL_FONT.render(
+                f"Credits earned: {credits_earned}   |   Team balance: {new_credits}", True, CYAN)
         screen.blit(total_line,   (50, credits_y))
         screen.blit(credits_line, (50, credits_y + 22))
 
@@ -243,10 +268,17 @@ async def score(team_data, team_name="Debug Team", loop=1):
                     stage = 1   # loop back to stage 1
                     running = False
 
-    # ---- Save team with incremented loop and updated credits ----
-    add_team_mission_param(team, "loop",    loop + 1)
-    add_team_mission_param(team, "credits", new_credits)
-    save_team_named(team_name, loop + 1, 1, team)
+    # ---- Save surviving humanoid team with incremented loop and updated credits ----
+    next_loop = loop + 1
+    next_theatre = get_theatre_for_loop(next_loop)
+    next_goals = get_mission_goals_for_theatre(next_theatre)
+    next_mission_index = random.randint(0, len(next_goals) - 1)
+    add_team_mission_param(humanoid_team, "loop",          next_loop)
+    add_team_mission_param(humanoid_team, "credits",       new_credits)
+    add_team_mission_param(humanoid_team, "theatre",       next_theatre)
+    add_team_mission_param(humanoid_team, "mission_index", next_mission_index)
+    add_team_mission_param(humanoid_team, "enemies_defeated", 0)
+    team_data = save_team_named(team_name, next_loop, 1, humanoid_team)
 
     pygame.quit()
     return stage, team_data

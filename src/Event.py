@@ -260,7 +260,21 @@ async def calculate_outcome_found_items(team, stat_name, skill_name, screen, fon
             font, GREEN
         )
 
-def pirate_enemies(num_pirates, items):
+def _apply_loop_scaling(enemy, loop=1):
+    """Gently scale enemy stats for loop >= 2."""
+    if not loop or loop <= 1:
+        return enemy
+    stat_bonus = min(25, (loop - 1) * 5)
+    hp_bonus = min(60, (loop - 1) * 12)
+    for st in ("offense", "defense", "meleecombat", "strength", "coordination"):
+        if st in enemy.stats:
+            enemy.stats[st] = min(140, enemy.stats[st] + stat_bonus)
+    enemy.stats["max_health"] = enemy.stats.get("max_health", 100) + hp_bonus
+    enemy.current_health = enemy.stats["max_health"]
+    return enemy
+
+
+def pirate_enemies(num_pirates, items, loop=1):
     pirates = []
 
     # Filter weapons from items where type is "wep"
@@ -269,9 +283,63 @@ def pirate_enemies(num_pirates, items):
     non_weapon_items = [item for item in items.values() if (item.type != "weapon" and item.type != "armor")]
 
     for i in range(num_pirates):
-        pirates.append(pirate_enemy(i, weapon_items, armor_items, non_weapon_items, items))
+        pirates.append(_apply_loop_scaling(pirate_enemy(i, weapon_items, armor_items, non_weapon_items, items), loop))
 
     return pirates
+
+
+def klackon_enemy(i, weapon_items, armor_items, non_weapon_items, all_items, loop=1):
+    portrait_idx = (i % 3) + 1
+    klackon = Character(portrait_idx, "klackon", 60, 70)
+    klackon.index = i
+    klackon.name = f"Klackon {i + 1}"
+
+    # Klackons favor fierce melee weapons (slicer / stun baton) and natural chitin armor
+    melee_pool = [
+        w for w in weapon_items
+        if item_base_name(w.name) in ("slicer", "stun baton")
+    ] or weapon_items
+    ranged_pool = [
+        w for w in weapon_items
+        if item_base_name(w.name) in ("blaster rifle", "stunner", "laser pistol")
+    ]
+    if melee_pool:
+        klackon.add_item(random.choice(melee_pool))
+    if ranged_pool and random.random() < 0.45:
+        klackon.add_item(random.choice(ranged_pool))
+
+    heavy_armor_pool = [
+        a for a in armor_items
+        if item_base_name(a.name) in ("exoskeleton", "powered armor", "veer suit")
+    ] or armor_items
+    if heavy_armor_pool:
+        klackon.add_item(random.choice(heavy_armor_pool))
+
+    return _apply_loop_scaling(klackon, loop)
+
+
+def klackon_queen(items, loop=2):
+    queen = Character(1, "klackon", 60, 70)
+    queen.occupation = "klackon"
+    queen.name = "Xylarx"
+    for item_key in ("slicer S", "blaster rifle A", "powered armor A", "offense implant C"):
+        if item_key in items:
+            queen.add_item(items[item_key])
+    return _apply_loop_scaling(queen, max(2, loop))
+
+
+def mission_enemies(num_enemies, items, theatre="pirates", loop=1):
+    """Spawn enemies appropriate for the mission theatre ('pirates' or 'derelict') with loop scaling."""
+    if theatre == "derelict":
+        weapon_items = [item for item in items.values() if item.type == "weapon"]
+        armor_items = [item for item in items.values() if item.type == "armor"]
+        non_weapon_items = [item for item in items.values() if (item.type != "weapon" and item.type != "armor")]
+        return [
+            klackon_enemy(i, weapon_items, armor_items, non_weapon_items, items, loop=loop)
+            for i in range(num_enemies)
+        ]
+    return pirate_enemies(num_enemies, items, loop=loop)
+
 
 def jalorith(items):
     pirate = Character(20, "pirate")
@@ -326,13 +394,31 @@ class Event:
 
     async def run(self, team, screen, font, background, location_font):
         self.context.add_run_params(team, screen, font, background, location_font)
+        theatre = (
+            team[0].mission.get("theatre", "pirates")
+            if team and getattr(team[0], "mission", None)
+            else "pirates"
+        )
+        loop = (
+            team[0].mission.get("loop", 1)
+            if team and getattr(team[0], "mission", None)
+            else 1
+        )
+        loc_name = getattr(self.context.location, "name", None)
         if self.context.num_enemies == 0:
             self.context.enemies = None
+        elif self.context.num_enemies == 6 and loc_name == "officer's quarters":
+            enemies = mission_enemies(5, self.context.all_items, theatre="pirates", loop=loop)
+            enemies.append(_apply_loop_scaling(jalorith(self.context.all_items), loop))
+            self.context.enemies = enemies
+        elif self.context.num_enemies == 6 and loc_name == "throneroom":
+            enemies = mission_enemies(5, self.context.all_items, theatre="derelict", loop=loop)
+            enemies.append(klackon_queen(self.context.all_items, loop=loop))
+            self.context.enemies = enemies
         else:
-            self.context.enemies = pirate_enemies(self.context.num_enemies, self.context.all_items)
-
-        if self.context.num_enemies == 6 and self.context.location["name"] == "officer's quarters":
-            self.context.enemies = pirate_enemies(5, self.context.all_items).append(jalorith(self.context.all_items))
+            self.context.enemies = mission_enemies(
+                self.context.num_enemies, self.context.all_items, theatre=theatre, loop=loop
+            )
 
         # Display the pre-battle description
         await type_out_text(screen, self.context.pre_description, font)
@@ -367,10 +453,11 @@ class Event:
             await type_out_text(screen, "Click to proceed.", font)
 
     async def run_battle(self):
-        methods = self.context.team[0].mission.get("methods") if self.context.team else None
+        methods = self.context.team[0].mission.get("methods") if self.context.team and getattr(self.context.team[0], "mission", None) else None
+        mission_index = self.context.team[0].mission.get("mission_index") if self.context.team and getattr(self.context.team[0], "mission", None) else None
 
-        # --- Stealth check ---
-        if methods == "stealth" and not self.context.is_goal:
+        # --- Stealth check (skipped for mission_index == 4 where defeating 20 hostiles IS the objective) ---
+        if methods == "stealth" and not self.context.is_goal and mission_index != 4:
             if team_evades_notice(self.context.team):
                 await type_out_text(self.context.screen, "The team moves silently past the enemies undetected.", self.context.font)
                 return True  # evaded — caller skips calculate_outcome
@@ -395,6 +482,18 @@ class Event:
             return
         else:
             await pause_to_clear_screen(self.context.screen, self.context.background, self.context.font)
+
+        new_defeated = 0
+        if self.context.enemies and self.context.team:
+            defeated_now = sum(1 for e in self.context.enemies if not e.is_alive())
+            prev_defeated = (
+                self.context.team[0].mission.get("enemies_defeated", 0)
+                if getattr(self.context.team[0], "mission", None)
+                else 0
+            )
+            new_defeated = prev_defeated + defeated_now
+            add_team_mission_param(self.context.team, "enemies_defeated", new_defeated)
+
         # Heal if appropriate
         if self.context.enemies:
             await team_heals(self.context.team, self.context.screen, self.context.font)
@@ -403,4 +502,11 @@ class Event:
         # Display the post-battle description
         if self.context.post_description is not None:
             await type_out_text(self.context.screen, self.context.post_description, self.context.font)
+        if mission_index == 4 and self.context.enemies:
+            await type_out_text(
+                self.context.screen,
+                f"Mission progress: {min(20, new_defeated)} / 20 hostiles defeated.",
+                self.context.font,
+                CYAN,
+            )
         return False  # not evaded

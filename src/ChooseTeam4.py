@@ -8,6 +8,7 @@ import asyncio
 
 from Character import Character
 from Utils import *
+from MissionOrders import get_theatre_for_loop, get_mission_goals_for_theatre
 from constants import TOP_BAR_Y, DEBUG
 
 # Generate 100 characters and load their images
@@ -151,9 +152,15 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
     # This would be better if team is just a list, but the choose team logic has boxes for each one
     # and treats empty boxes as None
 
-    # 1. Initialize the team from data, or start with 6 Nones
+    # 1. Initialize the team from data (only humanoid members), or start with 6 Nones
+    preserved_mission = {}
     if team_data:
-        team = [Character.from_dict(data) for data in team_data]
+        loaded_members = [Character.from_dict(data) for data in team_data if data.get("type") != "robot"]
+        for m in loaded_members:
+            if getattr(m, "mission", None):
+                preserved_mission = dict(m.mission)
+                break
+        team = loaded_members[:6]
     else:
         team = [None] * 6
 
@@ -161,9 +168,15 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
     while len(team) < 6:
         team.append(None)
 
-    # 3. Clean up the team: replace dead characters with None
-    # This syntax creates a new list based on your "alive" logic
+    # 3. Clean up the team: replace dead characters with None and place survivors in their team_boxes
     team = [member if (member and member.is_alive()) else None for member in team]
+    for i, member in enumerate(team):
+        if member is not None:
+            member.set_rect(team_boxes[i].copy())
+            candidates[:] = [
+                c for c in candidates
+                if c.name != member.name and c.index != member.index
+            ]
 
     # Index of the current candidate on left
     current_candidate_index = 0
@@ -593,6 +606,17 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
 
     # store the resulting team
     if stage < 1000:
+        for k, v in preserved_mission.items():
+            add_team_mission_param(team, k, v)
+        theatre = get_theatre_for_loop(loop)
+        goals = get_mission_goals_for_theatre(theatre)
+        if preserved_mission.get("loop") == loop and "mission_index" in preserved_mission:
+            m_idx = preserved_mission["mission_index"] % len(goals)
+        else:
+            m_idx = random.randint(0, len(goals) - 1)
+        add_team_mission_param(team, "loop", loop)
+        add_team_mission_param(team, "theatre", theatre)
+        add_team_mission_param(team, "mission_index", m_idx)
         add_team_mission_param(team, "team_name", team_name)
         team_data = save_team_named(team_name, loop, 1, team)
     else:
