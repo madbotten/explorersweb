@@ -428,7 +428,7 @@ class Character:
             return
         self.stats[stat_name] -= amount
         if self.stats[stat_name] <= 15:
-            self.skills[stat_name] = 15
+            self.stats[stat_name] = 15
 
     # If encumbered and team has no mulebot, evasion will suffer
     def is_encumbered(self):

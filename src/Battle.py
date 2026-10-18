@@ -420,12 +420,10 @@ class TeamBattle:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
-            target.hurt(adjusted_damage, effect_type)
-            draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
 
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)
-        if hit and target.is_alive():
+        if hit:
             target.hurt(adjusted_damage, effect_type)
             draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
             battle_display_action_damage(character, BattleAction.MELEE, adjusted_damage, self.context.screen, self.context.font)
@@ -541,13 +539,11 @@ class TeamBattle:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
-            target.hurt(adjusted_damage, effect_type)
-            draw_life_bar(target, self.context.screen, target.rect.left, target.rect.top)
 
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)
 
-        if hit and target.is_alive():
+        if hit:
             await self.damage_target(character, target, adjusted_damage, effect_type, self.context.screen, self.context.font)
         return
 

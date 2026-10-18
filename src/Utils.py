@@ -27,7 +27,7 @@ SCREEN_HEIGHT = 900 # 1000
 MISSION_GOALS = [
     ("MISSION: The team must obtain a Trilisk artifact known to be in pirate possession at the mission point.", ["valneeth"], [], []),
     ("MISSION: The team must capture the pirate named Jalorith known to be at the mission point.", [], ["Jalorith"], []),
-    ("MISSION: The team must neutralize all the pirates at the mission point.", [], [], [30]),
+    ("MISSION: The team must neutralize all pirate officers at the mission point.", [], [], [6]),
     ("MISSION: The team must discover the location of a secret base called Yoria.", ["datachip"], [], []),
 ]
 
@@ -300,7 +300,7 @@ def clear_team_last_action(team):
         member.last_action = None
 
 def team_dead(team):
-    return all(character.stats.get("max_health", 0) <= 0 for character in team)
+    return all(not character.is_alive() for character in team)
 
 def add_team_mission_param(team, key, param):
     for member in team:

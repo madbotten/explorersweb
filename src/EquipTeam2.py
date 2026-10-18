@@ -47,7 +47,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
     all_items = load_items_battle()
 
     # Credits
-    credits = 5000
+    credits = team[0].mission.get("credits", 5000) if (team and loop > 1) else 5000
     stage = 3
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
     DEFAULT_FONT = pygame.font.Font(font_path, 18)
@@ -471,6 +471,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                 member.skills["Hacking"] = min(100, max(current + 20, 40))
 
     # save characters upon exit
+    add_team_mission_param(team, "credits", credits)
     if stage < 1000:
         team_data = save_team_named(team_name, loop, 3, team)
     else:
