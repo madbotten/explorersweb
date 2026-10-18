@@ -46,63 +46,440 @@ async def calculate_outcome_sickbay(team, stat_name, skill_name, screen, font):
         await type_out_text(screen, f"{member.name} grabs a unkeyed medikit from the corner.", font)
     return
 
-async def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
+
+CHALLENGE_ARCHETYPES = {
+    "LOCKED_PORTAL": {
+        "intro": "A reinforced security portal blocks the passage ahead.",
+        "approaches": [
+            {"item": "cutter", "success_text": "The team uses the cutter to breach the portal."},
+            {
+                "stat": None,
+                "skill": "Hacking",
+                "diff": 0,
+                "attempt_text": "tries to hack the controller:",
+                "success_text": "gets access and opens the portal.",
+                "fail_text": "could not break in.",
+            },
+            {
+                "stat": None,
+                "skill": "Ships Systems",
+                "diff": 0,
+                "attempt_text": "tries to route around the portal controller:",
+                "success_text": "reroutes power and opens the portal.",
+                "fail_text": "could not reroute the control.",
+            },
+            {
+                "stat": None,
+                "skill": "Explosives",
+                "diff": 0,
+                "attempt_text": "prepares a small charge to blow out the lock:",
+                "success_text": "gets the portal open.",
+                "fail_text": "could not blow out the lock.",
+            },
+        ],
+        "reward": {"type": "points", "points": 5},
+        "penalty": {
+            "type": "detour",
+            "amount": 2,
+            "text": "The portal remains locked, the team must take another route",
+        },
+    },
+    "SECURITY_GRID": {
+        "intro": "An active laser and motion-sensor grid sweeps the area.",
+        "approaches": [
+            {"robot": "hackbot", "success_text": "The team's hackbot interfaces with the junction box and disables the security grid."},
+            {
+                "stat": "coordination",
+                "skill": "Stealth",
+                "diff": 0,
+                "attempt_text": "attempts to slip past the sensor sweeps and disable the emitter:",
+                "success_text": "deactivates the grid undetected!",
+                "fail_text": "trips a secondary sensor beam.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Espionage",
+                "diff": 0,
+                "attempt_text": "analyzes the security cycling pattern:",
+                "success_text": "spoofs the sensor telemetry and clears a path!",
+                "fail_text": "cannot bypass the encryption.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Hacking",
+                "diff": -5,
+                "attempt_text": "attempts to override the security node:",
+                "success_text": "shuts down the grid!",
+                "fail_text": "is locked out of the security node.",
+            },
+        ],
+        "reward": {"type": "shortcut", "amount": 1, "points": 5},
+        "penalty": {
+            "type": "damage_all",
+            "amount": 8,
+            "text": "Automated defense turrets graze the squad before they can retreat! (-8 HP each)",
+        },
+    },
+    "INTEL_CONSOLE": {
+        "intro": "The team discovers an active terminal logged into the stronghold's network.",
+        "approaches": [
+            {"robot": "hackbot", "success_text": "The team's hackbot siphons encrypted data files from the terminal."},
+            {
+                "stat": "intelligence",
+                "skill": "Hacking",
+                "diff": 0,
+                "attempt_text": "steps up to hack into the console:",
+                "success_text": "gets access and downloads valuable intelligence!",
+                "fail_text": "could not break past the firewall.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Artifact Analysis",
+                "diff": 0,
+                "attempt_text": "examines the foreign data architecture:",
+                "success_text": "extracts secret operational logs!",
+                "fail_text": "could not decipher the logs.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Espionage",
+                "diff": 0,
+                "attempt_text": "searches the terminal for command codes:",
+                "success_text": "copies the stronghold's secret dispatches!",
+                "fail_text": "finds only wiped directories.",
+            },
+        ],
+        "reward": {"type": "points", "points": 10},
+        "penalty": {
+            "type": "none",
+            "text": "The terminal locks down before any useful data can be recovered.",
+        },
+    },
+    "HAZARD_LEAK": {
+        "intro": "Ruptured conduits fill the chamber with volatile coolant and arcing power lines.",
+        "approaches": [
+            {
+                "stat": "intelligence",
+                "skill": "Ships Systems",
+                "diff": 0,
+                "attempt_text": "rushes to isolate the ruptured manifold:",
+                "success_text": "seals the leak and stabilizes the chamber!",
+                "fail_text": "cannot close the jammed pressure valve.",
+            },
+            {
+                "stat": "coordination",
+                "skill": "Mechanics",
+                "diff": 0,
+                "attempt_text": "attempts to clamp and patch the damaged conduit:",
+                "success_text": "repairs the ruptured line!",
+                "fail_text": "is driven back by scalding vapor.",
+            },
+            {
+                "stat": "willpower",
+                "skill": "Survival",
+                "diff": 0,
+                "attempt_text": "guides the team through the safest ventilation pockets:",
+                "success_text": "leads everyone safely through the hazard!",
+                "fail_text": "cannot avoid the toxic fumes.",
+            },
+        ],
+        "reward": {"type": "points", "points": 5},
+        "penalty": {
+            "type": "damage_all",
+            "amount": 10,
+            "text": "Volatile fumes and electrical arcs scorch the team! (-10 HP each)",
+        },
+    },
+    "MEDICAL_CACHE": {
+        "intro": "A sealed trauma station contains intact medical supplies.",
+        "approaches": [
+            {"robot": "medibot", "success_text": "The team's medibot unlocks the trauma station and administers treatment."},
+            {
+                "stat": "intelligence",
+                "skill": "Medicine",
+                "diff": 0,
+                "attempt_text": "unlocks the medical dispensation unit:",
+                "success_text": "synthesizes restorative compounds for the squad!",
+                "fail_text": "cannot calibrate the unfamiliar medical dispenser.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Xenobiology",
+                "diff": 0,
+                "attempt_text": "tests the bio-reagents for human compatibility:",
+                "success_text": "prepares a safe restorative dose for the team!",
+                "fail_text": "deems the reagents too unstable to use.",
+            },
+        ],
+        "reward": {"type": "heal", "amount": 35, "points": 4},
+        "penalty": {
+            "type": "none",
+            "text": "Without medical expertise, the sealed trauma station cannot be safely used.",
+        },
+    },
+    "CYBER_IMPLANT_BAY": {
+        "intro": "An automated cybernetic augmentation pod hums in the corner.",
+        "approaches": [
+            {
+                "stat": "intelligence",
+                "skill": "Cybernetics",
+                "diff": 0,
+                "attempt_text": "reprograms the augmentation pod for a safe neural boost:",
+                "success_text": "completes a clean cybernetic tune-up!",
+                "fail_text": "aborts the sequence before the pod malfunctions.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Medicine",
+                "diff": -5,
+                "attempt_text": "carefully monitors the bio-interface protocols:",
+                "success_text": "safely applies the neural enhancement!",
+                "fail_text": "shuts the pod down to avoid neural feedback.",
+            },
+        ],
+        "reward": {"type": "stat_boost", "stat": "coordination", "amount": 3, "points": 5},
+        "penalty": {
+            "type": "demoralize",
+            "amount": 4,
+            "text": "A painful static shock from the pod rattles the crew's nerves. (-4 morale each)",
+        },
+    },
+    "SUPPLY_LOCKER": {
+        "intro": "A heavy ordnance locker sits secured behind biometric clamps.",
+        "approaches": [
+            {"item": "cutter", "success_text": "The team slices through the locker's biometric clamps with a cutter."},
+            {
+                "stat": "coordination",
+                "skill": "Mechanics",
+                "diff": 0,
+                "attempt_text": "works to disassemble the locking mechanism:",
+                "success_text": "pops the heavy locker open!",
+                "fail_text": "cannot budge the reinforced pins.",
+            },
+            {
+                "stat": "coordination",
+                "skill": "Tinkering",
+                "diff": 0,
+                "attempt_text": "tinkers with the electronic latch:",
+                "success_text": "bypasses the biometric lock!",
+                "fail_text": "shorts out the latch.",
+            },
+            {
+                "stat": "intelligence",
+                "skill": "Supply Logistics",
+                "diff": 0,
+                "attempt_text": "cross-references the depot manifest codes:",
+                "success_text": "enters the master supply override code!",
+                "fail_text": "finds the manifest codes are outdated.",
+            },
+        ],
+        "reward": {"type": "found_item", "points": 5},
+        "penalty": {
+            "type": "none",
+            "text": "The ordnance locker remains sealed tight.",
+        },
+    },
+    "CAPTIVE_CELL": {
+        "intro": "A detained merchant crew member signals from behind a force-field cell.",
+        "approaches": [
+            {
+                "stat": "intelligence",
+                "skill": "Hacking",
+                "diff": 0,
+                "attempt_text": "hacks the detention block control panel:",
+                "success_text": "drops the force field and frees the captive!",
+                "fail_text": "triggers a cell-block lockout.",
+            },
+            {
+                "stat": "charisma",
+                "skill": "Social Engineering",
+                "diff": 0,
+                "attempt_text": "uses a captured comm-link to spoof a guard transfer order:",
+                "success_text": "tricks the automated warden into releasing the cell!",
+                "fail_text": "is challenged by security verification.",
+            },
+            {
+                "stat": "charisma",
+                "skill": "Interrogation",
+                "diff": 0,
+                "attempt_text": "questions the captive through the field for intel on the base layout:",
+                "success_text": "learns a hidden maintenance route from the grateful captive!",
+                "fail_text": "cannot make out their panicked directions.",
+            },
+        ],
+        "reward": {"type": "shortcut", "amount": 1, "points": 8},
+        "penalty": {
+            "type": "demoralize",
+            "amount": 5,
+            "text": "Unable to drop the force field in time, the team is forced to leave the cells behind. (-5 morale each)",
+        },
+    },
+}
+
+
+async def _apply_challenge_reward(team, actor, reward, screen, font):
     global rooms_to_goal
+    if not reward:
+        return
+    points = reward.get("points", 0)
+    if points and actor is not None:
+        actor.mission_points += points
 
-    # try using cutter
-    if team_has_item(team, "cutter"):
-        await type_out_text(screen, "The team uses the cutter to breach the portal.", font, WHITE)
-        return None
+    rtype = reward.get("type", "points")
+    if rtype == "shortcut":
+        amt = reward.get("amount", 1)
+        rooms_to_goal = max(0, globals().get("rooms_to_goal", 5) - amt)
+        await type_out_text(
+            screen,
+            f"The team discovers a shortcut deeper into the stronghold! (-{amt} room to objective)",
+            font,
+            GREEN,
+        )
+    elif rtype == "heal":
+        amt = reward.get("amount", 30)
+        heal_team_by(team, amt)
+        await type_out_text(
+            screen,
+            f"The medical supplies restore the squad's vitality. (+{amt} HP to team)",
+            font,
+            GREEN,
+        )
+    elif rtype == "stat_boost":
+        stat_name = reward.get("stat", "coordination")
+        amt = reward.get("amount", 3)
+        target = actor or next((m for m in team if m.is_alive() and not m.is_robot()), None)
+        if target:
+            target.increase_stat(stat_name, amt)
+            await type_out_text(
+                screen,
+                f"{target.name}'s {stat_name} is enhanced! (+{amt} {stat_name})",
+                font,
+                GREEN,
+            )
+    elif rtype == "found_item":
+        await calculate_outcome_found_items(team, None, None, screen, font)
 
-    # try hacking
-    member = determine_best_team_member(team, None, "Hacking")
-    if member:
-        await type_out_text(screen, f"{member.name} tries to hack the controller:", font)
-        check_passed = await standard_skill_check(member, screen, None, "Hacking", font, 0)
-        if check_passed:
-            result_text = f"{member.name} gets access and opens the portal.\nTheir skill has been strengthened."
-            await type_out_text(screen, result_text, font, WHITE)
-            member.mission_points += 5
-            member.increase_skill("Hacking", 1)
-            return
+
+async def _apply_challenge_penalty(team, penalty, screen, font):
+    global rooms_to_goal
+    if not penalty:
+        return
+    ptype = penalty.get("type", "none")
+    text = penalty.get("text", "The team fails to overcome the obstacle.")
+    color = RED if ptype != "none" else WHITE
+    await type_out_text(screen, text, font, color)
+
+    if ptype == "detour":
+        amt = penalty.get("amount", 2)
+        rooms_to_goal = globals().get("rooms_to_goal", 5) + amt
+    elif ptype == "damage_all":
+        amt = penalty.get("amount", 10)
+        for m in team:
+            if m and m.is_alive():
+                m.hurt(amt, "impact")
+    elif ptype == "demoralize":
+        amt = penalty.get("amount", 5)
+        for m in team:
+            if m and m.is_alive() and not m.is_robot():
+                m.demoralize(amt)
+
+
+async def resolve_procedural_challenge(team, archetype_key, screen, font):
+    """Universal multi-approach challenge resolver driven by CHALLENGE_ARCHETYPES."""
+    archetype = CHALLENGE_ARCHETYPES[archetype_key]
+    intro = archetype.get("intro")
+    if intro:
+        await type_out_text(screen, intro, font, WHITE)
+
+    attempted_any = False
+    for approach in archetype.get("approaches", []):
+        if "item" in approach:
+            item_name = approach["item"]
+            if team_has_item(team, item_name):
+                actor = next(
+                    (m for m in team if m and m.is_alive() and m.has_item(item_name)),
+                    team[0] if team else None,
+                )
+                await type_out_text(
+                    screen,
+                    approach.get("success_text", f"The team uses the {item_name} to bypass the obstacle."),
+                    font,
+                    GREEN,
+                )
+                await _apply_challenge_reward(team, actor, archetype.get("reward"), screen, font)
+                reset_x_offset()
+                return True
+
+        elif "robot" in approach:
+            robot_name = approach["robot"]
+            has_robot = team_has_item(team, robot_name) or any(
+                m is not None
+                and m.is_alive()
+                and (getattr(m, "occupation", "").lower() == robot_name.lower()
+                     or getattr(m, "name", "").lower() == robot_name.lower())
+                for m in team
+            )
+            if has_robot:
+                actor = next(
+                    (m for m in team if m and m.is_alive() and not m.is_robot()),
+                    team[0] if team else None,
+                )
+                await type_out_text(
+                    screen,
+                    approach.get("success_text", f"The team's {robot_name} handles the task effortlessly."),
+                    font,
+                    GREEN,
+                )
+                await _apply_challenge_reward(team, actor, archetype.get("reward"), screen, font)
+                reset_x_offset()
+                return True
+
         else:
-            result_text = f"{member.name} could not break in."
-            await type_out_text(screen, result_text, font, WHITE)
+            stat_name = approach.get("stat")
+            skill_name = approach.get("skill")
+            diff = approach.get("diff", 0)
+            member = determine_best_team_member(team, stat_name, skill_name)
+            if member:
+                attempted_any = True
+                attempt_text = approach.get("attempt_text", f"attempts to use {skill_name or stat_name}:")
+                await type_out_text(screen, f"{member.name} {attempt_text}", font)
+                check_passed = await standard_skill_check(member, screen, stat_name, skill_name, font, diff)
+                if check_passed:
+                    success_text = approach.get("success_text", "succeeds!")
+                    await type_out_text(
+                        screen,
+                        f"{member.name} {success_text}\nTheir skill has been strengthened.",
+                        font,
+                        GREEN,
+                    )
+                    if skill_name:
+                        member.increase_skill(skill_name, 2)
+                    if stat_name:
+                        member.increase_stat(stat_name, 1)
+                    await _apply_challenge_reward(team, member, archetype.get("reward"), screen, font)
+                    reset_x_offset()
+                    return True
+                else:
+                    fail_text = approach.get("fail_text", "could not succeed.")
+                    await type_out_text(screen, f"{member.name} {fail_text}", font, WHITE)
 
-    # try rerouting the portal control
-    member = determine_best_team_member(team, None, "Ships Systems")
-    if member:
-        await type_out_text(screen, f"{member.name} tries to route around the portal controller:", font)
-        check_passed = await standard_skill_check(member, screen, None, "Ships Systems", font, 0)
-        if check_passed:
-            result_text = f"{member.name} gets opens the portal.\nTheir skill has been strengthened."
-            await type_out_text(screen, result_text, font, WHITE)
-            member.mission_points += 5
-            member.increase_skill("Ships Systems", 1)
-            return
-        else:
-            result_text = f"{member.name} could not reroute the control."
-            await type_out_text(screen, result_text, font, WHITE)
-
-    # try to blow up the lock
-    member = determine_best_team_member(team, None, "Explosives")
-    if member:
-        await type_out_text(screen, f"{member.name} prepares a small charge to blow out the lock:", font)
-        check_passed = await standard_skill_check(member, screen, None, "Explosives", font, 0)
-        if check_passed:
-            result_text = f"{member.name} gets the portal open.\nTheir skill has been strengthened."
-            await type_out_text(screen, result_text, font, WHITE)
-            member.mission_points += 5
-            member.increase_skill("Explosives", 1)
-            return
-        else:
-            result_text = f"{member.name} could not blow out the lock."
-            await type_out_text(screen, result_text, font, WHITE)
-
-    rooms_to_goal += 2
-    await type_out_text(screen, "The portal remains locked, the team must take another route", font, WHITE)
+    if not attempted_any:
+        await type_out_text(screen, random.choice(no_suitable_statements), font)
+    await _apply_challenge_penalty(team, archetype.get("penalty"), screen, font)
     reset_x_offset()
-    return
+    return False
+
+
+def make_challenge_outcome(archetype_key):
+    async def _outcome(team, stat_name, skill_name, screen, font):
+        await resolve_procedural_challenge(team, archetype_key, screen, font)
+    return _outcome
+
+
+async def calculate_outcome_locked_portal(team, stat_name, skill_name, screen, font):
+    await resolve_procedural_challenge(team, "LOCKED_PORTAL", screen, font)
+    return None
+
 
 async def calculate_goal_outcome_hack(member, screen, font):
     await type_out_text(screen, f"{member.name} steps up to hack into the console:", font)
@@ -369,6 +746,147 @@ async def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, 
 async def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
+
+ROOM_ENTRY_TEXT = {
+    # combat
+    "barracks": ("The team breaches a hatch and enters the pirate barracks.", "The barracks have been cleared."),
+    "guard room": ("The team pushes into a fortified guard room.", "The guard post is secure."),
+    "checkpoint": ("The team approaches an internal security checkpoint.", "The checkpoint has been secured."),
+    "training room": ("The team enters a sprawling combat training hall.", "The training room is clear."),
+    "drone launch": ("The team steps into a drafty drone launch bay.", "The drone bay has been cleared."),
+    # tech
+    "radar tower": ("The team ascends into the radar observation tower.", "The radar tower is secure."),
+    "war room": ("The team slips into a tactical war room lined with holomaps.", "The war room has been searched."),
+    "environmental control": ("The team enters the environmental control hub.", "Environmental control is stabilized."),
+    "artifact analysis": ("The team enters a chamber equipped to scan unknown artifacts.", "The analysis lab is clear."),
+    # medical
+    "medical bay": ("The team enters a bloodstained pirate medical facility.", "The medical bay has been cleared."),
+    "implant room": ("The team enters a surgical suite filled with implant rigs.", "The implant room is clear."),
+    "bioaugmentation": ("The team breaches a hatch into a bioaugmentation lab.", "Bioaugmentation has been cleared."),
+    # supply
+    "armory": ("The team discovers a workroom stacked with weapons and ordinance.", "The armory has been searched."),
+    "depot": ("The team enters a fuel and energy storage depot.", "The depot has been cleared."),
+    "parts bay": ("The team steps into a bay lined with spare parts and machinery.", "The parts bay is clear."),
+    "storage": ("The team spots a cluttered storage room off the main passage.", "The storage room has been searched."),
+    "fabrication": ("The team enters an industrial fabrication room.", "The fabrication bay is clear."),
+    "workshop": ("The team enters a cluttered mechanical workshop.", "The workshop has been cleared."),
+    "vehicle bay": ("The team enters a cavernous vehicle maintenance bay.", "The vehicle bay is secure."),
+    # corridor & prison
+    "corridor": ("The team travels through a narrow stronghold corridor.", "The corridor is clear."),
+    "cargo lift": ("The team steps onto a heavy industrial cargo lift.", "The cargo lift area is clear."),
+    "new chamber": ("The team passes into an unfinished chamber carved from rock.", "This chamber has been cleared."),
+    "well": ("The team crosses a damp water extraction and storage room.", "The well room is clear."),
+    "canteen": ("The team finds a colorful canteen with tables and a bar.", "The canteen has been cleared."),
+    "game room": ("The team passes through a noisy pirate entertainment room.", "The game room is clear."),
+    "smuggler's den": ("The team enters a dimly lit smuggler's lounge.", "The smuggler's den is clear."),
+    "prison": ("The team discovers a grim detention block with holding cells.", "The prison block has been cleared."),
+}
+
+TAG_WEIGHTS_BY_OPTION = {
+    "focus": {"corridor": 35, "combat": 30, "tech": 15, "medical": 15, "supply": 5},
+    "flex": {"tech": 35, "supply": 25, "corridor": 15, "combat": 15, "medical": 10},
+    "default": {"corridor": 25, "combat": 25, "tech": 20, "supply": 15, "medical": 15},
+}
+
+
+def build_procedural_mission_room_event(
+    team,
+    locations,
+    all_items,
+    last_room_name=None,
+    supply_locker_state=None,
+):
+    """Build a procedural mission room Event using Pirate room tags and MissionOrders options.
+
+    Keeping usable item drops rare:
+    - 'supply' rooms usually present LOCKED_PORTAL, HAZARD_LEAK, or INTEL_CONSOLE challenges.
+    - SUPPLY_LOCKER (which rewards a usable unkeyed item) only triggers on a 20% roll in a
+      supply room and at most once per mission when supply_locker_state is provided.
+    """
+    options = None
+    if team and getattr(team[0], "mission", None):
+        options = team[0].mission.get("options")
+    weights_map = TAG_WEIGHTS_BY_OPTION.get(options, TAG_WEIGHTS_BY_OPTION["default"])
+
+    # Group available non-goal rooms by tag (plus 'prison' under 'corridor' for CAPTIVE_CELL)
+    rooms_by_tag = {"combat": [], "tech": [], "medical": [], "supply": [], "corridor": []}
+    for name, loc in locations.items():
+        if name == last_room_name or name in ("entrance", "ai core", "officer's quarters", "vault"):
+            continue
+        tags = getattr(loc, "tags", ())
+        if name == "prison":
+            rooms_by_tag["corridor"].append(loc)
+        else:
+            for t in rooms_by_tag:
+                if t in tags:
+                    rooms_by_tag[t].append(loc)
+                    break
+
+    available_tags = [t for t, locs in rooms_by_tag.items() if locs]
+    tag_weights = [weights_map.get(t, 15) for t in available_tags]
+    chosen_tag = random.choices(available_tags, weights=tag_weights, k=1)[0]
+    chosen_loc = random.choice(rooms_by_tag[chosen_tag])
+    room_name = chosen_loc.name
+
+    pre_desc, post_desc = ROOM_ENTRY_TEXT.get(
+        room_name,
+        (f"The team enters the {room_name}.", f"The {room_name} has been cleared."),
+    )
+
+    # Determine enemies and challenge archetype by room/tag
+    archetype_key = None
+    if room_name == "prison":
+        num_enemies = random.choice([1, 2, 3])
+        archetype_key = "CAPTIVE_CELL"
+    elif chosen_tag == "combat":
+        num_enemies = random.randint(2, 5)
+        if room_name in ("checkpoint", "guard room") and random.random() < 0.5:
+            archetype_key = random.choice(["SECURITY_GRID", "CAPTIVE_CELL"])
+        elif random.random() < 0.35:
+            archetype_key = "SECURITY_GRID"
+    elif chosen_tag == "tech":
+        num_enemies = random.choice([0, 1, 2])
+        if room_name == "environmental control":
+            archetype_key = "HAZARD_LEAK"
+        else:
+            archetype_key = "INTEL_CONSOLE" if random.random() < 0.75 else "SECURITY_GRID"
+    elif chosen_tag == "medical":
+        num_enemies = random.choice([0, 1, 2])
+        if room_name in ("implant room", "bioaugmentation"):
+            archetype_key = "CYBER_IMPLANT_BAY"
+        else:
+            archetype_key = "MEDICAL_CACHE"
+    elif chosen_tag == "supply":
+        num_enemies = random.choice([0, 1, 2])
+        already_used = bool(supply_locker_state and supply_locker_state.get("used"))
+        if not already_used and random.random() < 0.20:
+            archetype_key = "SUPPLY_LOCKER"
+            if isinstance(supply_locker_state, dict):
+                supply_locker_state["used"] = True
+        else:
+            archetype_key = random.choice(["LOCKED_PORTAL", "HAZARD_LEAK", "INTEL_CONSOLE"])
+    else:  # corridor
+        num_enemies = random.choice([0, 0, 2, 3])
+        roll = random.random()
+        if roll < 0.35:
+            archetype_key = "LOCKED_PORTAL"
+        elif roll < 0.55:
+            archetype_key = "SECURITY_GRID"
+
+    outcome_fn = make_challenge_outcome(archetype_key) if archetype_key else empty_outcome
+    return Event(
+        pre_desc,
+        post_desc,
+        num_enemies,
+        None,
+        None,
+        chosen_loc,
+        outcome_fn,
+        all_items,
+        name=room_name,
+    )
+
+
 async def go_mission(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
@@ -447,96 +965,6 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
         ),
     ]
 
-    # preevent, postevent, team, enemies, stat_name, skill_name, items, locations, outcome, all_items
-    repeatable_events = [
-        # Empty outcomes
-        Event(
-            "The team breaches a hatch and enters a barracks.",
-            "This room has been cleared.",
-            5, None, None, locations["barracks"],
-            empty_outcome,
-            all_items,
-            name="barracks",
-        ),
-        Event(
-            "The team enters a medical bay.",
-            "This sickbay has been cleared.",
-            1, None, "Medicine", locations["medical bay"],
-            calculate_outcome_sickbay,
-            all_items,
-            name="medical_bay",
-        ),
-        Event(
-            "The team passes into an unfinished room.",
-            "This room has been cleared.",
-            2, None, None, locations["new chamber"],
-            empty_outcome,
-            all_items,
-            name="new_chamber",
-        ),
-        Event(
-            "The team finds a colorful room with chairs and a bar.",
-            "The canteen has been cleared.",
-            0, None, None, locations["canteen"],
-            empty_outcome,
-            all_items,
-            name="canteen",
-        ),
-        Event(
-            "The team breaches a hatch and enters a bay.",
-            "Bioaugmentation has been cleared.",
-            2, None, None, locations["bioaugmentation"],
-            empty_outcome,
-            all_items,
-            name="bioaugmentation",
-        ),
-        Event(
-            "The team travels through another long corridor.",
-            "The team proceeds toward the mission objective without incident.",
-            0, None, None, locations["corridor"],
-            empty_outcome,
-            all_items,
-            name="corridor",
-        ),
-        Event(
-            "The team's path is blocked by a locked portal.",
-            "The corridor has been cleared.",
-            0, None, None, locations["corridor"],
-            calculate_outcome_locked_portal,
-            all_items,
-            name="locked_portal",
-        ),
-        # Found-items event
-        Event(
-            "The team spots a cluttered storage room off the main corridor.",
-            "The search is complete.",
-            0, None, None, locations["storage"],
-            calculate_outcome_found_items,
-            all_items,
-            name="found_items",
-        ),
-    ]
-
-    # preevent, postevent, team, enemies, stat_name, skill_name, items, location, outcome, all_items
-    optional_singular_events = [
-        # Skill check events
-        Event(
-            "The team enters a messy lab undetected.",
-            "The team finds a computer access point and attempts to hack into it.",
-            0, None, "Hacking", locations["workshop"],
-            calculate_outcome_hack_a_console,
-            all_items,
-        ),
-        # Empty outcomes
-        Event(
-            "Three pirates face the team in a corridor.",
-            "The pirates are neutralized.",
-            3, None, None, locations["corridor"],
-            empty_outcome,
-            all_items,
-        ),
-    ]
-
     rando_atmosphere_strings = [
         " the scent of oil and burnt metal fills the air, mingling with the faint aroma of alien spices.",
         " dim, flickering lights cast long shadows, making the base feel even more menacing.",
@@ -580,13 +1008,21 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     mission_index = team[0].mission["mission_index"]
     intro_text = MISSION_GOALS[mission_index][0]
     await type_out_text(screen, intro_text, DEFAULT_FONT)
+    await share_spare_weapons(team, screen, DEFAULT_FONT)
     intro_text = "Click to proceed."
     await type_out_text(screen, intro_text, DEFAULT_FONT)
 
     location = locations["entrance"]
     draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-    rooms_to_goal = 5 # random.randint(10, 15)
+    mission_options = team[0].mission.get("options") if team and getattr(team[0], "mission", None) else None
+    if mission_options == "focus":
+        rooms_to_goal = random.randint(4, 5)
+    elif mission_options == "flex":
+        rooms_to_goal = random.randint(6, 8)
+    else:
+        rooms_to_goal = 5
     last_repeatable_event_name = None
+    supply_locker_state = {"used": False}
 
     if team is None:
         if DEBUG:
@@ -639,28 +1075,19 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
                 if not mission_failed:
                     team_mission_success(team)
             else:
-                selector = random.randint(0, 100)
-                if selector > 75 and optional_singular_events:
-                    # Singular event
-                    event_index = random.randint(0, len(optional_singular_events) - 1)
-                    event = optional_singular_events.pop(event_index)
-                    location = event.context.location
-                    draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
-                    rooms_to_goal -= 1
-                    hour += 1
-                else:
-                    # repeatable event
-                    # Don't repeat the same repeatable event back-to-back
-                    available = repeatable_events if len(repeatable_events) == 1 else \
-                        [e for e in repeatable_events if e.name != last_repeatable_event_name]
-                    event = random.choice(available)
-                    last_repeatable_event_name = event.name
-                    location = event.context.location
-                    draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
-                    await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
-                    rooms_to_goal -= 1
-                    hour += 1
+                event = build_procedural_mission_room_event(
+                    team,
+                    locations,
+                    all_items,
+                    last_room_name=last_repeatable_event_name,
+                    supply_locker_state=supply_locker_state,
+                )
+                last_repeatable_event_name = event.name
+                location = event.context.location
+                draw_location(location, screen, LOCATION_LEFT, LOCATION_TOP, LOCATION_FONT, SMALL_FONT)
+                await event.run(team, screen, DEFAULT_FONT, background_image, LOCATION_FONT)
+                rooms_to_goal -= 1
+                hour += 1
             waiting = True
 
         # Update the display

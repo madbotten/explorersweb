@@ -13,8 +13,8 @@ from Utils import *
 
 BASE_TEXT_X_OFFSET = 45
 
-global text_x_offset
-global text_y_offset
+text_x_offset = BASE_TEXT_X_OFFSET
+text_y_offset = 30
 
 def reset_text_offsets():
     global text_x_offset

@@ -363,8 +363,13 @@ class TeamBattle:
         if chosen_weapon is None:
             print(f"{character.name} Finds no weapon!")
             return
-        base_weapon_effect = self.context.all_items[chosen_weapon].effect
-        effect_type = self.context.all_items[chosen_weapon].effect_type
+        weapon_obj = (
+            self.context.all_items.get(chosen_weapon)
+            or getattr(character, "chosen_melee_weapon", None)
+            or DEFAULT_KNIFE_WEAPON
+        )
+        base_weapon_effect = weapon_obj.effect
+        effect_type = weapon_obj.effect_type
 
         await announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
 
@@ -414,10 +419,11 @@ class TeamBattle:
         if hit:
             adjusted_damage = random.randint(1, base_weapon_effect)
             adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
-            if character.get_effective_skill_level(melee_skill) > 75:
-                adjusted_damage += 20
-            elif character.get_effective_skill_level(melee_skill) > 50:
-                adjusted_damage += 10
+            if item_base_name(chosen_weapon) != "knife":
+                if character.get_effective_skill_level(melee_skill) > 75:
+                    adjusted_damage += 20
+                elif character.get_effective_skill_level(melee_skill) > 50:
+                    adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
             print(f"Damage is: {adjusted_damage}")
 

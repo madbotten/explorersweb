@@ -71,7 +71,7 @@ async def introduction3() :
         "Click your character to review their stats.",
         "Mouseovers explain item details.",
         "Once you leave this stage, weapons and armor are keyed to their users and cannot be passed around.",
-        "Many enemy items are similarly keyed to their users and are of no use to the team.",
+        "Most, but not all, enemy items are similarly keyed to their users and are of no use to the team.",
         "Click anywhere to continue..."
     ])
     instructions.append([

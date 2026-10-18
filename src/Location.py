@@ -15,37 +15,37 @@ LOCATION_EAST = (LOCATION_LEFT + LOCATION_WIDTH, LOCATION_TOP + LOCATION_HEIGHT/
 
 # use different locations and stuffs for mission
 PIRATE_LOCATION_ATTRIBUTES = {
-    "ai core": ("Interface room for an advanced AI core.", {"south":True}),
-    "armory": ("A workroom filled with weapons, armor and ammo.", {"south":True}),
-    "artifact analysis": ("A room equipped to scan unknown objects.", {"south":True}),
-    "barracks": ("An area with bunks and equipment lockers for soldiers.", {"south":True}),
-    "bioaugmentation": ("An area with bunks and equipment lockers for\nsoldiers.", {"south":True}),
-    "canteen": ("A colorful room for drinking and recreation.", {"south":True}),
-    "cargo lift": ("A fuel and energy storage depot.", {"south":True}),
-    "checkpoint": ("A security checkpoint.", {"south":True}),
-    "corridor": ("A clean, narrow corridor.", {"south":True}),
-    "depot": ("A fuel and energy storage depot.", {"south": True}),
-    "drone launch": ("A room with an opening for drone egress.", {"south":True}),
-    "entrance": ("The entrance to a pirate stronghold.\nNo enemies are visible.", {"south": True}),
-    "environmental control": ("A fuel and energy storage depot.", {"south": True}),
-    "fabrication": ("A fuel and energy storage depot.", {"south": True}),
-    "game room": ("A colorful entertainment center.", {"south": True}),
-    "guard room": ("A simple guard room.", {"south": True}),
-    "implant room": ("A room filled with complex medical equipment.", {"south": True}),
-    "medical bay": ("A bloodstained medical facility.", {"south": True}),
-    "new chamber": ("A new room carved from the mountainside, yet to be\ncompleted.", {"south": True}),
-    "officer's quarters": ("A group of four quarters with common area", {"south": True}),
-    "parts bay": ("A bay for parts storage and fabrication.", {"south": True}),
-    "prison": ("A grim space pirate prison.", {"south": True}),
-    "radar tower": ("A room filled with observation displays.", {"south": True}),
-    "smuggler's den": ("A comfortable room for relaxing and socializing.", {"south": True}),
-    "storage": ("A clutter-filled storage room.", {"south": True}),
-    "training room": ("A large combat training center.", {"south": True}),
-    "vault": ("A heavily armored vault room.", {"south": True}),
-    "vehicle bay": ("A bay for vehicle storage and repair.", {"south": True}),
-    "war room": ("A large planning room.", {"south": True}),
-    "well": ("A water extraction and storage room.", {"south": True}),
-    "workshop": ("A cluttered mechanical workshop.", {"south": True}),
+    "ai core": ("Interface room for an advanced AI core.", {"south": True}, ("goal",)),
+    "armory": ("A workroom filled with weapons, armor and ammo.", {"south": True}, ("supply",)),
+    "artifact analysis": ("A room equipped to scan unknown objects.", {"south": True}, ("tech",)),
+    "barracks": ("An area with bunks and equipment lockers for soldiers.", {"south": True}, ("combat",)),
+    "bioaugmentation": ("An area with bunks and equipment lockers for\nsoldiers.", {"south": True}, ("medical",)),
+    "canteen": ("A colorful room for drinking and recreation.", {"south": True}, ("corridor",)),
+    "cargo lift": ("A fuel and energy storage depot.", {"south": True}, ("corridor",)),
+    "checkpoint": ("A security checkpoint.", {"south": True}, ("combat",)),
+    "corridor": ("A clean, narrow corridor.", {"south": True}, ("corridor",)),
+    "depot": ("A fuel and energy storage depot.", {"south": True}, ("supply",)),
+    "drone launch": ("A room with an opening for drone egress.", {"south": True}, ("combat",)),
+    "entrance": ("The entrance to a pirate stronghold.\nNo enemies are visible.", {"south": True}, ("entrance",)),
+    "environmental control": ("A fuel and energy storage depot.", {"south": True}, ("tech",)),
+    "fabrication": ("A fuel and energy storage depot.", {"south": True}, ("supply",)),
+    "game room": ("A colorful entertainment center.", {"south": True}, ("corridor",)),
+    "guard room": ("A simple guard room.", {"south": True}, ("combat",)),
+    "implant room": ("A room filled with complex medical equipment.", {"south": True}, ("medical",)),
+    "medical bay": ("A bloodstained medical facility.", {"south": True}, ("medical",)),
+    "new chamber": ("A new room carved from the mountainside, yet to be\ncompleted.", {"south": True}, ("corridor",)),
+    "officer's quarters": ("A group of four quarters with common area", {"south": True}, ("goal",)),
+    "parts bay": ("A bay for parts storage and fabrication.", {"south": True}, ("supply",)),
+    "prison": ("A grim space pirate prison.", {"south": True}, ("goal",)),
+    "radar tower": ("A room filled with observation displays.", {"south": True}, ("tech",)),
+    "smuggler's den": ("A comfortable room for relaxing and socializing.", {"south": True}, ("corridor",)),
+    "storage": ("A clutter-filled storage room.", {"south": True}, ("supply",)),
+    "training room": ("A large combat training center.", {"south": True}, ("combat",)),
+    "vault": ("A heavily armored vault room.", {"south": True}, ("goal",)),
+    "vehicle bay": ("A bay for vehicle storage and repair.", {"south": True}, ("supply",)),
+    "war room": ("A large planning room.", {"south": True}, ("tech",)),
+    "well": ("A water extraction and storage room.", {"south": True}, ("corridor",)),
+    "workshop": ("A cluttered mechanical workshop.", {"south": True}, ("supply",)),
 }
 
 # name: description, items (items can be picked up)
@@ -95,12 +95,13 @@ def get_next_mission_location(locations, last_location):
     return spot
 
 class Location:
-    def __init__(self, icon, rect, name, description, connections):
+    def __init__(self, icon, rect, name, description, connections, tags=()):
         self.icon = icon
         self.rect = rect
         self.name = name
         self.description = description
         self.connections = connections
+        self.tags = tuple(tags) if isinstance(tags, (list, tuple, set)) else (tags,)
 
     def connect(self, direction, location):
         if direction in self.connections:
@@ -114,7 +115,7 @@ class Location:
         return self.connections.get(direction, None)
 
     def __repr__(self):
-        return f"Location(name={self.name}, connections={self.connections})"
+        return f"Location(name={self.name}, connections={self.connections}, tags={self.tags})"
 
 def load_ship_locations():
     locations = {}
@@ -124,8 +125,10 @@ def load_ship_locations():
             location_surface = pygame.image.load(resource_path("locations/knacknarpia/" + file_name))
             item_surface = pygame.transform.scale(location_surface, (LOCATION_WIDTH, LOCATION_HEIGHT))
             name = file_name.split(".")[0]
-            description, connections = KNAKNARPIA_LOCATION_ATTRIBUTES[name]
-            locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections)
+            entry = KNAKNARPIA_LOCATION_ATTRIBUTES[name]
+            description, connections = entry[0], entry[1]
+            tags = entry[2] if len(entry) > 2 else ()
+            locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections, tags=tags)
     return locations
 
 def load_pirate_locations():
@@ -136,8 +139,10 @@ def load_pirate_locations():
             location_surface = pygame.image.load(resource_path("locations/pirates/" + file_name))
             item_surface = pygame.transform.scale(location_surface, (LOCATION_WIDTH, LOCATION_HEIGHT))
             name = file_name.split(".")[0]
-            description, connections = PIRATE_LOCATION_ATTRIBUTES[name]
-            locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections)
+            entry = PIRATE_LOCATION_ATTRIBUTES[name]
+            description, connections = entry[0], entry[1]
+            tags = entry[2] if len(entry) > 2 else ()
+            locations[name] = Location(item_surface, pygame.Rect(LOCATION_RECT).copy(), name, description, connections, tags=tags)
     return locations
 
 def draw_location(location, screen, left, top, font, small_font):

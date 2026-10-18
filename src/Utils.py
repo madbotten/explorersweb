@@ -201,7 +201,7 @@ def load_sound(filename):
 def play_weapon_sound(weapon):
     energy_weapons = {"laser pistol", "laser rifle"}
     sonic_weapons = {"blaster rifle", "stunner"}
-    slashing_weapons = {"slicer", "stun baton"}
+    slashing_weapons = {"slicer", "stun baton", "knife"}
     piercing_weapons = {"carbine", "pistol", "magnum"}
     concussion_weapons = {"launcher"}
 

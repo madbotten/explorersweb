@@ -568,6 +568,15 @@ class Character:
         if not ranged:
             return None
 
+        means = (
+            (self.mission.get("means") if getattr(self, "mission", None) else None)
+            or (self.team[0].mission.get("means") if getattr(self, "team", None) and getattr(self.team[0], "mission", None) else None)
+        )
+        if means == "pacifist":
+            stunners = [i for i in ranged if item_base_name(i.name) == "stunner"]
+            if stunners:
+                return _best_in(stunners)
+
         # 1. Sharpshooting → rifle
         if self.get_effective_skill_level("Sharpshooting", learning=False) > 0:
             rifles = [i for i in ranged if item_base_name(i.name) in self._RIFLE_BASES]
@@ -599,11 +608,12 @@ class Character:
         """Return the best melee weapon Item this character should use.
 
         Priority:
-        1. Sonic Weapons skill > 0  → prefer stun baton
-        2. Martial Arts skill > 0   → prefer slicer
+        0. Pacifist means          → prefer stun baton
+        1. Sonic Weapons skill > 0 → prefer stun baton
+        2. Martial Arts skill > 0  → prefer slicer
         3. Fallback: highest effect × rate among all melee weapons
         """
-        from Item import item_base_name  # avoid circular import at module level
+        from Item import item_base_name, DEFAULT_KNIFE_WEAPON  # avoid circular import at module level
 
         def _score(item):
             return item.effect * item.rate
@@ -613,7 +623,18 @@ class Character:
             if item.type == "weapon" and item_base_name(item.name) in self._MELEE_BASES
         ]
         if not melee:
+            if not self.is_robot() and self.get_weapon_count() == 0:
+                return DEFAULT_KNIFE_WEAPON
             return None
+
+        means = (
+            (self.mission.get("means") if getattr(self, "mission", None) else None)
+            or (self.team[0].mission.get("means") if getattr(self, "team", None) and getattr(self.team[0], "mission", None) else None)
+        )
+        if means == "pacifist":
+            stun_batons = [i for i in melee if item_base_name(i.name) == "stun baton"]
+            if stun_batons:
+                return max(stun_batons, key=_score)
 
         # 1. Sonic Weapons → stun baton
         if self.get_effective_skill_level("Sonic Weapons", learning=False) > 0:

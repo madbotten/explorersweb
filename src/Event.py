@@ -110,6 +110,66 @@ async def team_repairs_robots(team, screen, font):
 
     return
 
+def _select_spare_weapon_to_pass(donor):
+    """Return one weapon Item from donor (who has >= 2 weapons) that donor
+    would not select to use (or their secondary weapon if carrying 1 ranged + 1 melee)."""
+    weapons = [item for item in donor.equipment if item.type == "weapon"]
+    if len(weapons) < 2:
+        return None
+    chosen_ranged = donor.choose_ranged_weapon()
+    chosen_melee = donor.choose_melee_weapon()
+    unselected = [
+        w for w in weapons
+        if w is not chosen_ranged and w is not chosen_melee
+    ]
+    if unselected:
+        return min(unselected, key=lambda w: w.effect * w.rate)
+
+    # Donor has 1 ranged weapon and 1 melee weapon; keep the one matching their
+    # stronger combat specialization (defaulting to keeping ranged on ties).
+    ranged_skills = ("Sharpshooting", "Energy Weapons", "Sonic Weapons", "Projectile Weapons")
+    best_ranged_skill = max(
+        (donor.get_effective_skill_level(s, learning=False) for s in ranged_skills),
+        default=0,
+    )
+    melee_skill = donor.get_effective_skill_level("Martial Arts", learning=False)
+    if melee_skill > best_ranged_skill and chosen_ranged is not None:
+        return chosen_ranged
+    if chosen_melee is not None:
+        return chosen_melee
+    return min(weapons, key=lambda w: w.effect * w.rate)
+
+
+async def share_spare_weapons(team, screen=None, font=None):
+    """If one living non-robot character has no weapon and another has 2+ weapons,
+    pass one spare weapon (one the donor would not select to use) to the empty-handed member."""
+    unarmed = next(
+        (m for m in team if m.is_alive() and not m.is_robot() and m.get_weapon_count() == 0),
+        None,
+    )
+    if unarmed is None:
+        return None
+    donor = next(
+        (m for m in team if m is not unarmed and m.is_alive() and not m.is_robot() and m.get_weapon_count() >= 2),
+        None,
+    )
+    if donor is None:
+        return None
+    spare = _select_spare_weapon_to_pass(donor)
+    if spare is None:
+        return None
+    donor.equipment.remove(spare)
+    unarmed.equipment.append(spare)
+    if screen is not None and font is not None:
+        await type_out_text(
+            screen,
+            f"{donor.name} passes a spare {spare.name} to the unarmed {unarmed.name}.",
+            font,
+            CYAN,
+        )
+    return spare
+
+
 async def team_heals(team, screen, font):
     # take out your dead
     for member in team[:]:
@@ -119,6 +179,8 @@ async def team_heals(team, screen, font):
     # Refresh each survivor's team reference so mulebot checks stay accurate
     for member in team:
         member.team = team
+
+    await share_spare_weapons(team, screen, font)
 
     healing_needed = team_needs_heal(team)
     if not healing_needed:

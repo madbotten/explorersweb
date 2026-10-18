@@ -390,3 +390,11 @@ def load_item_tabs() -> dict:
             else:
                 items_by_tab["misc"].append(item)
     return items_by_tab
+
+
+# Abstract fallback melee weapon for characters with no weapons equipped (never added to inventory)
+DEFAULT_KNIFE_WEAPON = Item(
+    "knife", "weapon", 0, 0, 1, 10, "impact", 10,
+    "A basic combat knife used when no other weapon is equipped",
+)
+
