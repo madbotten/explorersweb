@@ -60,6 +60,54 @@ CHARACTER_BOX_WIDTH = 90
 CHARACTER_BOX_HEIGHT = 100
 
 class Character:
+    SUB_STAT_MAP = {
+        "strength": ("brawn", "stamina", "resilience"),
+        "coordination": ("fine_manipulation", "agility", "reflexes"),
+        "intelligence": ("logic", "memory", "guile"),
+        "willpower": ("focus", "composure", "tenacity"),
+        "charisma": ("beauty", "charm", "command"),
+        "courage": ("valor", "nerve", "resolve"),
+    }
+
+    SKILL_GATE_STATS = {
+        "Piloting": ("coordination", "willpower"),
+        "Hacking": ("intelligence", "willpower"),
+        "Negotiation": ("charisma",),
+        "Martial Arts": ("strength", "coordination"),
+        "Sharpshooting": ("coordination", "willpower"),
+        "Stealth": ("coordination", "intelligence"),
+        "Medicine": ("intelligence", "willpower"),
+        "Military Science": ("intelligence", "courage"),
+        "Explosives": ("intelligence", "courage"),
+        "Cybernetics": ("intelligence", "coordination"),
+        "Xenobiology": ("intelligence",),
+        "Survival": ("strength", "willpower"),
+        "Diplomacy": ("charisma", "intelligence"),
+        "Navigation": ("intelligence", "willpower"),
+        "Interrogation": ("charisma", "willpower"),
+        "Robot Repair": ("intelligence", "coordination"),
+        "Social Engineering": ("charisma", "intelligence"),
+        "Ships Systems": ("intelligence", "coordination"),
+        "Espionage": ("intelligence", "courage"),
+        "Mechanics": ("coordination", "intelligence"),
+        "Fabrication": ("intelligence", "coordination"),
+        "Instruction": ("charisma", "intelligence"),
+        "Energy Weapons": ("coordination",),
+        "Sonic Weapons": ("coordination",),
+        "Physics": ("intelligence",),
+        "Projectile Weapons": ("coordination", "strength"),
+        "Artifact Analysis": ("intelligence", "willpower"),
+        "Squad Tactics": ("charisma", "courage"),
+        "Mech Combat": ("coordination", "courage"),
+        "Exoskeleton Systems": ("strength", "coordination"),
+        "Resource Extraction": ("strength",),
+        "Detection": ("willpower",),
+        "Weaponsmithing": ("coordination", "intelligence"),
+        "Armorsmithing": ("strength", "coordination"),
+        "Tinkering": ("coordination", "intelligence"),
+        "Supply Logistics": ("intelligence", "willpower"),
+    }
+
     def __init__(self, index, type, width=CHARACTER_BOX_WIDTH, height=CHARACTER_BOX_HEIGHT):
         self.type = type
         if type == "pirate":
@@ -70,18 +118,9 @@ class Character:
             self.occupation = random.choice(self.occupations)
         self.index = index
         self.rect = pygame.Rect(22, TOP_EDGE, CHARACTER_BOX_WIDTH, CHARACTER_BOX_HEIGHT)
-        self.stats = self.generate_random_stats()
-        self.stats["offense"] = round((self.stats["coordination"] + self.stats["courage"]) / 2)
-        self.stats["defense"] = round((self.stats["coordination"] + self.stats["strength"]) / 2)
-        self.stats["deception"] = round((self.stats["courage"] + self.stats["charisma"]) / 2)
-        self.stats["evasion"] = round((self.stats["intelligence"] + self.stats["coordination"]) / 2)
-        self.stats["analyze"] = round((self.stats["intelligence"] + self.stats["willpower"]) / 2)
-        self.stats["max_health"] = self.stats["strength"] + self.stats["willpower"]
-        self.stats["movement"] = self.stats["strength"] + self.stats["willpower"] + self.stats["coordination"]
-        self.stats["meleecombat"] = self.stats["evasion"] + self.stats["strength"]
-        self.stats["perception"]  = round((self.stats["willpower"] + self.stats["coordination"]) / 2)
-        self.stats["surprise"]    = self.stats["evasion"] + self.stats["perception"]
-        self.stats["leadership"]  = self.stats["intelligence"] + self.stats["charisma"] + self.stats["courage"]
+        self.sub_stats = self.generate_random_sub_stats()
+        self.stats = {}
+        self.recalculate_stats()
 
         self.homeworld = random.choice(self.homeworlds)
         self.event = random.choice(self.events)
@@ -448,12 +487,34 @@ class Character:
     # promotes the skill when enough uses have accumulated.
     # Pass learning=False when the call is only for comparison/selection
     # (e.g. determine_best_team_member) and no actual action will be taken.
+    def get_skill_gate_bonus(self, skill_name) -> int:
+        """Return a bonus in [0, 10] when a skill's gating main stats are green (> 75)."""
+        if not skill_name or self.is_robot():
+            return 0
+        gate_stats = self.SKILL_GATE_STATS.get(skill_name)
+        if not gate_stats:
+            return 0
+        max_per_stat = 10.0 / len(gate_stats)
+        bonus = 0.0
+        for stat_name in gate_stats:
+            val = self.stats.get(stat_name, 0)
+            if val > 75:
+                stat_bonus = max(1.0, min(max_per_stat, (val - 75) / 20.0 * max_per_stat))
+                bonus += stat_bonus
+        return min(10, round(bonus))
+
+    def is_skill_allowed(self, skill_name) -> bool:
+        """Return True if none of the skill's gating stats are red (< 50)."""
+        gate_stats = self.SKILL_GATE_STATS.get(skill_name, ())
+        return all(self.stats.get(st, 50) >= 50 for st in gate_stats)
+
     def get_effective_skill_level(self, skill_name, learning=True):
         if skill_name is None:
             return 1
         total = 0
         if self.has_skill(skill_name):
             total += self.skills[skill_name]
+            total += self.get_skill_gate_bonus(skill_name)
 
         # --- learning system ---
         if learning and not self.is_robot() and skill_name in self.learning_skills_dict:
@@ -699,7 +760,7 @@ class Character:
         return [item.name for item in self.equipment]
 
     def assign_skills(self, intelligence, willpower):
-        # Randomly select 3 to 6 unique skills from the list
+        # Randomly select 3 to 6 unique skills from the list, gated by non-red stats
         num_skills = random.randint(3, 6)
         if intelligence > 75:
             num_skills += 1
@@ -709,7 +770,9 @@ class Character:
             num_skills += 1
         elif willpower < 50:
             num_skills -= 1
-        selected_skills = random.sample(self.possible_skills, num_skills)
+        eligible_skills = [s for s in self.possible_skills if self.is_skill_allowed(s)]
+        num_skills = max(0, min(num_skills, len(eligible_skills)))
+        selected_skills = random.sample(eligible_skills, num_skills) if num_skills > 0 else []
 
         # Assign each skill a random proficiency level (1 to 100)
         skills_dict = {skill: self.bell_curve_stat() for skill in selected_skills}
@@ -815,6 +878,24 @@ class Character:
         "coordination": "Represents dexterity and agility",
         "charisma": "Reflects social skills and influence",
         "courage": "Measures bravery and risk-taking capacity",
+        "brawn": "Raw muscular force and lifting power",
+        "stamina": "Physical endurance and sustained exertion",
+        "resilience": "Toughness and resistance to physical trauma",
+        "fine_manipulation": "Manual dexterity and precision hand control",
+        "agility": "Whole-body balance, footwork, and nimbleness",
+        "reflexes": "Reaction speed and split-second timing",
+        "logic": "Deductive reasoning and analytical problem-solving",
+        "memory": "Information recall and technical knowledge retention",
+        "guile": "Cunning, tactical misdirection, and street smarts",
+        "focus": "Mental concentration and attention under pressure",
+        "composure": "Emotional steadiness and calm in crisis",
+        "tenacity": "Grit, determination, and refusal to give up",
+        "beauty": "Physical presence and striking appearance",
+        "charm": "Warmth, likability, and persuasive appeal",
+        "command": "Force of personality and natural authority",
+        "valor": "Bravery in the face of physical danger",
+        "nerve": "Cool-headedness under fire and high stakes",
+        "resolve": "Unwavering commitment to the mission",
         "offense": "Calculates attack potential in combat",
         "defense": "Indicates resilience in combat",
         "deception": "Ability to mislead and manipulate",
@@ -880,6 +961,76 @@ class Character:
     def bell_curve_stat(self):
         value = int(random.gauss(60, 20))  # Mean of 60, standard deviation of 20
         return max(25, min(95, value))  # Clamp between 25 and 95
+
+    def generate_random_sub_stats(self):
+        sub_stats = {}
+        bases = {core_stat: self.bell_curve_stat() for core_stat in self.SUB_STAT_MAP}
+        # Ensure at least 2 core stat groups are non-red (>= 50) so gated skills are always available
+        non_red = [k for k, v in bases.items() if v >= 54]
+        if len(non_red) < 2:
+            for k in sorted(bases, key=lambda c: bases[c], reverse=True)[:2]:
+                bases[k] = max(bases[k], random.randint(55, 68))
+
+        for core_stat, sub_tuple in self.SUB_STAT_MAP.items():
+            base = bases[core_stat]
+            min_bound = 50 if base >= 54 else 25
+            low = max(min_bound, base - 10)
+            high = min(95, low + 20)
+            low = max(min_bound, high - 20)
+            for sub_name in sub_tuple:
+                val = int(random.gauss(base, 6))
+                sub_stats[sub_name] = max(low, min(high, val))
+        return sub_stats
+
+    def recalculate_stats(self):
+        """Compute the 6 core attributes and 11 derived stats from the 18 sub-stats."""
+        if not hasattr(self, "sub_stats") or not self.sub_stats:
+            self.sub_stats = {}
+            for core_stat, sub_tuple in self.SUB_STAT_MAP.items():
+                base_val = self.stats.get(core_stat, 60) if hasattr(self, "stats") and self.stats else 60
+                for sub_name in sub_tuple:
+                    self.sub_stats[sub_name] = base_val
+
+        s = self.sub_stats
+        strength = round((s["brawn"] + s["stamina"] + s["resilience"]) / 3)
+        intelligence = round((s["logic"] + s["memory"] + s["guile"]) / 3)
+        willpower = round((s["focus"] + s["composure"] + s["tenacity"]) / 3)
+        coordination = round((s["fine_manipulation"] + s["agility"] + s["reflexes"]) / 3)
+        charisma = round((s["beauty"] + s["charm"] + s["command"]) / 3)
+        courage = round((s["valor"] + s["nerve"] + s["resolve"]) / 3)
+
+        offense = round((s["reflexes"] + s["nerve"] + s["focus"]) / 3)
+        defense = round((s["agility"] + s["resilience"] + s["composure"]) / 3)
+        deception = round((s["guile"] + s["charm"] + s["nerve"]) / 3)
+        evasion = round((s["agility"] + s["reflexes"] + s["guile"]) / 3)
+        analyze = round((s["logic"] + s["memory"] + s["focus"]) / 3)
+        max_health = round((s["stamina"] + s["resilience"] + s["tenacity"]) * 2 / 3)
+        movement = s["brawn"] + s["stamina"] + s["agility"]
+        meleecombat = evasion + round((s["brawn"] + s["valor"]) / 2)
+        perception = round((s["focus"] + s["reflexes"] + s["memory"]) / 3)
+        surprise = evasion + perception
+        leadership = s["command"] + s["resolve"] + s["logic"]
+
+        self.stats = {
+            "strength": strength,
+            "intelligence": intelligence,
+            "willpower": willpower,
+            "coordination": coordination,
+            "charisma": charisma,
+            "courage": courage,
+            "offense": offense,
+            "defense": defense,
+            "deception": deception,
+            "evasion": evasion,
+            "analyze": analyze,
+            "max_health": max_health,
+            "movement": movement,
+            "meleecombat": meleecombat,
+            "surprise": surprise,
+            "leadership": leadership,
+            "perception": perception,
+        }
+        return self.stats
 
     def generate_random_stats(self):
         return {
@@ -1240,6 +1391,7 @@ class Character:
             "type": self.type,
             "index": self.index,
             "stats": self.stats,
+            "sub_stats": self.sub_stats,
             "occupation": self.occupation,
             "homeworld": self.homeworld,
             "event": self.event,
@@ -1272,6 +1424,14 @@ class Character:
         character.name = data["name"]
         character.type = data["type"]
         character.stats = data["stats"]
+        if "sub_stats" in data and data["sub_stats"]:
+            character.sub_stats = dict(data["sub_stats"])
+        else:
+            character.sub_stats = {}
+            for core_stat, sub_tuple in cls.SUB_STAT_MAP.items():
+                core_val = character.stats.get(core_stat, 60)
+                for sub_name in sub_tuple:
+                    character.sub_stats[sub_name] = core_val
         character.occupation = data["occupation"]
         character.homeworld = data["homeworld"]
         character.event = data["event"]

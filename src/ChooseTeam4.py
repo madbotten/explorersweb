@@ -54,7 +54,7 @@ LEADER_LABEL_RECT = pygame.Rect(330, TOPMOST, 105, 25)
 TEAM_LABEL_RECT = pygame.Rect(640, TOPMOST, 105, 25)
 REJECTED_LABEL_RECT = pygame.Rect(1363, TOPMOST, 105, 25)
 STATS_LABEL_RECT = pygame.Rect(130, STATS_EDGE, 105, 25)
-DERIVED_LABEL_RECT = pygame.Rect(75, STATS_EDGE + 160, 105, 25)
+DERIVED_LABEL_RECT = pygame.Rect(75, 598, 105, 25)
 SKILLS_LABEL_RECT = pygame.Rect(700, STATS_EDGE, 105, 25)
 BACKGROUND_LABEL_RECT = pygame.Rect(1285, STATS_EDGE, 105, 25)
 PROCEED_RECT = pygame.Rect(1150, TOP_EDGE + 35, 105, 25)
@@ -269,34 +269,21 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                 y += font.get_linesize()
             y += font.get_linesize()
 
-    # Position each stat on the screen as Rects for mouseover detection
-    def create_stat_rects(stats, start_x, start_y, font):
-        stat_rects = {}
-        y_offset = start_y
-        for stat in stats:
-            text_surface = font.render(f"{stat}: {stats[stat]}", True, WHITE)
-            rect = text_surface.get_rect(topleft=(start_x, y_offset))
-            stat_rects[stat] = rect
-            if stat == "courage":
-                y_offset += 50
-            y_offset += 20
-        return stat_rects
-
     # Display stat descriptions on mouseover
     def blit_stats_with_hover(surface, stats, stat_rects, font, mouse_pos):
-        for stat, value in stats.items():
-            # Check for mouse hover
-            if stat_rects[stat].collidepoint(mouse_pos):
-                # Render and display description if hovered
-                description = Character.stat_descriptions[stat]
+        for stat, rect in stat_rects.items():
+            if rect.collidepoint(mouse_pos):
+                description = Character.stat_descriptions.get(stat, "")
+                if not description:
+                    continue
                 description_surface = font.render(description, True, WHITE)
                 background_surface = pygame.Surface(
                     (description_surface.get_width() + 10, description_surface.get_height() + 10))
                 background_surface.fill((0, 0, 0))  # Black background
-                background_position = (stat_rects[stat].left + 10, stat_rects[stat].bottom + 10)
+                background_position = (rect.left + 10, rect.bottom + 6)
                 surface.blit(background_surface, background_position)
                 surface.blit(description_surface, (background_position[0] + 5, background_position[1] + 5))
-
+                break
 
     # Position each skill on the screen as Rects for mouseover detection
     def create_skill_rects(skills, start_x, start_y, font):
@@ -317,92 +304,61 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
             blit_text3(surface, str(skill_text), (500, descent), font, color, 185)
             descent += 20
 
-    def blit_stats(surface, candidate, font):
-        descent = 205
-        blit_text3(surface, "STRENGTH", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("strength")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "INTELLIGENCE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("intelligence")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "WILLPOWER", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("willpower")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "COORDINATION", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("coordination")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "CHARISMA", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("charisma")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "COURAGE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("courage")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 65
-        blit_text3(surface, "OFFENSE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("offense")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "DEFENSE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("defense")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "DECEPTION", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("deception")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "EVASION", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("evasion")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "ANALYSIS", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("analyze")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "LIFE LEVEL", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("max_health")
-        color = color_for_stat(round(value / 2))
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "MOVEMENT", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("movement")
-        color = color_for_stat(round(value / 3))
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "MELEE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("meleecombat")
-        color = color_for_stat(round(value / 2))
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "SURPRISE", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("surprise")
-        color = color_for_stat(round(value / 2))
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "LEADERSHIP", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("leadership")
-        color = color_for_stat(round(value / 3))
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
-        descent += 20
-        blit_text3(surface, "PERCEPTION", (60, descent), font, CYAN, 185)
-        value = candidate.stats.get("perception")
-        color = color_for_stat(value)
-        blit_text3(surface, str(value), (240, descent), font, color, 185)
+    def blit_stats(surface, candidate, font, sub_font):
+        stat_rects = {}
+        descent = 202
+        core_order = ("strength", "intelligence", "willpower", "coordination", "charisma", "courage")
+        sub_stats = getattr(candidate, "sub_stats", {}) or {}
+        sub_label_color = (160, 215, 225)
+
+        for core_stat in core_order:
+            value = candidate.stats.get(core_stat, 0)
+            color = color_for_stat(value)
+            label_surf = font.render(core_stat.upper(), True, CYAN)
+            val_surf = font.render(str(value), True, color)
+            surface.blit(label_surf, (45, descent))
+            surface.blit(val_surf, (255, descent))
+            stat_rects[core_stat] = pygame.Rect(45, descent, 240, 16)
+            descent += 17
+
+            for sub_name in Character.SUB_STAT_MAP.get(core_stat, ()):
+                sub_val = sub_stats.get(sub_name, value)
+                sub_color = color_for_stat(sub_val)
+                sub_label = sub_name.replace("_", " ").title()
+                sub_label_surf = sub_font.render(sub_label, True, sub_label_color)
+                sub_val_surf = sub_font.render(str(sub_val), True, sub_color)
+                surface.blit(sub_label_surf, (68, descent))
+                surface.blit(sub_val_surf, (255, descent))
+                stat_rects[sub_name] = pygame.Rect(68, descent, 215, 14)
+                descent += 15
+
+            descent += 3
+
+        descent = 623
+        derived_order = (
+            ("offense", "OFFENSE", 1),
+            ("defense", "DEFENSE", 1),
+            ("deception", "DECEPTION", 1),
+            ("evasion", "EVASION", 1),
+            ("analyze", "ANALYSIS", 1),
+            ("max_health", "LIFE LEVEL", 2),
+            ("movement", "MOVEMENT", 3),
+            ("meleecombat", "MELEE", 2),
+            ("surprise", "SURPRISE", 2),
+            ("leadership", "LEADERSHIP", 3),
+            ("perception", "PERCEPTION", 1),
+        )
+        for stat_key, label, scale in derived_order:
+            value = candidate.stats.get(stat_key, 0)
+            color = color_for_stat(round(value / scale)) if scale > 1 else color_for_stat(value)
+            label_surf = font.render(label, True, CYAN)
+            val_surf = font.render(str(value), True, color)
+            surface.blit(label_surf, (45, descent))
+            surface.blit(val_surf, (255, descent))
+            stat_rects[stat_key] = pygame.Rect(45, descent, 240, 17)
+            descent += 18
+
+        return stat_rects
 
     # Display skill descriptions on mouseover
     def blit_skills_with_hover(surface, skills, skill_rects, font, mouse_pos):
@@ -436,7 +392,8 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
     pygame.font.init()
 
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
-    STAT_FONT = pygame.font.Font(font_path, 16)
+    STAT_FONT = pygame.font.Font(font_path, 15)
+    SUB_STAT_FONT = pygame.font.Font(font_path, 13)
     MOUSEOVER_FONT = pygame.font.Font(font_path, 16)
     HISTORY_FONT = pygame.font.Font(font_path, 16)
     SKILL_FONT = pygame.font.Font(font_path, 16)
@@ -457,8 +414,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
     BACKGROUND_LABEL_TEXT = BUTTON_FONT.render("BACKGROUND", True, CYAN)
     EXIT_TEXT = BUTTON_FONT.render("EXIT", True, RED)
 
-    # Create stat rects
-    stat_rects = create_stat_rects(current_selected_character.stats, start_x=50, start_y=210, font=MOUSEOVER_FONT)
+    stat_rects = {}
 
     # Load and play background music
     play_background_music("music/track1.mp3", pygame)
@@ -580,7 +536,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
         # Draw the candidate history
         blit_history(screen, current_selected_character, HISTORY_FONT)
         # Draw the candidate stats
-        blit_stats(screen, current_selected_character, STAT_FONT)
+        stat_rects = blit_stats(screen, current_selected_character, STAT_FONT, SUB_STAT_FONT)
         # Draw the candidate skills
         blit_skills(screen, current_selected_character, SKILL_FONT)
 

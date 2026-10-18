@@ -340,22 +340,26 @@ def get_needed_item(team, all_items):
     gap_first = random.random() < 0.5
 
     def _gap_item(member):
-        """Return the item key for the first gear gap found, or None."""
+        """Return the item key for the first gear gap found in all_items, or None."""
+        gaps = []
         if not member.has_ranged_weapon():
-            return "laser pistol C"
+            gaps.append("laser pistol C")
         if not member.has_melee_weapon():
-            return "slicer C"
+            gaps.append("slicer C")
         if member.has_skill("Exoskeleton Systems") and \
                 not member.has_item("exoskeleton") and \
                 not member.has_item("powered armor"):
-            return "exoskeleton C"
+            gaps.append("exoskeleton C")
         if member.has_skill("Medicine") and not member.has_item("medikit"):
-            return "medikit C"
+            gaps.append("medikit C")
         if member.has_skill("Stealth") and not member.has_item("stealth orb"):
-            return "stealth orb C"
+            gaps.append("stealth orb C")
         if not any(i.type == "armor" for i in member.equipment):
-            return "veer suit C"
-        return None
+            gaps.append("veer suit C")
+        for key in gaps:
+            if key in all_items:
+                return key
+        return gaps[0] if gaps else None
 
     def _upgrade_item(member):
         """Return (old_item, new_item) for the best upgrade opportunity, or None."""
