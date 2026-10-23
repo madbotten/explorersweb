@@ -1965,6 +1965,68 @@ class TestPositionTeamPhase1(unittest.TestCase):
         self.assertEqual(STAGE_LABELS[7], "Return Voyage")
 
 
+# ---------------------------------------------------------------------------
+# Position Team Stage — Phase 2 Tests
+# ---------------------------------------------------------------------------
+
+from PositionTeam import get_character_inspection_data
+
+
+class TestPositionTeamPhase2(unittest.TestCase):
+
+    def test_get_character_inspection_data_human_includes_stats_skills_and_equipment(self):
+        """get_character_inspection_data returns stats, skills, equipment, role, and position for a human."""
+        c = make_human(80, 60, morale=90)
+        c.name = "Cmdr Shepard"
+        c.occupation = "soldier"
+        c.skills = {"Sharpshooting": 85, "Military Science": 60}
+        give_item(c, "laser rifle B")
+        give_item(c, "veer suit C")
+        c.command_role = ROLE_COMMANDER
+        c.position = POS_POINT_MAN
+
+        info = get_character_inspection_data(c)
+        self.assertEqual(info["name"], "Cmdr Shepard")
+        self.assertEqual(info["occupation"], "soldier")
+        self.assertFalse(info["is_robot"])
+        self.assertEqual(info["current_health"], 140)
+        self.assertEqual(info["max_health"], 140)
+        self.assertEqual(info["morale"], 90)
+        self.assertEqual(info["command_role"], "Mission Commander")
+        self.assertEqual(info["position"], "Point Man")
+
+        stat_keys = [entry[0] for entry in info["stats"]]
+        self.assertIn("strength", stat_keys)
+        self.assertIn("leadership", stat_keys)
+
+        skill_map = {name: val for name, val, _ in info["skills"]}
+        self.assertEqual(skill_map["Sharpshooting"], 85)
+        self.assertEqual(skill_map["Military Science"], 60)
+
+        equip_names = [item.name for item in info["equipment"]]
+        self.assertEqual(equip_names, ["laser rifle B", "veer suit C"])
+
+    def test_get_character_inspection_data_robot_uses_max_life(self):
+        """get_character_inspection_data uses max_life for robot max_health and leaves command_role None."""
+        bot = make_robot(250, morale=100)
+        bot.name = "ASB7"
+        bot.occupation = "assaultbot"
+        bot.current_health = 190
+        bot.skills = {"Energy Weapons": 75}
+        give_item(bot, "laser pistol C")
+        bot.position = POS_OVERWATCH
+
+        info = get_character_inspection_data(bot)
+        self.assertEqual(info["name"], "ASB7")
+        self.assertTrue(info["is_robot"])
+        self.assertEqual(info["current_health"], 190)
+        self.assertEqual(info["max_health"], 250)
+        self.assertIsNone(info["command_role"])
+        self.assertEqual(info["position"], "Overwatch")
+        self.assertEqual(len(info["equipment"]), 1)
+        self.assertEqual(info["equipment"][0].name, "laser pistol C")
+
+
 if __name__ == "__main__":
     unittest.main()
 

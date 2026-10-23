@@ -49,7 +49,7 @@ async def introduction3() :
         "You are a commander selecting and equipping a team to go on a mission.",
         "Once they depart, you will see what happens but you have no control of their actions.",
         "Use the PROCEED button to skip all instructions.",
-        "The game has 6 stages.",
+        "The game has 8 stages.",
         "Your team is persisted between each stage.",
         "You can resume from the last position in each stage using first loading screen.",
         "You can EXIT from any stage, but you can only resume from between completed stages.",
@@ -64,7 +64,7 @@ async def introduction3() :
         "Click anywhere to continue..."
     ])
     instructions.append([
-        "In the second stage, you equip your team.",
+        "After receiving Mission Orders, you equip your team.",
         "Use drag n drop to purchase and move items.",
         "Up to four robots may be added to the team by dragging them over.",
         "Items on robots may not be moved, sold, or traded between team members.",
@@ -75,31 +75,40 @@ async def introduction3() :
         "Click anywhere to continue..."
     ])
     instructions.append([
-        "In the third stage, the team trains while traveling to the destination.",
+        "Next, in the Position Team stage, you assign command roles and movement positions.",
+        "Drag non-robot team members into the Mission Commander and Executive Officer boxes.",
+        "Drag every team member (including Commander, Exec, and robots) into a movement box:",
+        "Point Man (single character), Center, Overwatch, or Protected Specialists.",
+        "Click any character icon to inspect their stats, skills, and equipment.",
+        "Once Commander, Exec, and all team positions are assigned, click PROCEED.",
+        "Click anywhere to continue..."
+    ])
+    instructions.append([
+        "During the Voyage stage, the team trains while traveling to the destination.",
         "Various events may affect your team's effectiveness on the mission.",
         "Click anywhere to continue..."
     ])
     instructions.append([
-        "In the fourth stage, your team arrives at the mission point and begins their task.",
+        "In the Mission stage, your team arrives at the mission point and begins their task.",
         "You can only watch as they proceed.",
         "Injuries degrade a team member's ability to use skills and fight.",
         "If they fail, the game ends.",
         "Click anywhere to continue..."
     ])
     instructions.append([
-        "In the fifth phase, the team travels back to the home port.",
+        "In the Return Voyage phase, the team travels back to the home port.",
         "Various events may still affect your mission's success.",
         "Click anywhere to continue..."
     ])
     instructions.append([
-        "In the sixth and final phase, your score is displayed."
+        "In the final Score phase, your score is displayed.",
         "",
         "Good luck.",
         "Click PROCEED to continue."
     ])
 
     # Split the text into multiple screens
-    instruction_screens = [instructions[i] for i in range(0, 7)]
+    instruction_screens = list(instructions)
 
     # Load and play background music
     play_background_music("music/track3.ogg", pygame)

@@ -11,6 +11,8 @@ from Utils import (
     DARK_CYAN,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
+    color_for_stat,
+    color_for_skill,
     resource_path,
     play_background_music,
     save_team_named,
@@ -61,6 +63,8 @@ POINT_MAN_BOX_RECT = pygame.Rect(280, 260, 240, 135)
 CENTER_BOX_RECT = pygame.Rect(280, 415, 745, 140)
 OVERWATCH_BOX_RECT = pygame.Rect(280, 575, 745, 140)
 PROTECTED_BOX_RECT = pygame.Rect(280, 735, 745, 140)
+
+INFO_BOX_RECT = pygame.Rect(1045, 85, 435, 790)
 
 COMMAND_BOX_RECTS = {
     ROLE_COMMANDER: COMMANDER_BOX_RECT,
@@ -178,6 +182,66 @@ def can_proceed(team: list) -> bool:
     return all(getattr(m, "position", None) in FORMATION_POSITIONS for m in team)
 
 
+_INSPECT_STATS_ORDER = (
+    ("strength", "Strength", 1),
+    ("intelligence", "Intelligence", 1),
+    ("willpower", "Willpower", 1),
+    ("coordination", "Coordination", 1),
+    ("charisma", "Charisma", 1),
+    ("courage", "Courage", 1),
+    ("offense", "Offense", 1),
+    ("defense", "Defense", 1),
+    ("deception", "Deception", 1),
+    ("evasion", "Evasion", 1),
+    ("analyze", "Analysis", 1),
+    ("max_health", "Max Health", 2),
+    ("movement", "Movement", 3),
+    ("meleecombat", "Melee", 2),
+    ("surprise", "Surprise", 2),
+    ("leadership", "Leadership", 3),
+    ("perception", "Perception", 1),
+)
+
+
+def get_character_inspection_data(character: Character) -> dict:
+    """Return structured stats, skills, and equipment data for the character info box."""
+    is_robot = character.is_robot()
+    max_hp = (
+        character.max_life
+        if (is_robot and getattr(character, "max_life", 0) > 0)
+        else character.stats.get("max_health", 0)
+    )
+
+    stats_list = []
+    for stat_key, label, scale in _INSPECT_STATS_ORDER:
+        if stat_key in character.stats:
+            val = character.stats[stat_key]
+            scaled_val = round(val / scale) if scale > 1 else val
+            stats_list.append((stat_key, label, val, color_for_stat(scaled_val)))
+
+    skills_dict = getattr(character, "skills", {}) or {}
+    skills_list = [
+        (skill_name, proficiency, color_for_skill(proficiency))
+        for skill_name, proficiency in skills_dict.items()
+    ]
+
+    equipment_list = list(getattr(character, "equipment", []) or [])
+
+    return {
+        "name": character.name,
+        "occupation": getattr(character, "occupation", character.type),
+        "is_robot": is_robot,
+        "current_health": getattr(character, "current_health", max_hp),
+        "max_health": max_hp,
+        "morale": getattr(character, "morale", 100),
+        "command_role": ROLE_LABELS.get(getattr(character, "command_role", None)),
+        "position": POSITION_LABELS.get(getattr(character, "position", None)),
+        "stats": stats_list,
+        "skills": skills_list,
+        "equipment": equipment_list,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Pygame stage screen
 # ---------------------------------------------------------------------------
@@ -211,6 +275,7 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
     font_path = resource_path("fonts/Orbitron-Bold.ttf")
     TITLE_FONT = pygame.font.Font(font_path, 18)
     BOX_TITLE_FONT = pygame.font.Font(font_path, 15)
+    INFO_FONT = pygame.font.Font(font_path, 13)
     NAME_FONT = pygame.font.Font(font_path, 12)
 
     EXIT_TEXT = TITLE_FONT.render("EXIT", True, RED)
@@ -219,7 +284,8 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
     status_message = ""
     status_timer = 0
 
-    # Drag state
+    # Drag and selection state
+    selected_character = None
     dragging_char = None
     dragging_source = None  # ("pool", None) | ("command", role) | ("formation", pos)
     dragging_rect = None
@@ -274,10 +340,117 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
             screen.blit(member.portrait, rect.topleft)
         else:
             pygame.draw.rect(screen, DARK_CYAN, rect)
-        pygame.draw.rect(screen, CYAN, rect, 1)
+        border_col = GREEN if member is selected_character else CYAN
+        border_w = 2 if member is selected_character else 1
+        pygame.draw.rect(screen, border_col, rect, border_w)
         short_name = member.name.split()[0] if member.name else ""
         name_surf = NAME_FONT.render(short_name, True, WHITE)
         screen.blit(name_surf, name_surf.get_rect(centerx=rect.centerx, top=rect.bottom + 3))
+
+    def draw_character_info_box(character: Character | None):
+        info_header = TITLE_FONT.render("CHARACTER DETAILS", True, WHITE)
+        screen.blit(info_header, (INFO_BOX_RECT.x, 55))
+
+        box_bg = pygame.Surface(INFO_BOX_RECT.size, pygame.SRCALPHA)
+        box_bg.fill((10, 26, 40, 205))
+        screen.blit(box_bg, INFO_BOX_RECT.topleft)
+        pygame.draw.rect(screen, CYAN, INFO_BOX_RECT, 2, border_radius=6)
+
+        pad_x = INFO_BOX_RECT.x + 14
+        y = INFO_BOX_RECT.y + 14
+
+        if character is None:
+            hint1 = INFO_FONT.render("Click any character icon", True, CYAN)
+            hint2 = INFO_FONT.render("to view their stats, skills,", True, CYAN)
+            hint3 = INFO_FONT.render("and equipped items.", True, CYAN)
+            screen.blit(hint1, (pad_x, y + 20))
+            screen.blit(hint2, (pad_x, y + 44))
+            screen.blit(hint3, (pad_x, y + 68))
+            return
+
+        data = get_character_inspection_data(character)
+
+        # Header: Name & Occupation
+        occ = data["occupation"].capitalize() if data["occupation"] else ""
+        title_line = f"{data['name']}  ({occ})"
+        screen.blit(BOX_TITLE_FONT.render(title_line, True, CYAN), (pad_x, y))
+        y += 22
+
+        # Health & Morale
+        hp_line = f"HP: {data['current_health']}/{data['max_health']}    Morale: {data['morale']}"
+        screen.blit(INFO_FONT.render(hp_line, True, GREEN), (pad_x, y))
+        y += 20
+
+        # Assigned Command Role & Formation Position
+        role_str = data["command_role"] or "None"
+        pos_str = data["position"] or "Unassigned"
+        assign_line = f"Role: {role_str}  |  Pos: {pos_str}"
+        screen.blit(NAME_FONT.render(assign_line, True, WHITE), (pad_x, y))
+        y += 22
+
+        pygame.draw.line(
+            screen, DARK_CYAN,
+            (INFO_BOX_RECT.x + 10, y),
+            (INFO_BOX_RECT.right - 10, y),
+            2,
+        )
+        y += 10
+
+        # Two columns: Stats on left, Skills on right
+        col_stats_x = pad_x
+        col_skills_x = INFO_BOX_RECT.x + 215
+        section_top_y = y
+
+        screen.blit(BOX_TITLE_FONT.render("Stats", True, WHITE), (col_stats_x, section_top_y))
+        stat_y = section_top_y + 22
+        for _, label, val, col in data["stats"]:
+            stat_surf = NAME_FONT.render(f"{label}: {val}", True, col)
+            screen.blit(stat_surf, (col_stats_x, stat_y))
+            stat_y += 19
+
+        screen.blit(BOX_TITLE_FONT.render("Skills", True, WHITE), (col_skills_x, section_top_y))
+        skill_y = section_top_y + 22
+        if data["skills"]:
+            for skill_name, val, col in data["skills"]:
+                skill_surf = NAME_FONT.render(f"{skill_name}: {val}", True, col)
+                screen.blit(skill_surf, (col_skills_x, skill_y))
+                skill_y += 19
+        else:
+            screen.blit(NAME_FONT.render("None", True, (150, 170, 190)), (col_skills_x, skill_y))
+            skill_y += 19
+
+        # Equipment section below stats/skills
+        equip_y = max(stat_y, skill_y) + 12
+        pygame.draw.line(
+            screen, DARK_CYAN,
+            (INFO_BOX_RECT.x + 10, equip_y),
+            (INFO_BOX_RECT.right - 10, equip_y),
+            2,
+        )
+        equip_y += 8
+        screen.blit(BOX_TITLE_FONT.render("Equipment", True, WHITE), (pad_x, equip_y))
+        equip_y += 24
+
+        if data["equipment"]:
+            for item in data["equipment"]:
+                if equip_y + 38 > INFO_BOX_RECT.bottom - 8:
+                    break
+                icon = getattr(item, "icon", None)
+                if icon is not None:
+                    scaled_icon = pygame.transform.scale(icon, (34, 34))
+                    screen.blit(scaled_icon, (pad_x, equip_y))
+                    text_x = pad_x + 42
+                else:
+                    text_x = pad_x
+                item_name_surf = INFO_FONT.render(item.name, True, CYAN)
+                screen.blit(item_name_surf, (text_x, equip_y + 2))
+                desc = getattr(item, "description", "") or ""
+                if desc:
+                    desc_surf = NAME_FONT.render(desc[:42], True, WHITE)
+                    screen.blit(desc_surf, (text_x, equip_y + 18))
+                equip_y += 40
+        else:
+            screen.blit(NAME_FONT.render("No equipment", True, (150, 170, 190)), (pad_x, equip_y))
 
     clock = pygame.time.Clock()
     running = True
@@ -310,6 +483,7 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                 clicked = False
                 for member, rect in pool_slots:
                     if rect.collidepoint(event.pos):
+                        selected_character = member
                         dragging_char = member
                         dragging_source = ("pool", None)
                         dragging_rect = rect.copy()
@@ -320,6 +494,7 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                 if not clicked:
                     for role, (member, rect) in command_slots.items():
                         if rect.collidepoint(event.pos):
+                            selected_character = member
                             dragging_char = member
                             dragging_source = ("command", role)
                             dragging_rect = rect.copy()
@@ -331,6 +506,7 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                     for pos, member_list in formation_slots.items():
                         for member, rect in member_list:
                             if rect.collidepoint(event.pos):
+                                selected_character = member
                                 dragging_char = member
                                 dragging_source = ("formation", pos)
                                 dragging_rect = rect.copy()
@@ -436,6 +612,9 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
 
             for member, rect in formation_slots[pos]:
                 draw_portrait_with_name(member, rect)
+
+        # Character inspection box on the right
+        draw_character_info_box(selected_character)
 
         # Draw active dragged portrait on top
         if dragging_char and dragging_rect and getattr(dragging_char, "portrait", None):
