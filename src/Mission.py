@@ -385,6 +385,13 @@ async def _apply_challenge_penalty(team, penalty, screen, font):
                 m.demoralize(amt)
 
 
+def get_specialist_position_bonus(member) -> int:
+    """Return +10 difficulty modifier if *member* is alive and in the Protected Specialists position."""
+    if member is not None and member.is_alive() and getattr(member, "position", None) == "protected":
+        return 10
+    return 0
+
+
 async def resolve_procedural_challenge(team, archetype_key, screen, font):
     """Universal multi-approach challenge resolver driven by CHALLENGE_ARCHETYPES."""
     archetype = CHALLENGE_ARCHETYPES[archetype_key]
@@ -438,9 +445,9 @@ async def resolve_procedural_challenge(team, archetype_key, screen, font):
         else:
             stat_name = approach.get("stat")
             skill_name = approach.get("skill")
-            diff = approach.get("diff", 0)
             member = determine_best_team_member(team, stat_name, skill_name)
             if member:
+                diff = approach.get("diff", 0) + get_specialist_position_bonus(member)
                 attempted_any = True
                 attempt_text = approach.get("attempt_text", f"attempts to use {skill_name or stat_name}:")
                 await type_out_text(screen, f"{member.name} {attempt_text}", font)
@@ -488,12 +495,13 @@ async def calculate_goal_outcome_hack(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, None, "Hacking", 0)
+    diff = 0 + get_specialist_position_bonus(member)
+    skill_check = member.stat_and_skill_check(roll, None, "Hacking", diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, "Hacking", None, 0), font, color)
+    await type_out_text(screen, roll_string(roll, "Hacking", None, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} gets access and downloads secrets (+10 mission points).\nTheir skill has been strengthened."
@@ -514,12 +522,13 @@ async def calculate_goal_outcome_explosives(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, None, "Explosives", 0)
+    diff = 0 + get_specialist_position_bonus(member)
+    skill_check = member.stat_and_skill_check(roll, None, "Explosives", diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, "Explosives", None, 0), font, color)
+    await type_out_text(screen, roll_string(roll, "Explosives", None, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} detonates a shaped charge and forces the vault open (+10 mission points).\nTheir skill has been strengthened."
@@ -540,12 +549,13 @@ async def calculate_goal_outcome_cutter(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, "coordination", None, 10)
+    diff = 10 + get_specialist_position_bonus(member)
+    skill_check = member.stat_and_skill_check(roll, "coordination", None, diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, None, "coordination", 10), font, color)
+    await type_out_text(screen, roll_string(roll, None, "coordination", diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points)."
@@ -565,12 +575,13 @@ async def calculate_goal_outcome_negotiation(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.skill_check(roll, "Negotiation", 10)
+    diff = 10 + get_specialist_position_bonus(member)
+    skill_check = member.skill_check(roll, "Negotiation", diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, "Negotiation", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Negotiation", None, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} convinces the AI to cooperate and grant access (+10 mission points).\nTheir skill has been strengthened."
@@ -591,12 +602,13 @@ async def calculate_goal_outcome_diplomacy(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.skill_check(roll, "Diplomacy", None, 10)
+    diff = 10 + get_specialist_position_bonus(member)
+    skill_check = member.skill_check(roll, "Diplomacy", diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, "Diplomacy", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Diplomacy", None, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} establishes a diplomatic accord with the AI, gaining access (+10 mission points).\nTheir skill has been strengthened."
@@ -617,12 +629,13 @@ async def calculate_goal_outcome_espionage(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, None, "Espionage", 10)
+    diff = 10 + get_specialist_position_bonus(member)
+    skill_check = member.stat_and_skill_check(roll, None, "Espionage", diff)
     if skill_check:
         color = GREEN
     else:
         color = RED
-    await type_out_text(screen, roll_string(roll, "Espionage", None, 10), font, color)
+    await type_out_text(screen, roll_string(roll, "Espionage", None, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} succeeds in the operation (+10 mission points)."
@@ -727,11 +740,12 @@ async def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, 
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    skill_check = member.stat_and_skill_check(roll, stat_name, skill_name, 0)
+    diff = 0 + get_specialist_position_bonus(member)
+    skill_check = member.stat_and_skill_check(roll, stat_name, skill_name, diff)
     if skill_check:
         color = GREEN
     else: color = RED
-    await type_out_text(screen, roll_string(roll, skill_name, stat_name, 0), font, color)
+    await type_out_text(screen, roll_string(roll, skill_name, stat_name, diff), font, color)
 
     if skill_check:
         result_text = f"{member.name} gets access and downloads secrets (+10 mission points).\nTheir skill has been strengthened."
@@ -775,7 +789,8 @@ async def calculate_outcome_derelict_bridge(team, stat_name, skill_name, screen,
         member = determine_best_team_member(team, "intelligence", skill)
         if member and member.has_skill(skill):
             await type_out_text(screen, f"{member.name} attempts to extract the flight core using {skill}:", font)
-            if await standard_skill_check(member, screen, "intelligence", skill, font, 10):
+            diff = 10 + get_specialist_position_bonus(member)
+            if await standard_skill_check(member, screen, "intelligence", skill, font, diff):
                 member.mission_points += 10
                 member.increase_skill(skill, 4)
                 mission_failed = False

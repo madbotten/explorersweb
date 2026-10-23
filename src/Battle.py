@@ -64,7 +64,19 @@ async def clear_screen_for_round(round, phase, screen, font):
     pygame.display.flip()
     await asyncio.sleep(0.6)
 
-def initiative(team, enemies, brazen_bonus=0):
+def _command_tactics_score(member) -> float:
+    """Return tactical command bonus from *member*: max(Squad Tactics, Military Science) / 10 + leadership / 30."""
+    if member is None or not member.is_alive() or member.is_robot():
+        return 0.0
+    tactics = max(
+        member.get_effective_skill_level("Squad Tactics"),
+        member.get_effective_skill_level("Military Science"),
+    )
+    leadership = member.get_effective_stat_level("leadership")
+    return (tactics / 10.0) + (leadership / 30.0)
+
+
+def initiative(team, enemies, brazen_bonus=0, round_num=1):
     all_characters = team + enemies
 
     # Calculate scout bonus for the team (+15 if scoutbot is Point Man, else +5)
@@ -74,12 +86,52 @@ def initiative(team, enemies, brazen_bonus=0):
         if member.is_alive() and member.occupation == "scoutbot"
     )
 
-    # Calculate squad tactics bonus for the team
-    member = determine_best_team_member(team, None, "Squad Tactics")
-    if member:
-        squad_tactics_bonus = member.get_effective_skill_level("Squad Tactics") / 10
+    # Calculate command / squad tactics bonus for the team
+    has_command_roles = any(
+        getattr(m, "command_role", None) in ("commander", "exec") for m in team
+    )
+    if has_command_roles:
+        cmd = next(
+            (
+                m for m in team
+                if m.is_alive()
+                and not m.is_robot()
+                and getattr(m, "command_role", None) == "commander"
+            ),
+            None,
+        )
+        xo = next(
+            (
+                m for m in team
+                if m.is_alive()
+                and not m.is_robot()
+                and getattr(m, "command_role", None) == "exec"
+            ),
+            None,
+        )
+        if cmd is not None:
+            squad_tactics_bonus = _command_tactics_score(cmd) + (
+                0.5 * _command_tactics_score(xo) if xo is not None else 0.0
+            )
+        elif xo is not None:
+            squad_tactics_bonus = _command_tactics_score(xo)
+        else:
+            fallback_leader = get_active_commander(team)
+            squad_tactics_bonus = _command_tactics_score(fallback_leader)
     else:
-        squad_tactics_bonus = 0
+        member = determine_best_team_member(team, None, "Squad Tactics")
+        if member:
+            squad_tactics_bonus = member.get_effective_skill_level("Squad Tactics") / 10
+        else:
+            squad_tactics_bonus = 0
+
+    # Round 1 no-Point-Man penalty (-10) if the team has formation positions assigned
+    # but no living team member occupies Point Man
+    has_formation = any(getattr(m, "position", None) is not None for m in team)
+    has_living_point_man = any(
+        m.is_alive() and getattr(m, "position", None) == "point_man" for m in team
+    )
+    no_point_penalty = -10 if (round_num == 1 and has_formation and not has_living_point_man) else 0
 
     # Calculate initiative roll for each character
     initiative_rolls = []
@@ -89,6 +141,7 @@ def initiative(team, enemies, brazen_bonus=0):
             roll += scout_bonus
             roll += squad_tactics_bonus
             roll += brazen_bonus  # bonus when team chose "Be brazen"
+            roll += no_point_penalty
             if character.is_alive() and getattr(character, "position", None) == "point_man":
                 roll += 20
         initiative_rolls.append((character, roll))
@@ -111,7 +164,7 @@ def _best_weapon_rate(character, phase: str) -> int:
             else character.chosen_melee_weapon)
     return item.rate if item is not None else 1
 
-def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
+def initiative_ranged(team, enemies, brazen_bonus=0, round_num=1) -> list:
     """Build the ranged-phase action list.
 
     The base initiative order is computed first.  Then, for each extra shot
@@ -119,7 +172,7 @@ def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
     level is appended again in base-order.  Characters with rate 1 appear
     once; rate 2 twice; rate 5 five times.
     """
-    base = initiative(team, enemies, brazen_bonus)
+    base = initiative(team, enemies, brazen_bonus, round_num=round_num)
     extended = list(base)
     for shot in range(2, 6):
         for character in base:
@@ -127,9 +180,9 @@ def initiative_ranged(team, enemies, brazen_bonus=0) -> list:
                 extended.append(character)
     return extended
 
-def initiative_melee(team, enemies, brazen_bonus=0) -> list:
+def initiative_melee(team, enemies, brazen_bonus=0, round_num=1) -> list:
     """Build the melee-phase action list using the character's chosen melee weapon rate."""
-    base = initiative(team, enemies, brazen_bonus)
+    base = initiative(team, enemies, brazen_bonus, round_num=round_num)
     extended = list(base)
     for shot in range(2, 6):
         for character in base:
@@ -410,7 +463,7 @@ class TeamBattle:
             if target.has_item("holofier"):
                 holofier_item = target.get_item("holofier")
                 adjusted_roll += round(holofier_item.effect * 0.6) if holofier_item else 15
-            if character.get_effective_skill_level("Martial Arts") > 0:
+            if character.get_effective_skill_level("Martial Arts", learning=False) > 0:
                 adjusted_roll -= 10 + (character.get_effective_skill_level("Martial Arts") / 10)
             if self.round == 1 and not character.is_pirate() and getattr(character, "position", None) == "point_man":
                 adjusted_roll -= 15
@@ -421,6 +474,16 @@ class TeamBattle:
                 and getattr(target, "occupation", None) == "scoutbot"
             ):
                 adjusted_roll += 15
+            if (
+                character.is_pirate()
+                and getattr(target, "position", None) == "center"
+                and sum(
+                    1
+                    for m in (self.context.team or [])
+                    if m.is_alive() and getattr(m, "position", None) == "center"
+                ) >= 2
+            ):
+                adjusted_roll += 8
             adjusted_roll = adjusted_roll * target_melee/melee
             if adjusted_roll < offense:
                 hit = True
@@ -594,6 +657,15 @@ class TeamBattle:
                 and getattr(target, "occupation", None) == "scoutbot"
             ):
                 adjusted_roll += 15
+            if (
+                not character.is_pirate()
+                and getattr(character, "position", None) == "overwatch"
+                and any(
+                    m.is_alive() and getattr(m, "position", None) in ("center", "point_man")
+                    for m in (self.context.team or [])
+                )
+            ):
+                adjusted_roll -= 8
 
             adjusted_roll = adjusted_roll * target_evasion / offense
             if adjusted_roll < offense:
@@ -708,7 +780,7 @@ class TeamBattle:
             await asyncio.sleep(0)  # yield to browser at start of each round
             await clear_screen_for_round(self.round, "RANGED", self.context.screen, self.context.font)
             # RANGED PHASE — initiative includes extra shots from weapon rate
-            ranged_order = initiative_ranged(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
+            ranged_order = initiative_ranged(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0), round_num=self.round)
             for character in ranged_order:
                 await asyncio.sleep(0)  # yield to browser for each character action
                 if character.is_alive():
@@ -721,7 +793,7 @@ class TeamBattle:
             if not self.battle_ended():
                 await clear_screen_for_round(self.round, "MELEE", self.context.screen, self.context.font)
                 await asyncio.sleep(0.8)
-                melee_order = initiative_melee(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0))
+                melee_order = initiative_melee(self.context.team, self.context.enemies, getattr(self.context, "brazen_bonus", 0), round_num=self.round)
                 for character in melee_order:
                     await asyncio.sleep(0)  # yield to browser for each character action
                     if character.is_alive():

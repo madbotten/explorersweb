@@ -8,6 +8,11 @@ These are the files for **Explorers**, a science fiction tactical RPG management
 2. **Mission Orders** — Review the mission briefing and choose your team's operational methods, means, and options.
 3. **Equip Team** — Purchase weapons, armor, gadgets, and up to 4 support robots for your team.
 4. **Position Team** — Assign a **Mission Commander** and **Executive Officer** (non-robots only) and place every team member (including Commander, Executive Officer, and robots) into a movement formation box (**Point Man**, **Center**, **Overwatch**, or **Protected Specialists**). Click any character icon to inspect their stats, skills, and equipment.
+   - **Mission Commander & Executive Officer**: Lead the crew during the voyage and direct squad tactics in battle. If the Mission Commander falls, the Executive Officer assumes command.
+   - **Point Man**: Scouts ahead to help the team avoid detection and strike quickly when combat begins, though they draw heavy early attention from enemies. Scout robots are especially effective in this role, while leaving the position empty leaves the squad vulnerable to being caught off guard.
+   - **Center**: Forms the main battle line, engaging enemies in close quarters, shielding the rear positions, and supporting one another when fighting side by side.
+   - **Overwatch**: Provides ranged covering fire from behind the front line while avoiding close-quarters combat as long as the Center holds.
+   - **Protected Specialists**: Kept shielded behind the front and support lines so they avoid the brunt of enemy attacks and stay fresh to handle non-combat challenges.
 5. **Voyage** — Watch your team train, interact, and handle shipboard events on the outbound journey.
 6. **Mission** — Follow your team through rooms, challenges, and tactical battles to achieve the mission objective.
 7. **Return Voyage** — Navigate the journey back to base while guarding against conspiracies and hazards.

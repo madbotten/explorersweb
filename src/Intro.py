@@ -77,8 +77,12 @@ async def introduction3() :
     instructions.append([
         "Next, in the Position Team stage, you assign command roles and movement positions.",
         "Drag non-robot team members into the Mission Commander and Executive Officer boxes.",
+        "The Commander leads the crew and directs battle tactics; the Exec takes over if the Commander falls.",
         "Drag every team member (including Commander, Exec, and robots) into a movement box:",
-        "Point Man (single character), Center, Overwatch, or Protected Specialists.",
+        "Point Man scouts ahead and strikes fast, but draws early enemy fire. Scout robots excel here.",
+        "Center forms the main line, holding off close-quarters attacks and fighting stronger together.",
+        "Overwatch delivers ranged covering fire from behind the Center while avoiding melee.",
+        "Protected Specialists are shielded in the rear so they stay fresh for non-combat challenges.",
         "Click any character icon to inspect their stats, skills, and equipment.",
         "Once Commander, Exec, and all team positions are assigned, click PROCEED.",
         "Click anywhere to continue..."

@@ -2249,6 +2249,284 @@ class TestRolePositionEffectsPhase1(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(mock_dmg.called)
 
 
+# ---------------------------------------------------------------------------
+# Command Roles & Formation Effects — Phase 2 Tests
+# ---------------------------------------------------------------------------
+
+from Event import team_evades_notice
+from Mission import get_specialist_position_bonus, calculate_goal_outcome_hack
+
+
+class TestRolePositionEffectsPhase2(unittest.IsolatedAsyncioTestCase):
+
+    def test_rec_a_stealth_point_man_double_weight_and_scoutbot_scanner_bonus(self):
+        """Point Man's evasion counts double in team_evades_notice, and a scoutbot on point adds +10."""
+        agile = make_human_controlled(
+            strength=50, willpower=50, coordination=80,
+            intelligence=80, courage=50, charisma=50,
+        )
+        agile.skills = {}
+        agile.equipment = []
+
+        other = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        other.skills = {}
+        other.equipment = []
+
+        # Both in Center: avg_evasion = (80 + 50) / 2 = 65 -> roll 68 fails
+        agile.position = POS_CENTER
+        other.position = POS_CENTER
+        with patch("Event.random.randint", return_value=68):
+            self.assertFalse(team_evades_notice([agile, other]))
+
+        # Agile in Point Man: avg_evasion = (80*2 + 50) / 3 = 70 -> roll 68 passes
+        agile.position = POS_POINT_MAN
+        with patch("Event.random.randint", return_value=68):
+            self.assertTrue(team_evades_notice([agile, other]))
+
+        # Scoutbot with evasion 50 in Center vs Point Man (+10 scanner bonus)
+        scout = make_scoutbot_simple()
+        scout.stats["intelligence"] = 50
+        scout.stats["coordination"] = 50
+        scout.stats["strength"] = 50
+        scout.skills = {}
+        scout.equipment = []
+
+        scout.position = POS_CENTER
+        with patch("Event.random.randint", return_value=55):
+            # avg_evasion = 50 -> roll 55 fails
+            self.assertFalse(team_evades_notice([scout, other]))
+
+        scout.position = POS_POINT_MAN
+        with patch("Event.random.randint", return_value=55):
+            # avg_evasion = 50 + 10 = 60 -> roll 55 passes
+            self.assertTrue(team_evades_notice([scout, other]))
+
+    def test_rec_a_no_point_man_round_1_initiative_penalty(self):
+        """When formation positions are assigned and no living member is in Point Man, team gets -10 initiative in Round 1."""
+        h = make_human_controlled()
+        h.stats["surprise"] = 0
+        h.skills = {}
+        h.position = POS_CENTER
+
+        enemy = make_human_controlled()
+        enemy.stats["surprise"] = -5
+        enemy.skills = {}
+
+        # Round 1 without Point Man: h rolls 50 - 10 = 40 < enemy (50 - 5 = 45)
+        with patch("Battle.random.randint", return_value=50):
+            order_r1 = initiative([h], [enemy], round_num=1)
+        self.assertGreater(order_r1.index(h), order_r1.index(enemy))
+
+        # Round 2: penalty no longer applies, h rolls 50 > enemy 45
+        with patch("Battle.random.randint", return_value=50):
+            order_r2 = initiative([h], [enemy], round_num=2)
+        self.assertLess(order_r2.index(h), order_r2.index(enemy))
+
+    async def test_rec_b_overwatch_covering_fire_bonus(self):
+        """Overwatch gets -8 to adjusted_roll on SHOOT while at least one living teammate is in Center or Point Man."""
+        ow = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        ow.skills = {}
+        ow.position = POS_OVERWATCH
+        give_item(ow, "laser pistol C")
+        ow.chosen_ranged_weapon = ow.choose_ranged_weapon()
+
+        ctr = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        ctr.skills = {}
+        ctr.position = POS_CENTER
+
+        enemy = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+        enemy.skills = {}
+
+        all_items = {"laser pistol C": make_item("laser pistol C")}
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([ow, ctr], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        # With ctr alive in Center, roll 55 -> 55 - 8 = 47 < 50 -> HIT
+        with patch("Battle.random.randint", return_value=55), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch.object(battle, "damage_target") as mock_dmg:
+            await battle.run_battle_action_shoot(ow)
+            self.assertTrue(mock_dmg.called)
+
+        # With ctr dead (no front line), roll 55 -> 55 >= 50 -> MISS
+        ctr.current_health = 0
+        with patch("Battle.random.randint", return_value=55), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch.object(battle, "damage_target") as mock_dmg:
+            await battle.run_battle_action_shoot(ow)
+            self.assertFalse(mock_dmg.called)
+
+    async def test_rec_c_center_line_formation_melee_defense(self):
+        """When 2+ living teammates occupy Center, enemy melee attacks against Center have +8 added to adjusted_roll."""
+        c1 = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        c1.skills = {}
+        c1.position = POS_CENTER
+        c1.set_rect(pygame.Rect(0, 0, 60, 70))
+
+        c2 = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        c2.skills = {}
+        c2.position = POS_CENTER
+        c2.set_rect(pygame.Rect(0, 0, 60, 70))
+
+        enemy = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+        enemy.skills = {}
+        enemy.learning_skills_dict = {}
+        give_item(enemy, "slicer C")
+        enemy.chosen_melee_weapon = enemy.choose_melee_weapon()
+
+        all_items = {"slicer C": make_item("slicer C")}
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([c1, c2], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        # With both c1 and c2 alive in Center, roll 45 -> 45 + 8 = 53 >= 50 -> MISS
+        start_total_hp = c1.current_health + c2.current_health
+        with patch("Battle.random.randint", return_value=45), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_pirate_action_result"), \
+             patch("Battle.draw_life_bar"), \
+             patch("Battle.battle_display_action_damage"), \
+             patch("Battle.battle_display_character_hit"):
+            await battle.run_battle_action_melee(enemy)
+        self.assertEqual(c1.current_health + c2.current_health, start_total_hp)
+
+        # With c2 dead (only 1 in Center), roll 45 < 50 -> HIT
+        c2.current_health = 0
+        start_c1_hp = c1.current_health
+        with patch("Battle.random.randint", return_value=45), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_pirate_action_result"), \
+             patch("Battle.draw_life_bar"), \
+             patch("Battle.battle_display_action_damage"), \
+             patch("Battle.battle_display_character_hit"):
+            await battle.run_battle_action_melee(enemy)
+        self.assertLess(c1.current_health, start_c1_hp)
+
+    async def test_rec_d_protected_specialists_non_combat_skill_bonus(self):
+        """Living Protected Specialists gain +10 difficulty modifier bonus on non-combat challenges and goal checks."""
+        spec = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        spec.skills = {"Hacking": 50}
+        spec.position = POS_CENTER
+        self.assertEqual(get_specialist_position_bonus(spec), 0)
+
+        # Goal room hack with roll=55, Hacking=50: fails in Center (55 >= 50), passes in Protected (55 < 60)
+        screen, font = make_dummy_screen(), make_dummy_font()
+        with patch("Mission.type_out_text"), \
+             patch("Mission.emit_character_image_at_text_offset"), \
+             patch("Mission.random.randint", return_value=55):
+            self.assertFalse(await calculate_goal_outcome_hack(spec, screen, font))
+
+        spec.position = POS_PROTECTED
+        spec.skills = {"Hacking": 50}
+        self.assertEqual(get_specialist_position_bonus(spec), 10)
+        with patch("Mission.type_out_text"), \
+             patch("Mission.emit_character_image_at_text_offset"), \
+             patch("Mission.random.randint", return_value=55):
+            self.assertTrue(await calculate_goal_outcome_hack(spec, screen, font))
+
+        # Also verify resolve_procedural_challenge passes diff + 10 to standard_skill_check
+        captured_diffs = []
+
+        async def fake_skill_check(member, scr, stat_name, skill_name, fnt, diff):
+            captured_diffs.append(diff)
+            return True
+
+        with patch("Mission.type_out_text"), \
+             patch("Mission.standard_skill_check", side_effect=fake_skill_check):
+            await resolve_procedural_challenge([spec], "LOCKED_PORTAL", screen, font)
+        self.assertEqual(captured_diffs, [10])
+
+    def test_rec_e_commander_and_exec_tactical_command_bonus(self):
+        """Commander provides full tactical command bonus plus half from Exec; Exec provides full if Commander is dead."""
+        cmd = make_human_controlled()
+        cmd.stats["surprise"] = 0
+        cmd.stats["leadership"] = 90  # 90 / 30 = 3
+        cmd.skills = {"Squad Tactics": 60}  # 60 / 10 = 6 -> total cmd score = 9
+        cmd.command_role = ROLE_COMMANDER
+        cmd.position = POS_POINT_MAN
+
+        xo = make_human_controlled()
+        xo.stats["surprise"] = 0
+        xo.stats["leadership"] = 60  # 60 / 30 = 2
+        xo.skills = {"Military Science": 40}  # 40 / 10 = 4 -> total xo score = 6 (half = 3)
+        xo.command_role = ROLE_EXEC
+        xo.position = POS_CENTER
+
+        enemy = make_human_controlled()
+        enemy.stats["surprise"] = 10  # enemy roll = 50 + 10 = 60
+        enemy.skills = {}
+
+        # With Commander alive (9) + half Exec (3) = +12: xo in Center rolls 50 + 12 = 62 > enemy 60
+        with patch("Battle.random.randint", return_value=50):
+            order_both = initiative([cmd, xo], [enemy], round_num=2)
+        self.assertLess(order_both.index(xo), order_both.index(enemy))
+
+        # When Commander dies, Exec provides full +6 (not +3): against enemy with surprise 5 (roll 55), xo rolls 50 + 6 = 56 > 55
+        cmd.current_health = 0
+        enemy.stats["surprise"] = 5
+        with patch("Battle.random.randint", return_value=50):
+            order_xo_only = initiative([cmd, xo], [enemy], round_num=2)
+        self.assertLess(order_xo_only.index(xo), order_xo_only.index(enemy))
+
+    def test_instructions_plain_language_without_numbers(self):
+        """README.md and src/Intro.py describe roles and positions in plain language without numerical modifiers."""
+        with open(os.path.join(os.path.dirname(__file__), "README.md"), "r", encoding="utf-8") as f:
+            readme_text = f.read()
+        with open(os.path.join(os.path.dirname(__file__), "src", "Intro.py"), "r", encoding="utf-8") as f:
+            intro_text = f.read()
+
+        for phrase in ("Mission Commander", "Executive Officer", "Point Man", "Center", "Overwatch", "Protected Specialists"):
+            self.assertIn(phrase, readme_text)
+            self.assertIn(phrase, intro_text)
+
+        for forbidden_number in ("+20", "-15", "+15", "0.25", "3.0", "+8", "-8"):
+            self.assertNotIn(forbidden_number, readme_text)
+            self.assertNotIn(forbidden_number, intro_text)
+
+
 if __name__ == "__main__":
     unittest.main()
 

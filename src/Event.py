@@ -24,7 +24,20 @@ def team_evades_notice(team):
     Returns True if the team slips by unnoticed."""
     if not team:
         return False
-    avg_evasion = sum(m.get_effective_combat_evasion() for m in team) / len(team)
+    total_evasion = 0
+    total_weight = 0
+    scanner_bonus = 0
+    for m in team:
+        ev = m.get_effective_combat_evasion()
+        if m.is_alive() and getattr(m, "position", None) == "point_man":
+            total_evasion += ev * 2
+            total_weight += 2
+            if getattr(m, "occupation", None) == "scoutbot":
+                scanner_bonus += 10
+        else:
+            total_evasion += ev
+            total_weight += 1
+    avg_evasion = (total_evasion / total_weight) + scanner_bonus
     roll = random.randint(1, 100)
     evaded = roll < avg_evasion
     if DEBUG:
