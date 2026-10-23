@@ -97,9 +97,10 @@ STAGE_NAMES = {
     1: "choose",
     2: "orders",
     3: "equip",
-    4: "voyage",
-    5: "mission",
-    6: "return",
+    4: "position",
+    5: "voyage",
+    6: "mission",
+    7: "return",
 }
 STAGE_NUMBERS = {v: k for k, v in STAGE_NAMES.items()}
 

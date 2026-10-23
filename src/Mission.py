@@ -980,11 +980,11 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     LOCATION_FONT = pygame.font.Font(font_path, 18)
     SMALL_FONT = pygame.font.Font(font_path, 12)
     EXIT_RECT = pygame.Rect(1330, TOP_BAR_Y, 105, 25)
-    stage = 5
+    stage = 6
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team_named(team_name, loop, 4)
+        team_data = load_team_named(team_name, loop, 5)
     team = [Character.from_dict(data) for data in team_data]
     for member in team:
         member.team = team
@@ -1251,7 +1251,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
 
     # Save characters upon exit (only on clean exit, not team death/quit)
     if stage not in (999, 1000):
-        team_data = save_team_named(team_name, loop, 5, team)
+        team_data = save_team_named(team_name, loop, 6, team)
     else:
         team_data = None
 

@@ -19,9 +19,10 @@ STAGE_LABELS = {
     1: "Choose Team",
     2: "Mission Orders",
     3: "Equip Team",
-    4: "Voyage",
-    5: "Mission",
-    6: "Return Voyage",
+    4: "Position Team",
+    5: "Voyage",
+    6: "Mission",
+    7: "Return Voyage",
 }
 
 # ---------------------------------------------------------------------------

@@ -1812,6 +1812,159 @@ class TestPhase5DerelictAndKlackons(unittest.TestCase):
         self.assertGreater(len(seen), 12)
 
 
+# ---------------------------------------------------------------------------
+# Position Team Stage — Phase 1 Tests
+# ---------------------------------------------------------------------------
+
+from PositionTeam import (
+    ROLE_COMMANDER,
+    ROLE_EXEC,
+    POS_POINT_MAN,
+    POS_CENTER,
+    POS_OVERWATCH,
+    POS_PROTECTED,
+    assign_command_role,
+    clear_command_role,
+    assign_formation_position,
+    unassign_formation_position,
+    normalize_team_positions,
+    can_proceed,
+)
+from Utils import STAGE_NAMES
+from LoadGame import STAGE_LABELS
+
+
+class TestPositionTeamPhase1(unittest.TestCase):
+
+    def test_character_serialization_preserves_role_and_position(self):
+        """Character.to_dict() and from_dict() round-trip command_role and position."""
+        c = make_human(60, 60)
+        c.command_role = ROLE_COMMANDER
+        c.position = POS_OVERWATCH
+
+        d = c.to_dict()
+        self.assertEqual(d["command_role"], ROLE_COMMANDER)
+        self.assertEqual(d["position"], POS_OVERWATCH)
+
+        with patch("Character.pygame.image.load", return_value=pygame.Surface((70, 80))):
+            restored = Character.from_dict(d)
+        self.assertEqual(restored.command_role, ROLE_COMMANDER)
+        self.assertEqual(restored.position, POS_OVERWATCH)
+
+    def test_assign_command_role_blocks_robots_and_preserves_position(self):
+        """Robots cannot be Commander or Exec; human assignment preserves formation position."""
+        h1 = make_human(50, 50)
+        h2 = make_human(50, 50)
+        bot = make_robot(200)
+        team = [h1, h2, bot]
+
+        ok_bot_cmd, err_cmd = assign_command_role(team, bot, ROLE_COMMANDER)
+        self.assertFalse(ok_bot_cmd)
+        self.assertIsNotNone(err_cmd)
+        self.assertIsNone(bot.command_role)
+
+        ok_bot_exec, _ = assign_command_role(team, bot, ROLE_EXEC)
+        self.assertFalse(ok_bot_exec)
+        self.assertIsNone(bot.command_role)
+
+        h1.position = POS_CENTER
+        ok_h1, _ = assign_command_role(team, h1, ROLE_COMMANDER)
+        self.assertTrue(ok_h1)
+        self.assertEqual(h1.command_role, ROLE_COMMANDER)
+        self.assertEqual(h1.position, POS_CENTER)
+
+    def test_assign_command_role_prevents_dual_roles_and_swaps_occupants(self):
+        """One character cannot hold both Commander and Exec; replacing swaps or clears previous holder."""
+        h1 = make_human(50, 50)
+        h2 = make_human(50, 50)
+        h3 = make_human(50, 50)
+        team = [h1, h2, h3]
+
+        assign_command_role(team, h1, ROLE_COMMANDER)
+        # Moving h1 directly to Exec while Exec is empty clears Commander on h1
+        assign_command_role(team, h1, ROLE_EXEC)
+        self.assertEqual(h1.command_role, ROLE_EXEC)
+
+        # Assign h2 to Commander, then drop h1 (Exec) onto Commander -> h1 & h2 swap roles
+        assign_command_role(team, h2, ROLE_COMMANDER)
+        assign_command_role(team, h1, ROLE_COMMANDER)
+        self.assertEqual(h1.command_role, ROLE_COMMANDER)
+        self.assertEqual(h2.command_role, ROLE_EXEC)
+
+        # Dropping unassigned h3 onto Commander clears h1's Commander role
+        assign_command_role(team, h3, ROLE_COMMANDER)
+        self.assertEqual(h3.command_role, ROLE_COMMANDER)
+        self.assertIsNone(h1.command_role)
+
+        clear_command_role(h3)
+        self.assertIsNone(h3.command_role)
+
+    def test_assign_formation_position_point_man_single_and_wide_multi(self):
+        """Point Man holds 1 character (swapping if occupied); Center/Overwatch/Protected hold multiple (including robots)."""
+        h1 = make_human(50, 50)
+        h2 = make_human(50, 50)
+        bot = make_robot(200)
+        team = [h1, h2, bot]
+
+        # Place h1 in Point Man, then replace with h2 (from unassigned) -> h1 becomes None
+        assign_formation_position(team, h1, POS_POINT_MAN)
+        self.assertEqual(h1.position, POS_POINT_MAN)
+        assign_formation_position(team, h2, POS_POINT_MAN)
+        self.assertEqual(h2.position, POS_POINT_MAN)
+        self.assertIsNone(h1.position)
+
+        # Place h1 and bot both into Center, then move h1 to Point Man -> h2 swaps into Center
+        assign_formation_position(team, h1, POS_CENTER)
+        assign_formation_position(team, bot, POS_CENTER)
+        self.assertEqual(h1.position, POS_CENTER)
+        self.assertEqual(bot.position, POS_CENTER)
+
+        assign_formation_position(team, h1, POS_POINT_MAN)
+        self.assertEqual(h1.position, POS_POINT_MAN)
+        self.assertEqual(h2.position, POS_CENTER)
+
+        unassign_formation_position(bot)
+        self.assertIsNone(bot.position)
+
+    def test_can_proceed_requires_commander_exec_and_all_formation_positions(self):
+        """can_proceed is True only when Commander, Exec, and every team member's formation position are set."""
+        h1 = make_human(50, 50)
+        h2 = make_human(50, 50)
+        bot = make_robot(200)
+        team = [h1, h2, bot]
+
+        self.assertFalse(can_proceed(team))
+
+        # Assign formation positions to everyone (even with Point Man empty)
+        assign_formation_position(team, h1, POS_CENTER)
+        assign_formation_position(team, h2, POS_OVERWATCH)
+        assign_formation_position(team, bot, POS_PROTECTED)
+        self.assertFalse(can_proceed(team))  # Still missing Commander & Exec
+
+        assign_command_role(team, h1, ROLE_COMMANDER)
+        self.assertFalse(can_proceed(team))  # Still missing Exec
+
+        assign_command_role(team, h2, ROLE_EXEC)
+        self.assertTrue(can_proceed(team))
+
+        # Unassigning one member from formation disables proceed
+        unassign_formation_position(bot)
+        self.assertFalse(can_proceed(team))
+
+    def test_stage_numbering_and_labels_include_position_stage(self):
+        """Stage 4 is 'position' / 'Position Team', and subsequent stages are 5..7."""
+        self.assertEqual(STAGE_NAMES[3], "equip")
+        self.assertEqual(STAGE_NAMES[4], "position")
+        self.assertEqual(STAGE_NAMES[5], "voyage")
+        self.assertEqual(STAGE_NAMES[6], "mission")
+        self.assertEqual(STAGE_NAMES[7], "return")
+
+        self.assertEqual(STAGE_LABELS[4], "Position Team")
+        self.assertEqual(STAGE_LABELS[5], "Voyage")
+        self.assertEqual(STAGE_LABELS[6], "Mission")
+        self.assertEqual(STAGE_LABELS[7], "Return Voyage")
+
+
 if __name__ == "__main__":
     unittest.main()
 

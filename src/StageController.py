@@ -7,6 +7,7 @@ from Intro import introduction3
 from ChooseTeam4 import choose_team
 from MissionOrders import mission_orders
 from EquipTeam2 import equip_team
+from PositionTeam import position_team
 from Voyage import voyage
 from Mission import go_mission
 from ReturnVoyage import return_voyage
@@ -49,13 +50,18 @@ async def run_mission(stage, loop, team_name, team_data):
         print("Starting Stage: Equip Team")
         stage, team_data = await equip_team(team_data, team_name, loop)
 
-    # Stage 4: Voyage
+    # Stage 4: Position Team
     if stage == 4:
+        print("Starting Stage: Position Team")
+        stage, team_data = await position_team(team_data, team_name, loop)
+
+    # Stage 5: Voyage
+    if stage == 5:
         print("Starting Stage: Voyage")
         stage, team_data = await voyage(team_data, team_name, loop)
 
-    # Stage 5: Mission
-    if stage == 5:
+    # Stage 6: Mission
+    if stage == 6:
         print("Starting Stage: Mission")
         stage, team_data = await go_mission(team_data, team_name, loop)
 
@@ -65,8 +71,8 @@ async def run_mission(stage, loop, team_name, team_data):
         await main(0, 0)
         return
 
-    # Stage 6: Return Voyage
-    if stage == 6:
+    # Stage 7: Return Voyage
+    if stage == 7:
         print("Starting Stage: Return Voyage")
         stage, team_data = await return_voyage(team_data, team_name, loop)
 
@@ -76,8 +82,8 @@ async def run_mission(stage, loop, team_name, team_data):
         await main(0, 0)
         return
 
-    # Stage 7: Score
-    if stage == 7:
+    # Stage 8: Score
+    if stage == 8:
         print("Starting Stage: Score")
         stage, team_data = await score(team_data, team_name, loop)
 

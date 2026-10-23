@@ -239,6 +239,10 @@ class Character:
         self.location = (-1, -1)
         self.battle_index = 0
         self.last_action = BattleAction.NONE
+        # Persisted command role ("commander", "exec", or None) and movement position
+        # ("point_man", "center", "overwatch", "protected", or None)
+        self.command_role = None
+        self.position = None
         # Transient combat fields — set at the start of each battle, not persisted.
         self.chosen_ranged_weapon = None   # Item | None
         self.chosen_melee_weapon  = None   # Item | None
@@ -1454,6 +1458,9 @@ class Character:
             "relationships":        self.relationships,
             # Skills learning system
             "learning_skills_dict": self.learning_skills_dict,
+            # Command role and formation position
+            "command_role": self.command_role,
+            "position": self.position,
         }
 
     @classmethod
@@ -1500,6 +1507,9 @@ class Character:
         saved_learning  = data.get("learning_skills_dict", {})
         _zero_learning.update(saved_learning)          # keep any extra skills that may exist in the save
         character.learning_skills_dict = _zero_learning
+
+        character.command_role = data.get("command_role", None)
+        character.position     = data.get("position", None)
 
         if data["type"] == "robot":
             portrait_path = resource_path(f"gadgets/{character.occupation}.jpg")

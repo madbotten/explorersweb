@@ -197,7 +197,7 @@ async def score(team_data, team_name="Debug Team", loop=1):
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team_named(team_name, loop, 6)
+        team_data = load_team_named(team_name, loop, 7)
     team = [Character.from_dict(data) for data in team_data]
 
     # ---- Credit calculation (including converting surviving robots to credits) ----
@@ -214,7 +214,7 @@ async def score(team_data, team_name="Debug Team", loop=1):
     background_image = pygame.image.load(resource_path("backgrounds/backgroundstage3.jpg"))
     background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
-    stage   = 8
+    stage   = 9
     running = True
 
     while running:

@@ -670,7 +670,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
 
     # Load team if not passed in by StageController
     if not team_data:
-        team_data = load_team_named(team_name, loop, 5)
+        team_data = load_team_named(team_name, loop, 6)
     team = [Character.from_dict(data) for data in team_data]
     for character in team:
         character.team = team
@@ -811,7 +811,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
     background_image = pygame.image.load(resource_path("backgrounds/backgroundstage3.jpg"))
     background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     screen.blit(background_image, (0, 0))
-    stage = 6
+    stage = 7
 
     day = 1
     voyage_complete = False
@@ -942,7 +942,7 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
 
     # Save characters upon exit (only on clean exit, not team death/quit)
     if stage not in (999, 1000):
-        team_data = save_team_named(team_name, loop, 6, team)
+        team_data = save_team_named(team_name, loop, 7, team)
 
     return stage + 1, team_data
 
