@@ -278,17 +278,16 @@ def _build_sentence(initiator: "Character", target: "Character", interaction_typ
 
 def _get_leadership_bonus(initiator: "Character", target: "Character") -> int:
     """
-    Find the highest-leadership non-robot character in the team shared by
-    initiator and target, and return LEADERSHIP_BONUS_FRACTION of their score.
+    Find the active commander (or exec if commander is deceased, falling back to
+    the highest-leadership non-robot character) in the team shared by initiator
+    and target, and return LEADERSHIP_BONUS_FRACTION of their score.
     """
+    from Utils import get_active_commander
     team = getattr(initiator, "team", None) or []
-    best = 0
-    for member in team:
-        if not getattr(member, "is_robot", lambda: False)():
-            ldr = member.stats.get("leadership", 0)
-            if ldr > best:
-                best = ldr
-    return int(best * LEADERSHIP_BONUS_FRACTION)
+    leader = get_active_commander(team)
+    if leader is None:
+        return 0
+    return int(leader.stats.get("leadership", 0) * LEADERSHIP_BONUS_FRACTION)
 
 
 def _calculate_threshold(

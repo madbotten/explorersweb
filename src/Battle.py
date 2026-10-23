@@ -67,8 +67,12 @@ async def clear_screen_for_round(round, phase, screen, font):
 def initiative(team, enemies, brazen_bonus=0):
     all_characters = team + enemies
 
-    # Calculate scout bonus for the team
-    scout_bonus = sum(5 for member in team if member.occupation == "scoutbot")
+    # Calculate scout bonus for the team (+15 if scoutbot is Point Man, else +5)
+    scout_bonus = sum(
+        15 if getattr(member, "position", None) == "point_man" else 5
+        for member in team
+        if member.is_alive() and member.occupation == "scoutbot"
+    )
 
     # Calculate squad tactics bonus for the team
     member = determine_best_team_member(team, None, "Squad Tactics")
@@ -85,6 +89,8 @@ def initiative(team, enemies, brazen_bonus=0):
             roll += scout_bonus
             roll += squad_tactics_bonus
             roll += brazen_bonus  # bonus when team chose "Be brazen"
+            if character.is_alive() and getattr(character, "position", None) == "point_man":
+                roll += 20
         initiative_rolls.append((character, roll))
 
     # Sort characters by initiative rolls (highest to lowest)
@@ -319,6 +325,15 @@ class TeamBattle:
         return BattleAction.EVADE
 
     def choose_battle_action_melee_phase(self, member):
+        if (
+            member in self.context.team
+            and getattr(member, "position", None) == "overwatch"
+            and any(
+                m.is_alive() and getattr(m, "position", None) == "center"
+                for m in self.context.team
+            )
+        ):
+            return BattleAction.EVADE
         if member.chosen_melee_weapon is not None:
             return BattleAction.MELEE
         return BattleAction.EVADE
@@ -351,9 +366,9 @@ class TeamBattle:
         character.last_action = BattleAction.MELEE
         # Choose target logic
         if not character.is_pirate():
-            target = self.choose_target(character, self.context.enemies)
+            target = self.choose_target(character, self.context.enemies, round_num=self.round, attack_type="melee")
         else:
-            target = self.choose_target(character, self.context.team)
+            target = self.choose_target(character, self.context.team, round_num=self.round, attack_type="melee")
         if target is None:
             print(f"{character.name} Finds no target!")
             return
@@ -381,11 +396,9 @@ class TeamBattle:
         # for loop of weapon rate
 
         # Calculate if hit, low roll is better
-        hit = True
+        hit = False
         roll = random.randint(1, 100)
-        if roll >= 95:
-            hit = False
-        else:
+        if roll < 95:
             melee = character.get_effective_combat_melee()
             target_melee = target.get_effective_combat_melee()
             target_evasion = target.get_effective_stat_level("evasion")
@@ -399,6 +412,15 @@ class TeamBattle:
                 adjusted_roll += round(holofier_item.effect * 0.6) if holofier_item else 15
             if character.get_effective_skill_level("Martial Arts") > 0:
                 adjusted_roll -= 10 + (character.get_effective_skill_level("Martial Arts") / 10)
+            if self.round == 1 and not character.is_pirate() and getattr(character, "position", None) == "point_man":
+                adjusted_roll -= 15
+            if (
+                self.round == 1
+                and character.is_pirate()
+                and getattr(target, "position", None) == "point_man"
+                and getattr(target, "occupation", None) == "scoutbot"
+            ):
+                adjusted_roll += 15
             adjusted_roll = adjusted_roll * target_melee/melee
             if adjusted_roll < offense:
                 hit = True
@@ -437,9 +459,53 @@ class TeamBattle:
         return
 
     @staticmethod
-    def choose_target(character, team):
-        # have character choose target on team
-        target = random_alive_member(team)
+    def choose_target(character, team, round_num=1, attack_type="ranged"):
+        alive = [m for m in team if m.is_alive()]
+        if not alive:
+            return None
+
+        # Player team attacking enemies: uniform random among living enemies
+        if not character.is_pirate():
+            target = random_alive_member(alive)
+            if target:
+                print(f"{character.name} chooses target {target.name}")
+            return target
+
+        # Enemy attacking the player's team: apply melee position exclusions first
+        if attack_type == "melee":
+            has_alive_center = any(getattr(m, "position", None) == "center" for m in alive)
+            has_alive_center_or_overwatch = any(
+                getattr(m, "position", None) in ("center", "overwatch") for m in alive
+            )
+            eligible = []
+            for m in alive:
+                pos = getattr(m, "position", None)
+                if pos == "overwatch" and round_num <= 3 and has_alive_center:
+                    continue
+                if pos == "protected" and has_alive_center_or_overwatch:
+                    continue
+                eligible.append(m)
+            if not eligible:
+                eligible = alive
+        else:
+            eligible = alive
+
+        # Apply position weights (Point Man 3.0x in round 1; Protected 0.25x in rounds 1-3)
+        weights = []
+        for m in eligible:
+            pos = getattr(m, "position", None)
+            w = 1.0
+            if round_num == 1 and pos == "point_man":
+                w = 3.0
+            elif round_num <= 3 and pos == "protected":
+                w = 0.25
+            weights.append(w)
+
+        if all(w == 1.0 for w in weights):
+            target = random_alive_member(eligible)
+        else:
+            target = random.choices(eligible, weights=weights, k=1)[0]
+
         if target:
             print(f"{character.name} chooses target {target.name}")
         return target
@@ -467,9 +533,9 @@ class TeamBattle:
         character.last_action = BattleAction.SHOOT
         # Choose target logic
         if not character.is_pirate():
-            target = self.choose_target(character, self.context.enemies)
+            target = self.choose_target(character, self.context.enemies, round_num=self.round, attack_type="ranged")
         else:
-            target = self.choose_target(character, self.context.team)
+            target = self.choose_target(character, self.context.team, round_num=self.round, attack_type="ranged")
         if target is None:
             print(f"{character.name} Finds no target!")
             return
@@ -519,6 +585,15 @@ class TeamBattle:
             adjusted_roll -= character.get_effective_skill_level(skill)/10
             if self.weapon_is_rifle(chosen_weapon):
                 adjusted_roll -= character.get_effective_skill_level("Sharpshooting") / 10
+            if self.round == 1 and not character.is_pirate() and getattr(character, "position", None) == "point_man":
+                adjusted_roll -= 15
+            if (
+                self.round == 1
+                and character.is_pirate()
+                and getattr(target, "position", None) == "point_man"
+                and getattr(target, "occupation", None) == "scoutbot"
+            ):
+                adjusted_roll += 15
 
             adjusted_roll = adjusted_roll * target_evasion / offense
             if adjusted_roll < offense:

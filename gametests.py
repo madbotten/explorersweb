@@ -2027,6 +2027,228 @@ class TestPositionTeamPhase2(unittest.TestCase):
         self.assertEqual(info["equipment"][0].name, "laser pistol C")
 
 
+# ---------------------------------------------------------------------------
+# Command Roles & Formation Effects — Phase 1 Tests
+# ---------------------------------------------------------------------------
+
+from Utils import get_active_commander, EventContext
+from Battle import TeamBattle, BattleAction
+from Interaction import _get_leadership_bonus
+
+
+class TestRolePositionEffectsPhase1(unittest.IsolatedAsyncioTestCase):
+
+    def test_get_active_commander_chain_and_interaction_leadership_bonus(self):
+        """get_active_commander selects Commander first, then Exec if Commander dead, then highest leadership."""
+        cmd = make_human(50, 50)
+        cmd.stats["leadership"] = 90
+        cmd.command_role = ROLE_COMMANDER
+
+        xo = make_human(50, 50)
+        xo.stats["leadership"] = 120
+        xo.command_role = ROLE_EXEC
+
+        other = make_human(50, 50)
+        other.stats["leadership"] = 180
+
+        team = [cmd, xo, other]
+        for m in team:
+            m.team = team
+
+        # Even though 'other' has higher leadership, Commander is chosen
+        self.assertIs(get_active_commander(team), cmd)
+        self.assertEqual(_get_leadership_bonus(other, xo), int(90 * 0.1))
+
+        # When Commander dies, Executive Officer takes command
+        cmd.current_health = 0
+        self.assertIs(get_active_commander(team), xo)
+        self.assertEqual(_get_leadership_bonus(other, xo), int(120 * 0.1))
+
+        # When Exec also dies, falls back to highest-leadership living non-robot ('other')
+        xo.current_health = 0
+        self.assertIs(get_active_commander(team), other)
+        self.assertEqual(_get_leadership_bonus(other, cmd), int(180 * 0.1))
+
+    def test_point_man_initiative_and_scoutbot_point_bonus(self):
+        """Point Man gets +20 initiative; a scoutbot in Point Man grants +15 team-wide initiative."""
+        h_point = make_human_controlled()
+        h_center = make_human_controlled()
+        enemy = make_human_controlled()
+        for m in (h_point, h_center, enemy):
+            m.stats["surprise"] = 0
+            m.skills = {}
+
+        h_point.position = POS_POINT_MAN
+        h_center.position = POS_CENTER
+        with patch("Battle.random.randint", return_value=50):
+            order = initiative([h_point, h_center], [enemy])
+        # h_point gets 50 + 20 = 70, beating h_center (50) and enemy (50)
+        self.assertIs(order[0], h_point)
+
+        # Scoutbot on point grants +15 to teammates (vs +5 when not on point)
+        scout = make_scoutbot_simple()
+        scout.stats["surprise"] = 0
+        scout.skills = {}
+        scout.position = POS_POINT_MAN
+        enemy.stats["surprise"] = 10  # enemy roll = 50 + 10 = 60
+        with patch("Battle.random.randint", return_value=50):
+            # With scout on point (+15 team bonus), h_center rolls 50 + 15 = 65 > enemy 60
+            order_point_scout = initiative([h_center, scout], [enemy])
+        self.assertLess(order_point_scout.index(h_center), order_point_scout.index(enemy))
+
+        scout.position = POS_CENTER
+        with patch("Battle.random.randint", return_value=50):
+            # With scout in center (+5 team bonus), h_center rolls 50 + 5 = 55 < enemy 60
+            order_center_scout = initiative([h_center, scout], [enemy])
+        self.assertGreater(order_center_scout.index(h_center), order_center_scout.index(enemy))
+
+    def test_enemy_target_selection_weights_and_melee_exclusions(self):
+        """Enemy melee excludes Overwatch (rounds 1-3 while Center alive) and Protected (while Center/Overwatch alive); Round 1 weights favor Point Man."""
+        enemy = Character(1, "pirate")
+        pm = make_human(50, 50)
+        pm.position = POS_POINT_MAN
+        ctr = make_human(50, 50)
+        ctr.position = POS_CENTER
+        ow = make_human(50, 50)
+        ow.position = POS_OVERWATCH
+        prot = make_human(50, 50)
+        prot.position = POS_PROTECTED
+        team = [pm, ctr, ow, prot]
+
+        # Melee Round 1-3 with Center alive: neither Overwatch nor Protected can be chosen
+        for r in (1, 2, 3):
+            for _ in range(40):
+                t = TeamBattle.choose_target(enemy, team, round_num=r, attack_type="melee")
+                self.assertIn(t, (pm, ctr))
+
+        # Melee Round 4 with Center alive: Overwatch can now be chosen, Protected still excluded
+        seen_r4 = {
+            TeamBattle.choose_target(enemy, team, round_num=4, attack_type="melee")
+            for _ in range(60)
+        }
+        self.assertIn(ow, seen_r4)
+        self.assertNotIn(prot, seen_r4)
+
+        # If Center dies in Round 1, Overwatch can be chosen in melee, Protected still excluded by Overwatch
+        ctr.current_health = 0
+        seen_no_ctr = {
+            TeamBattle.choose_target(enemy, team, round_num=1, attack_type="melee")
+            for _ in range(60)
+        }
+        self.assertIn(ow, seen_no_ctr)
+        self.assertNotIn(prot, seen_no_ctr)
+
+        # If Overwatch also dies, Protected can now be chosen
+        ow.current_health = 0
+        seen_no_ow = {
+            TeamBattle.choose_target(enemy, team, round_num=1, attack_type="melee")
+            for _ in range(60)
+        }
+        self.assertIn(prot, seen_no_ow)
+
+        # Ranged Round 1 weights: Point Man (3.0) chosen much more often than Protected (0.25)
+        ctr.current_health = 100
+        ow.current_health = 100
+        counts = {pm: 0, ctr: 0, ow: 0, prot: 0}
+        for _ in range(400):
+            t = TeamBattle.choose_target(enemy, team, round_num=1, attack_type="ranged")
+            counts[t] += 1
+        self.assertGreater(counts[pm], counts[ctr])
+        self.assertGreater(counts[ctr], counts[prot])
+
+    def test_overwatch_evades_in_melee_until_center_dead_but_shoots_in_ranged(self):
+        """Overwatch chooses EVADE in melee phase while any Center member is alive, but SHOOT in ranged phase."""
+        ctr = make_human(50, 50)
+        ctr.position = POS_CENTER
+        ow = make_human(50, 50)
+        ow.position = POS_OVERWATCH
+        give_item(ow, "laser rifle C")
+        give_item(ow, "slicer C")
+        ow.chosen_ranged_weapon = ow.choose_ranged_weapon()
+        ow.chosen_melee_weapon = ow.choose_melee_weapon()
+
+        ctx = EventContext("", "", 1, None, None, None, None, {})
+        ctx.add_run_params([ctr, ow], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [Character(1, "pirate")]
+        battle = TeamBattle(ctx)
+
+        self.assertEqual(battle.choose_battle_action_ranged_phase(ow), BattleAction.SHOOT)
+        self.assertEqual(battle.choose_battle_action_melee_phase(ow), BattleAction.EVADE)
+
+        # Once Center is dead, Overwatch fights in melee
+        ctr.current_health = 0
+        self.assertEqual(battle.choose_battle_action_melee_phase(ow), BattleAction.MELEE)
+
+    async def test_point_man_round_1_hit_bonus_and_scoutbot_point_round_1_defense(self):
+        """Point Man gets -15 adjusted_roll on Round 1; Scoutbot on point adds +15 to enemy adjusted_roll on Round 1."""
+        pm = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        pm.skills = {}
+        give_item(pm, "laser pistol C")
+        pm.chosen_ranged_weapon = pm.choose_ranged_weapon()
+
+        enemy = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+        enemy.skills = {}
+        give_item(enemy, "laser pistol C")
+        enemy.chosen_ranged_weapon = enemy.choose_ranged_weapon()
+
+        all_items = {"laser pistol C": make_item("laser pistol C")}
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([pm], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+
+        # With roll=55, offense=50, target_evasion=50:
+        # Without Point Man: adjusted_roll = 55 >= 50 -> MISS
+        # With Point Man in Round 1: adjusted_roll = 55 - 15 = 40 < 50 -> HIT
+        pm.position = POS_CENTER
+        battle.round = 1
+        with patch("Battle.random.randint", return_value=55), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch.object(battle, "damage_target") as mock_dmg:
+            await battle.run_battle_action_shoot(pm)
+            self.assertFalse(mock_dmg.called)
+
+        pm.position = POS_POINT_MAN
+        with patch("Battle.random.randint", return_value=55), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch.object(battle, "damage_target") as mock_dmg:
+            await battle.run_battle_action_shoot(pm)
+            self.assertTrue(mock_dmg.called)
+
+        # Scoutbot on point targeted by enemy in Round 1 with roll=40 (offense=50, evasion=50):
+        # Normally 40 < 50 -> HIT; with scoutbot on point in Round 1: 40 + 15 = 55 >= 50 -> MISS
+        scout = make_scoutbot_simple()
+        scout.stats["intelligence"] = 50
+        scout.stats["coordination"] = 50
+        scout.stats["strength"] = 50
+        scout.skills = {}
+        scout.position = POS_POINT_MAN
+        ctx.team = [scout]
+        battle.round = 1
+        with patch("Battle.random.randint", return_value=40), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_pirate_action_result"), \
+             patch.object(battle, "damage_target") as mock_dmg:
+            await battle.run_battle_action_shoot(enemy)
+            self.assertFalse(mock_dmg.called)
+
+
 if __name__ == "__main__":
     unittest.main()
 

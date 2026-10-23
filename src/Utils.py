@@ -280,6 +280,30 @@ def determine_best_team_member(team, stat_name, skill_name):
 
     return None
 
+
+def get_active_commander(candidates):
+    """Return the active command leader from *candidates*:
+    1. Living non-robot with command_role == 'commander'
+    2. Living non-robot with command_role == 'exec' (if Commander is deceased/absent)
+    3. Fallback: living non-robot in *candidates* with highest leadership stat
+    Returns None if no living non-robot exists in *candidates*.
+    """
+    eligible = [
+        m for m in (candidates or [])
+        if m is not None
+        and not getattr(m, "is_robot", lambda: False)()
+        and getattr(m, "current_health", 1) > 0
+    ]
+    if not eligible:
+        return None
+    for member in eligible:
+        if getattr(member, "command_role", None) == "commander":
+            return member
+    for member in eligible:
+        if getattr(member, "command_role", None) == "exec":
+            return member
+    return max(eligible, key=lambda m: getattr(m, "stats", {}).get("leadership", 0))
+
 def team_size(team):
     """ Calculates combat team size including ranged bots and melee bots"""
     team_size = 0

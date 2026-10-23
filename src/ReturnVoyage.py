@@ -298,12 +298,12 @@ async def _run_interaction(team, screen, font, setting_type, privacy_level):
             font, RED,
         )
 
-        # Find highest-leadership non-combatant to mediate.
+        # Find active commander (or exec / highest-leadership fallback) non-combatant to mediate.
         eligible = [
             m for m in team
             if m is not initiator and m is not target and not m.is_robot()
         ]
-        mediator = max(eligible, key=lambda m: m.stats.get("leadership", 0)) if eligible else None
+        mediator = get_active_commander(eligible)
 
         if mediator:
             await type_out_text(screen, f"{mediator.name} steps in to break it up:", font)
@@ -369,7 +369,10 @@ async def calculate_outcome_inspirational_speech(team, stat_name, skill_name, sc
         await type_out_text(screen, "There is no one suitable to address the crew.", font)
         return
 
-    leader = max(non_robots, key=lambda m: m.stats.get("leadership", 0))
+    leader = get_active_commander(non_robots)
+    if leader is None:
+        await type_out_text(screen, "There is no one suitable to address the crew.", font)
+        return
     await type_out_text(screen, f"{leader.name} addresses the crew before the return voyage:", font)
 
     check_passed = await standard_skill_check(leader, screen, "leadership", "Instruction", font, 0)
@@ -546,7 +549,9 @@ async def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen
     if not non_robots:
         return
 
-    commander = max(non_robots, key=lambda m: m.stats.get("leadership", 0))
+    commander = get_active_commander(non_robots)
+    if commander is None:
+        return
     traitor_names = " and ".join(t.name for t in traitors)
     plural = len(traitors) > 1
 
