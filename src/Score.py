@@ -262,9 +262,11 @@ async def score(team_data, team_name="Debug Team", loop=1):
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
                 elif PROCEED_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     stage = 1   # loop back to stage 1
                     running = False
 

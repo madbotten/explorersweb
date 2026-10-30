@@ -461,22 +461,29 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                     current_selected_character = next_selected
                     dragging = True
                 elif NEXT_BUTTON_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     current_candidate_index += 1
                     if current_candidate_index >= len(candidates):
                         current_candidate_index = 0
                     current_selected_character = candidates[current_candidate_index]
                 elif PREV_BUTTON_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     current_candidate_index -= 1
                     if current_candidate_index < 0:
                         current_candidate_index = len(candidates) - 1
                     current_selected_character = candidates[current_candidate_index]
                 elif REJECT_BUTTON_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     add_character_to_rejects(current_selected_character)
                     select_next_candidate()
                 elif PROCEED_RECT.collidepoint(event.pos):
                     if team_full(team):
+                        play_positive_click()
                         running = False
+                    else:
+                        play_negative_click()
                 elif EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
 
@@ -486,6 +493,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                     dragging = False
                     # Check if character is being re-added to candidates
                     if current_selected_character.get_rect().colliderect(CANDIDATE_RECT):
+                        play_positive_click()
                         current_selected_character.get_rect().center = CANDIDATE_RECT.center
                         if current_selected_character in team:
                             remove_from_team(current_selected_character)
@@ -499,6 +507,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                     for box in team_boxes:
                         # Dropped character onto an empty box
                         if box.collidepoint(event.pos) and box_empty(box, team):
+                            play_positive_click()
                             remove_from_team(current_selected_character)
                             add_character_to_team_box(current_selected_character, box, box_index)
                             select_next_candidate()
@@ -507,6 +516,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                         elif box.collidepoint(event.pos):
                             in_team_box = character_in_team_box(box)
                             if in_team_box and in_team_box != current_selected_character:
+                                play_positive_click()
                                 if current_selected_character in team:
                                     swap_on_team(in_team_box, current_selected_character)
                                 else:
@@ -518,6 +528,7 @@ async def choose_team(team_data, team_name="Debug Team", loop=1):
                         box_index += 1
 
                     if current_selected_character.get_rect().colliderect(REJECTED_BOX):
+                        play_negative_click()
                         # Snap the character into the box center if dropped
                         add_character_to_rejects(current_selected_character)
                         select_next_candidate()

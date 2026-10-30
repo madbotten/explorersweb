@@ -100,6 +100,7 @@ class Checkbox:
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
+                play_positive_click()
                 # Uncheck all checkboxes in the group
                 for checkbox in self.group:
                     checkbox.checked = False
@@ -224,8 +225,10 @@ async def mission_orders(team_data, team_name="Debug Team", loop=1):
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PROCEED_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     running = False
                 elif EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
 

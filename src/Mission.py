@@ -1199,9 +1199,11 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
                 else:
+                    play_positive_click()
                     waiting = False
                     await update_screen(screen, background_image, hour, DEFAULT_FONT)
                     if not voyage_complete:
@@ -1227,6 +1229,8 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
                 voyage_complete = True
                 if not mission_failed:
                     team_mission_success(team)
+                elif not team_dead(team):
+                    play_defeat_sound()
             else:
                 event = build_procedural_mission_room_event(
                     team,

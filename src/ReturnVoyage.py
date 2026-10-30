@@ -858,9 +858,11 @@ async def return_voyage(team_data, team_name="Debug Team", loop=1) :
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
                 else:
+                    play_positive_click()
                     waiting = False
                     await update_screen(screen, background_image, day, DEFAULT_FONT)
                     if not voyage_complete:

@@ -469,14 +469,17 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
                     break
                 if PROCEED_RECT.collidepoint(event.pos):
                     if ready:
+                        play_positive_click()
                         running = False
                         break
                     else:
+                        play_negative_click()
                         set_status("Assign Commander, Exec Officer, and all team positions to proceed.")
 
                 # Check if mouse clicked a character in the left pool
@@ -514,6 +517,8 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                                 break
                         if clicked:
                             break
+                if clicked:
+                    play_positive_click()
 
             elif event.type == pygame.MOUSEMOTION:
                 if dragging_char and dragging_rect:
@@ -528,8 +533,12 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                     for role, box_rect in COMMAND_BOX_RECTS.items():
                         if box_rect.collidepoint(drop_pos) or box_rect.colliderect(dragging_rect):
                             ok, err = assign_command_role(team, dragging_char, role)
-                            if not ok and err:
-                                set_status(err)
+                            if ok:
+                                play_positive_click()
+                            else:
+                                play_negative_click()
+                                if err:
+                                    set_status(err)
                             handled = True
                             break
 
@@ -538,8 +547,12 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                         for pos, box_rect in FORMATION_BOX_RECTS.items():
                             if box_rect.collidepoint(drop_pos) or box_rect.colliderect(dragging_rect):
                                 ok, err = assign_formation_position(team, dragging_char, pos)
-                                if not ok and err:
-                                    set_status(err)
+                                if ok:
+                                    play_positive_click()
+                                else:
+                                    play_negative_click()
+                                    if err:
+                                        set_status(err)
                                 handled = True
                                 break
 
@@ -547,8 +560,10 @@ async def position_team(team_data, team_name="Debug Team", loop=1):
                     if not handled and (LEFT_POOL_RECT.collidepoint(drop_pos) or LEFT_POOL_RECT.colliderect(dragging_rect)):
                         if dragging_source and dragging_source[0] == "formation":
                             unassign_formation_position(dragging_char)
+                            play_positive_click()
                         elif dragging_source and dragging_source[0] == "command":
                             clear_command_role(dragging_char)
+                            play_positive_click()
 
                     dragging_char = None
                     dragging_source = None

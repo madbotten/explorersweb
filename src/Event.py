@@ -47,6 +47,7 @@ def team_evades_notice(team):
 async def mission_failure(screen, font):
     global mission_failed
     mission_failed = True
+    play_defeat_sound()
     # Draw a full-screen MISSION FAILED banner
     screen.fill((0, 0, 0))
     big_font = pygame.font.Font(resource_path("fonts/Orbitron-Bold.ttf"), 48)
@@ -65,6 +66,7 @@ async def mission_failure(screen, font):
             if event.type == pygame.QUIT:
                 raise SystemExit(0)
             if event.type == pygame.MOUSEBUTTONDOWN:
+                play_positive_click()
                 waiting = False
         await asyncio.sleep(0)
 
@@ -396,6 +398,7 @@ async def pause_to_clear_screen(screen, background, font):
             if event.type == pygame.QUIT:
                 raise SystemExit(0)
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                play_positive_click()
                 paused = False
         await asyncio.sleep(0)   # yield to browser while waiting for click
     clear_screen(screen, background)

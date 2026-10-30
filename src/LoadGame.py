@@ -90,6 +90,7 @@ async def load_game():
 
             if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
                     and ng_rect.collidepoint(event.pos)):
+                play_positive_click()
                 result = ("__new__", 1, 0, [])
                 break
 
@@ -109,16 +110,19 @@ async def load_game():
 
                     if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
                         if cont_rect.collidepoint(event.pos):
+                            play_positive_click()
                             td = load_team_named(tname, lp, latest_stage)
                             result = (tname, lp, latest_stage + 1, td)
                             break
                         if dev_rect.collidepoint(event.pos):
+                            play_positive_click()
                             expanded[tname] = not expanded[tname]
                             confirm_del.pop(tname, None)
                             clicked_del = True
 
                 if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
                         and del_rect.collidepoint(event.pos)):
+                    play_negative_click()
                     clicked_del = True
                     if confirm_del.get(tname):
                         # Second click — delete and refresh
@@ -139,6 +143,7 @@ async def load_game():
                         st_rect = pygame.Rect(MARGIN + 20, y, CONT_W + DEV_W, STAGE_ROW_H)
                         if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
                                 and st_rect.collidepoint(event.pos)):
+                            play_positive_click()
                             td = load_team_named(tname, lp2, st)
                             result = (tname, lp2, st + 1, td)
                             break

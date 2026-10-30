@@ -152,12 +152,15 @@ async def introduction3() :
                 raise SystemExit(0)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
                 elif PROCEED_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     stage = 1
                     running = False
                 else:
+                    play_positive_click()
                     # Advance to the next screen or exit if at the last screen
                     if current_screen < len(instruction_screens) - 1:
                         current_screen += 1

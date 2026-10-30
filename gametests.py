@@ -2665,6 +2665,105 @@ class TestSoundEffectsPhase2(unittest.IsolatedAsyncioTestCase):
             dummy_pygame.mixer.music.load.assert_called_once_with(resource_path("music/fight2.ogg"))
 
 
+# ---------------------------------------------------------------------------
+# Combat & UI Sound Effects Overhaul — Phase 3 Tests
+# ---------------------------------------------------------------------------
+
+from Utils import team_mission_success
+from MissionOrders import Checkbox
+import Event as EventMod
+
+
+class TestSoundEffectsPhase3(unittest.IsolatedAsyncioTestCase):
+
+    def test_play_ui_sound_helpers_load_and_play_expected_ogg_files(self):
+        """play_positive_click, play_negative_click, play_victory_sound, and play_defeat_sound load and play their .ogg files."""
+        expected = [
+            (play_positive_click, "sounds/ui/positiveclick.ogg"),
+            (play_negative_click, "sounds/ui/negativeclick.ogg"),
+            (play_victory_sound, "sounds/ui/victory.ogg"),
+            (play_defeat_sound, "sounds/ui/defeat.ogg"),
+        ]
+        for helper_fn, expected_path in expected:
+            dummy_sound = unittest.mock.MagicMock()
+            with patch("Utils.load_sound", return_value=dummy_sound) as mock_load:
+                helper_fn()
+                mock_load.assert_called_once_with(expected_path)
+                dummy_sound.play.assert_called_once()
+
+    def test_team_mission_success_plays_victory_sound_and_awards_points(self):
+        """team_mission_success plays victory.ogg and adds 100 mission points to each team member."""
+        c1 = make_human_controlled()
+        c2 = make_human_controlled()
+        c1.mission_points = 10
+        c2.mission_points = 25
+        with patch("Utils.play_victory_sound") as mock_victory:
+            team_mission_success([c1, c2])
+            mock_victory.assert_called_once()
+        self.assertEqual(c1.mission_points, 110)
+        self.assertEqual(c2.mission_points, 125)
+
+    async def test_mission_failure_and_pause_to_clear_screen_play_defeat_and_positive_click(self):
+        """mission_failure plays defeat sound on entry and positive click on dismiss; pause_to_clear_screen plays positive click."""
+        screen = make_dummy_screen()
+        bg = make_dummy_screen()
+        font = make_dummy_font()
+        click_event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"pos": (100, 100), "button": 1})
+
+        with patch("Event.play_defeat_sound") as mock_defeat, \
+             patch("Event.play_positive_click") as mock_pos, \
+             patch("Event.pygame.display.flip"), \
+             patch("Event.pygame.event.get", return_value=[click_event]):
+            await EventMod.mission_failure(screen, font)
+            mock_defeat.assert_called_once()
+            mock_pos.assert_called_once()
+
+        with patch("Event.type_out_text"), \
+             patch("Event.clear_screen"), \
+             patch("Event.play_positive_click") as mock_pos2, \
+             patch("Event.pygame.event.get", return_value=[click_event]):
+            await EventMod.pause_to_clear_screen(screen, bg, font)
+            mock_pos2.assert_called_once()
+
+    def test_mission_orders_checkbox_plays_positive_click(self):
+        """Clicking a MissionOrders Checkbox plays positiveclick.ogg and checks that option."""
+        font = make_dummy_font()
+        cb1 = Checkbox("Opt 1", "a", 100, 100, font, [])
+        cb2 = Checkbox("Opt 2", "b", 100, 130, font, [])
+        group = [cb1, cb2]
+        cb1.group = group
+        cb2.group = group
+        cb1.checked = True
+
+        click_ev = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {"pos": (105, 135), "button": 1})
+        with patch("MissionOrders.play_positive_click") as mock_pos:
+            cb2.handle_event(click_ev)
+            mock_pos.assert_called_once()
+        self.assertFalse(cb1.checked)
+        self.assertTrue(cb2.checked)
+
+    def test_all_stages_wire_ui_sounds(self):
+        """All stage files wire positive and negative UI click sounds."""
+        stage_files = (
+            "LoadGame.py",
+            "Intro.py",
+            "ChooseTeam4.py",
+            "MissionOrders.py",
+            "EquipTeam2.py",
+            "PositionTeam.py",
+            "Voyage.py",
+            "Mission.py",
+            "ReturnVoyage.py",
+            "Score.py",
+        )
+        src_dir = os.path.join(os.path.dirname(__file__), "src")
+        for fname in stage_files:
+            with open(os.path.join(src_dir, fname), "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("play_positive_click()", content, f"{fname} missing play_positive_click()")
+            self.assertIn("play_negative_click()", content, f"{fname} missing play_negative_click()")
+
+
 if __name__ == "__main__":
     unittest.main()
 

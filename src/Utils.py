@@ -374,6 +374,7 @@ def add_team_mission_param(team, key, param):
         member.mission[key] = param
 
 def team_mission_success(team):
+    play_victory_sound()
     for member in team:
         member.mission_points += 100
 

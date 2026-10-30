@@ -192,9 +192,11 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
             return await handle_robot_drag(team, item)
 
         if character.get_weapon_count() >= 2 and item.type == "weapon":
+            play_negative_click()
             await display_message("Max two weapons per character", screen, DEFAULT_FONT)
             return
         if character.get_armor_count() >= 2 and item.type == "armor":
+            play_negative_click()
             await display_message("Max two armors per character", screen, DEFAULT_FONT)
             return
 
@@ -203,12 +205,15 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
             credits -= item.cost
             if item.type != "robot":
                 character.add_item(item.copy())
+            play_positive_click()
         else:
+            play_negative_click()
             await display_message("Not enough credits!", screen, DEFAULT_FONT)
 
     async def handle_robot_drag(team, item):
 
         if item.type == "robot" and team_size(team) >= 10:
+            play_negative_click()
             await display_message("Max team size: 10", screen, DEFAULT_FONT)
             return
 
@@ -216,7 +221,9 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
         if credits >= item.cost:
             credits -= item.cost
             add_robot_to_team(team, item)
+            play_positive_click()
         else:
+            play_negative_click()
             await display_message("Not enough credits!", screen, DEFAULT_FONT)
 
     def add_robot_to_team(team, item):
@@ -309,8 +316,10 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if PROCEED_RECT.collidepoint(event.pos):
+                    play_positive_click()
                     running = False
                 elif EXIT_RECT.collidepoint(event.pos):
+                    play_negative_click()
                     stage = 1000
                     running = False
 
@@ -319,6 +328,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                      for tab in tabs:
                         tab_text_rect = pygame.Rect(10 + tabs.index(tab) * 110, CREDITS_BAR_HEIGHT + 10, 110, 30)
                         if tab_text_rect.collidepoint(mouse_pos):
+                             play_positive_click()
                              selected_tab = tab
 
                 # Check if clicking on a character to toggle their info display
@@ -334,6 +344,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                             dragging_robot_rect = pygame.Rect(
                                 ITEM_PANEL_WIDTH, CREDITS_BAR_HEIGHT + i * TEAM_BOX_HEIGHT, 70, 80)
                         else:
+                            play_positive_click()
                             if selected_character == character:
                                 # If the same character is clicked again, toggle off
                                 showing_character_info = not showing_character_info
@@ -388,12 +399,15 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                         # If dropped on a different character, move the item
                         if dragging_from_character and dragging_from_character != dropped_on_character:
                             if dropped_on_character.get_weapon_count() >= 2 and dragging_item.type == "weapon":
+                                play_negative_click()
                                 await display_message("Max two weapons per character", screen, DEFAULT_FONT)
                                 dragging_item.rect.topleft = original_item_position
                             elif dropped_on_character.get_armor_count() >= 2 and dragging_item.type == "armor":
+                                play_negative_click()
                                 await display_message("Max two armors per character", screen, DEFAULT_FONT)
                                 dragging_item.rect.topleft = original_item_position
                             else:
+                                play_positive_click()
                                 dragging_from_character.equipment.remove(original_dragging_item)
                                 dropped_on_character.equipment.append(dragging_item)
                         elif dragging_from_character:
@@ -403,6 +417,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                             await handle_item_drag(team, dragging_item, dropped_on_character)
                     elif STORE_RECT.collidepoint(dragging_item.rect.center):
                         if dragging_from_character:
+                            play_positive_click()
                             dragging_from_character.equipment.remove(original_dragging_item)
                             handle_item_return(original_dragging_item)
                     else:
@@ -420,6 +435,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
 
                 if dragging_robot and dragging_robot_rect:
                     if STORE_RECT.collidepoint(dragging_robot_rect.center):
+                        play_positive_click()
                         # Refund only the robot's purchase cost; its equipment stays
                         refund = all_items[dragging_robot.occupation].cost
                         credits += refund
