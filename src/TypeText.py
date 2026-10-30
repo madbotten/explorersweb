@@ -7,7 +7,7 @@ import asyncio
 IS_WEB = sys.platform == "emscripten"
 # Per-character typing delay: web already spends ~16 ms per asyncio.sleep(0) frame;
 # locally we add an explicit pause so the text feels the same speed.
-_CHAR_DELAY = 0 if IS_WEB else 0.03
+_CHAR_DELAY = 0 if IS_WEB else 0.02
 
 from Utils import *
 
