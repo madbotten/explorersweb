@@ -167,9 +167,42 @@ def delete_team(team_name: str) -> None:
 
 _SOUND_CACHE = {}
 
+UI_SOUND_PATHS = {
+    "positive": "sounds/ui/positiveclick.ogg",
+    "negative": "sounds/ui/negativeclick.ogg",
+    "victory": "sounds/ui/victory.ogg",
+    "defeat": "sounds/ui/defeat.ogg",
+}
+
+WEAPON_SOUND_PATHS = {
+    "laser pistol": "sounds/combat/laser.ogg",
+    "laser rifle": "sounds/combat/laserrifle.ogg",
+    "blaster rifle": "sounds/combat/blaster.ogg",
+    "stunner": "sounds/combat/stunner.ogg",
+    "carbine": "sounds/combat/carbine.ogg",
+    "pistol": "sounds/combat/pistol.ogg",
+    "magnum": "sounds/combat/pistol.ogg",
+    "slicer": "sounds/combat/slicer.ogg",
+    "stun baton": "sounds/combat/melee.ogg",
+    "knife": "sounds/combat/melee.ogg",
+    "launcher": "sounds/combat/launcher.ogg",
+}
+
+CHARACTER_COMBAT_SOUND_PATHS = {
+    "assaultbot": "sounds/combat/assaultbot.ogg",
+    "stunbot": "sounds/combat/stunbot.ogg",
+    "klackon": "sounds/combat/hiss.ogg",
+}
+
+BATTLE_MUSIC_TRACKS = (
+    "music/fight1.ogg",
+    "music/fight2.ogg",
+    "music/fight3.ogg",
+)
+
 def load_sound(filename):
     try:
-        if not hasattr(pygame, "mixer"):
+        if not filename or not hasattr(pygame, "mixer"):
             return None
         ogg_path = filename.rsplit(".", 1)[0] + ".ogg"
         if os.path.exists(resource_path(ogg_path)):
@@ -190,28 +223,47 @@ def load_sound(filename):
         print(f"Warning: could not load sound {filename}: {e}")
     return None
 
-def play_weapon_sound(weapon):
-    energy_weapons = {"laser pistol", "laser rifle"}
-    sonic_weapons = {"blaster rifle", "stunner"}
-    slashing_weapons = {"slicer", "stun baton", "knife"}
-    piercing_weapons = {"carbine", "pistol", "magnum"}
-    concussion_weapons = {"launcher"}
+def resolve_combat_sound_path(weapon, character=None) -> str | None:
+    """Return the relative .ogg sound path in sounds/combat/ for *character* attacking with *weapon*."""
+    if character is not None:
+        occ = getattr(character, "occupation", None)
+        ctype = getattr(character, "type", None)
+        if occ in CHARACTER_COMBAT_SOUND_PATHS:
+            return CHARACTER_COMBAT_SOUND_PATHS[occ]
+        if ctype in CHARACTER_COMBAT_SOUND_PATHS:
+            return CHARACTER_COMBAT_SOUND_PATHS[ctype]
+    return WEAPON_SOUND_PATHS.get(weapon)
 
-    sound = None
-    if weapon in concussion_weapons:
-        sound = load_sound("music/launcher.ogg")
-    elif weapon in energy_weapons or weapon in sonic_weapons:
-        sound = load_sound("music/laser.ogg")
-    elif weapon in piercing_weapons:
-        sound = load_sound("music/pistol.ogg")
-    elif weapon in slashing_weapons:
-        sound = load_sound("music/melee.ogg")
-
+def play_weapon_sound(weapon, character=None):
+    sound_file = resolve_combat_sound_path(weapon, character)
+    sound = load_sound(sound_file) if sound_file else None
     if sound:
         try:
             sound.play()
         except Exception as e:
             print(f"Warning: could not play sound: {e}")
+
+def play_ui_sound(kind: str):
+    """Play a UI sound ('positive', 'negative', 'victory', or 'defeat')."""
+    sound_file = UI_SOUND_PATHS.get(kind)
+    sound = load_sound(sound_file) if sound_file else None
+    if sound:
+        try:
+            sound.play()
+        except Exception as e:
+            print(f"Warning: could not play UI sound {kind}: {e}")
+
+def play_positive_click():
+    play_ui_sound("positive")
+
+def play_negative_click():
+    play_ui_sound("negative")
+
+def play_victory_sound():
+    play_ui_sound("victory")
+
+def play_defeat_sound():
+    play_ui_sound("defeat")
 
 def play_background_music(path, pygame):
     try:
@@ -238,9 +290,8 @@ def play_battle_music(pygame):
             return
         if not pygame.mixer.get_init():
             pygame.mixer.init()
-        background_music_path = resource_path("music/fight3.ogg")
-        if not os.path.exists(background_music_path):
-            background_music_path = resource_path("music/fight3.mp3")
+        chosen_track = random.choice(BATTLE_MUSIC_TRACKS)
+        background_music_path = resource_path(chosen_track)
         if os.path.exists(background_music_path):
             pygame.mixer.music.load(background_music_path)
             pygame.mixer.music.set_volume(0.6)

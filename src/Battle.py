@@ -442,7 +442,7 @@ class TeamBattle:
         await announce_action(f"{character.name}'s action: MELEE", self.context.screen, self.context.font)
 
         # play sound (strip class suffix for sound lookup)
-        play_weapon_sound(item_base_name(chosen_weapon))
+        play_weapon_sound(item_base_name(chosen_weapon), character)
 
         battle_display_action(character, BattleAction.MELEE, self.context.screen, self.context.font)
 
@@ -614,7 +614,7 @@ class TeamBattle:
         await announce_action(f"{character.name}'s action: SHOOT", self.context.screen, self.context.font)
 
         # play sound (strip class suffix for sound lookup)
-        play_weapon_sound(item_base_name(chosen_weapon))
+        play_weapon_sound(item_base_name(chosen_weapon), character)
 
         battle_display_action(character, BattleAction.SHOOT, self.context.screen, self.context.font)
 

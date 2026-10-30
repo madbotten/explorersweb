@@ -2527,8 +2527,147 @@ class TestRolePositionEffectsPhase2(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(forbidden_number, intro_text)
 
 
+# ---------------------------------------------------------------------------
+# Combat & UI Sound Effects Overhaul — Phase 2 Tests
+# ---------------------------------------------------------------------------
+
+from Utils import (
+    UI_SOUND_PATHS,
+    WEAPON_SOUND_PATHS,
+    CHARACTER_COMBAT_SOUND_PATHS,
+    BATTLE_MUSIC_TRACKS,
+    resolve_combat_sound_path,
+    play_weapon_sound,
+    play_ui_sound,
+    play_positive_click,
+    play_negative_click,
+    play_victory_sound,
+    play_defeat_sound,
+    play_battle_music,
+    resource_path,
+)
+
+
+class TestSoundEffectsPhase2(unittest.IsolatedAsyncioTestCase):
+
+    def test_all_sound_and_music_assets_are_ogg_and_exist(self):
+        """All configured UI, weapon, character combat, and battle music paths are .ogg files that exist on disk, and no .mp3 files remain in sounds/ or music/."""
+        all_paths = (
+            list(UI_SOUND_PATHS.values())
+            + list(WEAPON_SOUND_PATHS.values())
+            + list(CHARACTER_COMBAT_SOUND_PATHS.values())
+            + list(BATTLE_MUSIC_TRACKS)
+        )
+        for rel_path in all_paths:
+            self.assertTrue(rel_path.endswith(".ogg"), f"Expected .ogg path, got {rel_path}")
+            abs_path = resource_path(rel_path)
+            self.assertTrue(os.path.exists(abs_path), f"Missing audio asset on disk: {rel_path}")
+
+        for folder in ("sounds", "music"):
+            folder_abs = resource_path(folder)
+            for root, _, files in os.walk(folder_abs):
+                for fname in files:
+                    self.assertFalse(
+                        fname.lower().endswith(".mp3"),
+                        f"Unexpected .mp3 file found in {folder}: {os.path.join(root, fname)}",
+                    )
+
+    def test_resolve_combat_sound_path_for_weapons_robots_and_klackons(self):
+        """Each weapon resolves to its specific .ogg in sounds/combat/, while assaultbot, stunbot, and klackon override with their dedicated combat sounds."""
+        human = make_human_controlled()
+        expected_weapons = {
+            "laser pistol": "sounds/combat/laser.ogg",
+            "laser rifle": "sounds/combat/laserrifle.ogg",
+            "blaster rifle": "sounds/combat/blaster.ogg",
+            "stunner": "sounds/combat/stunner.ogg",
+            "carbine": "sounds/combat/carbine.ogg",
+            "pistol": "sounds/combat/pistol.ogg",
+            "magnum": "sounds/combat/pistol.ogg",
+            "slicer": "sounds/combat/slicer.ogg",
+            "stun baton": "sounds/combat/melee.ogg",
+            "knife": "sounds/combat/melee.ogg",
+            "launcher": "sounds/combat/launcher.ogg",
+        }
+        for weapon, expected_path in expected_weapons.items():
+            self.assertEqual(resolve_combat_sound_path(weapon, human), expected_path)
+
+        assaultbot = make_robot(250)
+        assaultbot.occupation = "assaultbot"
+        self.assertEqual(resolve_combat_sound_path("laser pistol", assaultbot), "sounds/combat/assaultbot.ogg")
+
+        stunbot = make_robot(250)
+        stunbot.occupation = "stunbot"
+        self.assertEqual(resolve_combat_sound_path("stun baton", stunbot), "sounds/combat/stunbot.ogg")
+
+        klackon = make_human_controlled()
+        klackon.type = "klackon"
+        klackon.occupation = "klackon"
+        self.assertEqual(resolve_combat_sound_path("slicer", klackon), "sounds/combat/hiss.ogg")
+
+        broodmother = make_human_controlled()
+        broodmother.type = "klackon"
+        broodmother.occupation = "broodmother"
+        self.assertEqual(resolve_combat_sound_path("blaster rifle", broodmother), "sounds/combat/hiss.ogg")
+
+    async def test_battle_passes_character_to_play_weapon_sound(self):
+        """run_battle_action_shoot and run_battle_action_melee pass the attacking character to play_weapon_sound."""
+        bot = make_robot(250)
+        bot.occupation = "assaultbot"
+        bot.position = POS_CENTER
+        give_item(bot, "laser pistol C")
+        bot.chosen_ranged_weapon = bot.choose_ranged_weapon()
+
+        klackon = make_human_controlled()
+        klackon.type = "klackon"
+        klackon.occupation = "klackon"
+        klackon.position = POS_CENTER
+        give_item(klackon, "slicer C")
+        klackon.chosen_melee_weapon = klackon.choose_melee_weapon()
+
+        all_items = {
+            "laser pistol C": make_item("laser pistol C"),
+            "slicer C": make_item("slicer C"),
+        }
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([bot], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [klackon]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        with patch("Battle.random.randint", return_value=99), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound") as mock_play_sfx, \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch("Battle.battle_display_pirate_action_result"), \
+             patch("Battle.draw_life_bar"), \
+             patch("Battle.battle_display_action_damage"), \
+             patch("Battle.battle_display_character_hit"), \
+             patch.object(TeamBattle, "damage_target"):
+            await battle.run_battle_action_shoot(bot)
+            mock_play_sfx.assert_called_with("laser pistol", bot)
+
+            mock_play_sfx.reset_mock()
+            await battle.run_battle_action_melee(klackon)
+            mock_play_sfx.assert_called_with("slicer", klackon)
+
+    def test_play_battle_music_selects_random_fight_track(self):
+        """play_battle_music randomly chooses one of music/fight1.ogg, music/fight2.ogg, or music/fight3.ogg."""
+        self.assertEqual(
+            BATTLE_MUSIC_TRACKS,
+            ("music/fight1.ogg", "music/fight2.ogg", "music/fight3.ogg"),
+        )
+        dummy_pygame = unittest.mock.MagicMock()
+        dummy_pygame.mixer.get_init.return_value = True
+        with patch("Utils.random.choice", return_value="music/fight2.ogg") as mock_choice:
+            play_battle_music(dummy_pygame)
+            mock_choice.assert_called_once_with(BATTLE_MUSIC_TRACKS)
+            dummy_pygame.mixer.music.load.assert_called_once_with(resource_path("music/fight2.ogg"))
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
