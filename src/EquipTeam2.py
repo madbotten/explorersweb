@@ -3,6 +3,7 @@ import asyncio
 from Character import *
 from DrawUtils import DrawingContext
 from Item import *
+from Robot import Robot, get_robot_cost
 from Utils import *
 from MissionOrders import get_theatre_for_loop, get_mission_goals_for_theatre
 from constants import TOP_BAR_Y, DEBUG
@@ -227,34 +228,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
             await display_message("Not enough credits!", screen, DEFAULT_FONT)
 
     def add_robot_to_team(team, item):
-        i = team_size(team)
-        if item.name == "assaultbot":
-          robot = Character.create_assaultbot(i, all_items)
-        elif item.name == "stunbot":
-          robot = Character.create_stunbot(i, all_items)
-        elif item.name == "mechbot":
-          robot = Character.create_mechbot(i, all_items)
-        elif item.name == "techbot":
-          robot = Character.create_techbot(i, all_items)
-        elif item.name == "hackbot":
-          robot = Character.create_hackbot(i, all_items)
-        elif item.name == "meleebot":
-          robot = Character.create_meleebot(i, all_items)
-        elif item.name == "batonbot":
-          robot = Character.create_batonbot(i, all_items)
-        elif item.name == "medibot":
-          robot = Character.create_medibot(i, all_items)
-        elif item.name == "mulebot":
-          robot = Character.create_mulebot(i, all_items)
-        elif item.name == "scoutbot":
-          robot = Character.create_scoutbot(i, all_items)
-        else:
-          return
-        robot.team = team
-        team.append(robot)
-        # Update all members' team references so mulebot check works for everyone
-        for member in team:
-            member.team = team
+        Robot.add_to_team(team, item.name, all_items)
 
     def handle_item_return(item):
         nonlocal credits
@@ -437,7 +411,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                     if STORE_RECT.collidepoint(dragging_robot_rect.center):
                         play_positive_click()
                         # Refund only the robot's purchase cost; its equipment stays
-                        refund = all_items[dragging_robot.occupation].cost
+                        refund = get_robot_cost(dragging_robot.occupation)
                         credits += refund
                         await display_message(f"Sold {dragging_robot.name} for {refund} credits", screen, DEFAULT_FONT)
                         team.remove(dragging_robot)

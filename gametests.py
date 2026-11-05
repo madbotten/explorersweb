@@ -2844,8 +2844,66 @@ class TestRobotModulePhase1(unittest.TestCase):
         self.assertEqual([it.name for it in restored.equipment], ["stunner"])
 
 
+# ---------------------------------------------------------------------------
+# Robot Module Extraction — Phase 2 Tests
+# ---------------------------------------------------------------------------
+
+from Item import load_item_tabs
+from Score import liquidate_surviving_robots
+
+
+class TestRobotModulePhase2(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.all_items = load_items_battle()
+
+    def test_load_item_tabs_populates_robots_store_tab(self):
+        """load_item_tabs()['robots'] contains all 10 robot store catalog entries with matching costs."""
+        tabs = load_item_tabs()
+        self.assertIn("robots", tabs)
+        robot_tab = tabs["robots"]
+        self.assertEqual({item.name for item in robot_tab}, set(ROBOT_ATTRIBUTES.keys()))
+        for item in robot_tab:
+            self.assertEqual(item.type, "robot")
+            self.assertEqual(item.cost, get_robot_cost(item.name))
+
+    def test_robot_add_to_team_appends_robot_and_updates_team_refs(self):
+        """Robot.add_to_team creates a Robot, appends it to the team, and updates member.team references."""
+        human = make_human_controlled(strength=20)
+        heavy = Item("Heavy Crate", "misc", 10, 50, 1, 0, "none", 10, "A heavy crate")
+        human.equipment.append(heavy)
+        team = [human]
+        human.team = team
+        self.assertTrue(human.is_encumbered())
+
+        mule = Robot.add_to_team(team, "mulebot", self.all_items)
+        self.assertIsInstance(mule, Robot)
+        self.assertEqual(mule.name, "MUB1")
+        self.assertEqual(len(team), 2)
+        self.assertIs(team[1], mule)
+        self.assertIs(human.team, team)
+        self.assertIs(mule.team, team)
+        self.assertFalse(human.is_encumbered())
+
+    def test_liquidate_surviving_robots_refunds_surviving_robot_instances(self):
+        """liquidate_surviving_robots refunds surviving Robot instances using get_robot_cost and filters them out."""
+        h1 = make_human_controlled()
+        bot_alive_1 = Robot.create("assaultbot", 1, self.all_items)  # 500
+        bot_alive_2 = Robot.create("scoutbot", 2, self.all_items)    # 150
+        bot_dead = Robot.create("medibot", 3, self.all_items)        # 500, dead
+        bot_dead.current_health = 0
+
+        team = [h1, bot_alive_1, bot_alive_2, bot_dead]
+        survivors, refund = liquidate_surviving_robots(team)
+        self.assertEqual(survivors, [h1])
+        self.assertEqual(refund, 650)
+        self.assertEqual(h1.team, [h1])
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

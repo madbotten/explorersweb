@@ -195,6 +195,21 @@ class Robot(Character):
         return robot
 
     @classmethod
+    def add_to_team(cls, team: list, robot_type: str, all_items: dict) -> "Robot | None":
+        """Create a Robot of *robot_type*, append it to *team*, and sync team references."""
+        index = sum(1 for m in team if m is not None)
+        robot = cls.create(robot_type, index, all_items)
+        if robot is None:
+            return None
+        robot.team = team
+        team.append(robot)
+        for member in team:
+            if member is not None:
+                member.team = team
+        return robot
+
+
+    @classmethod
     def create_assaultbot(cls, index: int, all_items: dict) -> "Robot":
         return cls.create("assaultbot", index, all_items)
 

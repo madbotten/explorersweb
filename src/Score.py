@@ -154,10 +154,10 @@ def draw_hover_popup(member, screen, mouse_pos, popup_font, header_font):
 
 def liquidate_surviving_robots(team):
     """Convert any surviving robots into credits and return (surviving_humanoids, robot_refund)."""
-    from Item import ROBOT_ATTRIBUTES
+    from Robot import get_robot_cost
 
     robot_refund = sum(
-        ROBOT_ATTRIBUTES.get(getattr(m, "occupation", ""), (0,))[0]
+        get_robot_cost(getattr(m, "occupation", ""))
         for m in team
         if m is not None and m.is_robot() and m.is_alive()
     )
