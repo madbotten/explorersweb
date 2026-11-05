@@ -191,21 +191,6 @@ ITEM_ATTRIBUTES = {
     "stun baton S": (288, 3, 2, 23, "sonic", 230, "weapon", "A nonlethal melee weapon"),
 }
 
-ROBOT_ATTRIBUTES = {
-    "assaultbot": (500, 0, 3, 20, "impact", 200, "robot", "A fearless humanoid combat robot that can lead chamber breaches and fight enemies with the team"),
-    "techbot":    (350, 0, 1,  1, "impact",  50, "robot", "A tech robot that can repair electronics and small misc items"),
-    "hackbot":    (200, 0, 1,  1, "impact",  50, "robot", "A robot that can mesh with electronic interfaces and hack enemy systems"),
-    "mechbot":    (250, 0, 1,  5, "impact",  50, "robot", "A repair robot that can repair structural or mechanical systems"),
-    "mulebot":    (250, 0, 1,  1, "impact",  50, "robot", "A robot to carry food, ammo, and currently unused items to prevent team members from being encumbered"),
-    "scoutbot":   (150, 0, 1,  1, "impact",  20, "robot", "A scout robot that helps prevent the team from being surprised"),
-    "meleebot":   (275, 0, 3, 20, "impact", 200, "robot", "A melee robot with short range cutters"),
-    "medibot":    (500, 0, 1,  5, "impact",  50, "robot", "A medical robot that provides healing and medical supplies"),
-    "stunbot":    (350, 0, 2, 20, "sonic",  200, "robot", "A robot with ranged nonlethal weapons"),
-    "batonbot":   (250, 0, 2, 20, "impact", 200, "robot", "A melee robot with nonlethal stun batons"),
-}
-
-ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
-
 # Armor protection multipliers per effect_type:
 #   (energy, sonic, impact, slash, pierce, concussion, electric)
 # Protection applied = round(armor.effect * multiplier)
@@ -342,6 +327,11 @@ class Item:
             self.effect, self.effect_type, self.hp, self.description,
             self.icon, self.rect.copy() if self.rect else None,
         )
+
+
+from Robot import ROBOT_ATTRIBUTES
+
+ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
 
 
 def _build_items(icon_size: tuple) -> dict:

@@ -6,10 +6,8 @@ import random
 import os
 from typing import Any
 from constants import DEBUG
-
-from Battle import BattleAction
 from Utils import *
-from Item import *
+
 
 # ---------------------------------------------------------------------------
 # Interaction type constants
@@ -781,7 +779,7 @@ class Character:
               return True
         return False
 
-    def add_item(self, item:Item):
+    def add_item(self, item: "Item"):
         """Adds an Item object to the character's equipment."""
         if isinstance(item, Item):
             self.equipment.append(item.copy())
@@ -1098,335 +1096,6 @@ class Character:
     def get_raw_skills(self):
         return self.skills
 
-    @staticmethod
-    def create_assaultbot(index, all_items):
-        assaultbot = Character(index, "robot")
-        assaultbot.occupation = "assaultbot"
-        assaultbot.history = "A robot."
-        assaultbot.name = "ASB" + str(index)
-        portrait_path = resource_path(f"gadgets/assaultbot.jpg")
-        assaultbot.portrait = pygame.image.load(portrait_path)
-        assaultbot.portrait = pygame.transform.scale(assaultbot.portrait, (70, 80))
-        assaultbot.max_life = all_items["assaultbot"].hp
-        assaultbot.stats["max_health"] = assaultbot.max_life
-        assaultbot.current_health = assaultbot.max_life
-        assaultbot.stats["strength"] = 50
-        assaultbot.stats["intelligence"] = 30
-        assaultbot.stats["willpower"] = 90
-        assaultbot.stats["coordination"] = 80
-        assaultbot.stats["charisma"] = 10
-        assaultbot.stats["courage"] = 95
-        assaultbot.stats["offense"] = 75
-        assaultbot.stats["defense"] = 75
-        assaultbot.stats["evasion"] = 50
-        assaultbot.stats["deception"] = 50
-        assaultbot.stats["analyze"] = 10
-        assaultbot.stats["movement"] = 30
-        assaultbot.stats["meleecombat"] = 10
-        assaultbot.stats["surprise"] = 175
-        assaultbot.stats["leadership"] = 5
-        assaultbot.stats["perception"] = 30
-        assaultbot.skills = {"Energy Weapons":75, "Mech Combat":50}
-        assaultbot.add_item(all_items["laser pistol"])
-        assaultbot.add_item(all_items["power shield"])
-
-        return assaultbot
-
-    @staticmethod
-    def create_stunbot(index, all_items):
-        stunbot = Character(index, "robot")
-        stunbot.occupation = "stunbot"
-        stunbot.history = "A robot."
-        stunbot.name = "STB" + str(index)
-        portrait_path = resource_path(f"gadgets/stunbot.jpg")
-        stunbot.portrait = pygame.image.load(portrait_path)
-        stunbot.portrait = pygame.transform.scale(stunbot.portrait, (70, 80))
-        stunbot.max_life = all_items["stunbot"].hp
-        stunbot.stats["max_health"] = stunbot.max_life
-        stunbot.current_health = stunbot.max_life
-        stunbot.stats["strength"] = 50
-        stunbot.stats["intelligence"] = 30
-        stunbot.stats["willpower"] = 90
-        stunbot.stats["coordination"] = 80
-        stunbot.stats["charisma"] = 10
-        stunbot.stats["courage"] = 95
-        stunbot.stats["offense"] = 75
-        stunbot.stats["defense"] = 75
-        stunbot.stats["evasion"] = 50
-        stunbot.stats["deception"] = 50
-        stunbot.stats["analyze"] = 10
-        stunbot.stats["movement"] = 30
-        stunbot.stats["meleecombat"] = 10
-        stunbot.stats["surprise"] = 125
-        stunbot.stats["leadership"] = 5
-        stunbot.stats["perception"] = 30
-        stunbot.skills = {"Energy Weapons": 75, "Mech Combat":50}
-        stunbot.add_item(all_items["stunner"])
-        stunbot.add_item(all_items["power shield"])
-        return stunbot
-
-    @staticmethod
-    def create_mechbot(index, all_items):
-        mechbot = Character(index, "robot")
-        mechbot.occupation = "mechbot"
-        mechbot.history = "A robot."
-        mechbot.name = "MKB" + str(index)
-        portrait_path = resource_path(f"gadgets/mechbot.jpg")
-        mechbot.portrait = pygame.image.load(portrait_path)
-        mechbot.portrait = pygame.transform.scale(mechbot.portrait, (70, 80))
-        mechbot.max_life = all_items["mechbot"].hp
-        mechbot.stats["max_health"] = mechbot.max_life
-        mechbot.current_health = mechbot.max_life
-        mechbot.stats["strength"] = 50
-        mechbot.stats["intelligence"] = 30
-        mechbot.stats["willpower"] = 90
-        mechbot.stats["coordination"] = 80
-        mechbot.stats["charisma"] = 10
-        mechbot.stats["courage"] = 95
-        mechbot.stats["offense"] = 10
-        mechbot.stats["defense"] = 10
-        mechbot.stats["evasion"] = 30
-        mechbot.stats["deception"] = 30
-        mechbot.stats["analyze"] = 35
-        mechbot.stats["movement"] = 30
-        mechbot.stats["meleecombat"] = 5
-        mechbot.stats["surprise"] = 20
-        mechbot.stats["leadership"] = 5
-        mechbot.stats["perception"] = 30
-        mechbot.skills = {"Robot Repair": 65, "Fabrication": 35, "Mechanics": 50}
-        mechbot.add_item(all_items["stunner"])
-        return mechbot
-
-    @staticmethod
-    def create_techbot(i, all_items):
-        techbot = Character(i, "robot")
-        techbot.occupation = "techbot"
-        techbot.history = "A robot."
-        techbot.name = "TKB" + str(i)
-        portrait_path = resource_path(f"gadgets/techbot.jpg")
-        techbot.portrait = pygame.image.load(portrait_path)
-        techbot.portrait = pygame.transform.scale(techbot.portrait, (70, 80))
-        techbot.max_life = all_items["techbot"].hp
-        techbot.stats["max_health"] = techbot.max_life
-        techbot.current_health = techbot.max_life
-        techbot.stats["strength"] = 50
-        techbot.stats["intelligence"] = 30
-        techbot.stats["willpower"] = 90
-        techbot.stats["coordination"] = 80
-        techbot.stats["charisma"] = 10
-        techbot.stats["courage"] = 95
-        techbot.stats["offense"] = 10
-        techbot.stats["defense"] = 10
-        techbot.stats["evasion"] = 40
-        techbot.stats["deception"] = 30
-        techbot.stats["analyze"] = 65
-        techbot.stats["movement"] = 30
-        techbot.stats["meleecombat"] = 5
-        techbot.stats["surprise"] = 20
-        techbot.stats["leadership"] = 5
-        techbot.stats["perception"] = 50
-        techbot.skills = {"Robot Repair": 65, "Ships Systems": 55, "Fabrication": 15,
-                              "Artifact Analysis": 45, "Hacking": 35}
-        techbot.add_item(all_items["stunner"])
-        return techbot
-
-    @staticmethod
-    def create_hackbot(i, all_items):
-        hackbot = Character(i, "robot")
-        hackbot.occupation = "hackbot"
-        hackbot.history = "A robot."
-        hackbot.name = "HKB" + str(i)
-        portrait_path = resource_path(f"gadgets/hackbot.jpg")
-        hackbot.portrait = pygame.image.load(portrait_path)
-        hackbot.portrait = pygame.transform.scale(hackbot.portrait, (70, 80))
-        hackbot.max_life = all_items["hackbot"].hp
-        hackbot.stats["max_health"] = hackbot.max_life
-        hackbot.current_health = hackbot.max_life
-        hackbot.stats["strength"] = 50
-        hackbot.stats["intelligence"] = 30
-        hackbot.stats["willpower"] = 90
-        hackbot.stats["coordination"] = 80
-        hackbot.stats["charisma"] = 10
-        hackbot.stats["courage"] = 95
-        hackbot.stats["offense"] = 10
-        hackbot.stats["defense"] = 10
-        hackbot.stats["evasion"] = 40
-        hackbot.stats["deception"] = 30
-        hackbot.stats["analyze"] = 45
-        hackbot.stats["movement"] = 30
-        hackbot.stats["meleecombat"] = 5
-        hackbot.stats["surprise"] = 20
-        hackbot.stats["leadership"] = 5
-        hackbot.stats["perception"] = 60
-        hackbot.skills = {"Robot Repair": 15, "Ships Systems": 45, "Fabrication": 10,
-                          "Artifact Analysis": 25, "Hacking": 75}
-        hackbot.add_item(all_items["stunner"])
-        return hackbot
-
-    @staticmethod
-    def create_meleebot(i, all_items):
-        meleebot = Character(i, "robot")
-        meleebot.occupation = "meleebot"
-        meleebot.history = "A robot."
-        meleebot.name = "MEB" + str(i)
-        portrait_path = resource_path(f"gadgets/meleebot.jpg")
-        meleebot.portrait = pygame.image.load(portrait_path)
-        meleebot.portrait = pygame.transform.scale(meleebot.portrait, (70, 80))
-        meleebot.max_life = all_items["meleebot"].hp
-        meleebot.stats["max_health"] = meleebot.max_life
-        meleebot.current_health = meleebot.max_life
-        meleebot.stats["strength"] = 50
-        meleebot.stats["intelligence"] = 30
-        meleebot.stats["willpower"] = 90
-        meleebot.stats["coordination"] = 80
-        meleebot.stats["charisma"] = 10
-        meleebot.stats["courage"] = 95
-        meleebot.stats["offense"] = 75
-        meleebot.stats["defense"] = 75
-        meleebot.stats["evasion"] = 75
-        meleebot.stats["deception"] = 40
-        meleebot.stats["analyze"] = 5
-        meleebot.stats["movement"] = 75
-        meleebot.stats["meleecombat"] = 75
-        meleebot.stats["surprise"] = 150
-        meleebot.stats["leadership"] = 5
-        meleebot.stats["perception"] = 30
-        meleebot.skills = {"Martial Arts":75, "Mech Combat":50}
-        meleebot.add_item(all_items["slicer"])
-        meleebot.add_item(all_items["veer suit"])
-        return meleebot
-
-    @staticmethod
-    def create_batonbot(i, all_items):
-        batonbot = Character(i, "robot")
-        batonbot.occupation = "batonbot"
-        batonbot.history = "A robot."
-        batonbot.name = "BAB" + str(i)
-        portrait_path = resource_path(f"gadgets/batonbot.jpg")
-        batonbot.portrait = pygame.image.load(portrait_path)
-        batonbot.portrait = pygame.transform.scale(batonbot.portrait, (70, 80))
-        batonbot.max_life = all_items["batonbot"].hp
-        batonbot.stats["max_health"] = batonbot.max_life
-        batonbot.current_health = batonbot.max_life
-        batonbot.stats["strength"] = 50
-        batonbot.stats["intelligence"] = 30
-        batonbot.stats["willpower"] = 90
-        batonbot.stats["coordination"] = 80
-        batonbot.stats["charisma"] = 10
-        batonbot.stats["courage"] = 95
-        batonbot.stats["offense"] = 75
-        batonbot.stats["defense"] = 75
-        batonbot.stats["evasion"] = 50
-        batonbot.stats["deception"] = 40
-        batonbot.stats["analyze"] = 5
-        batonbot.stats["movement"] = 75
-        batonbot.stats["meleecombat"] = 75
-        batonbot.stats["surprise"] = 150
-        batonbot.stats["leadership"] = 5
-        batonbot.stats["perception"] = 30
-        batonbot.skills = {"Martial Arts": 75, "Mech Combat":50}
-        batonbot.add_item(all_items["stun baton"])
-        batonbot.add_item(all_items["veer suit"])
-        return batonbot
-
-    @staticmethod
-    def create_medibot(i, all_items):
-        medibot = Character(i, "robot")
-        medibot.occupation = "medibot"
-        medibot.history = "A robot."
-        medibot.name = "MDB" + str(i)
-        portrait_path = resource_path(f"gadgets/medibot.jpg")
-        medibot.portrait = pygame.image.load(portrait_path)
-        medibot.portrait = pygame.transform.scale(medibot.portrait, (70, 80))
-        medibot.max_life = all_items["medibot"].hp
-        medibot.stats["max_health"] = medibot.max_life
-        medibot.current_health = medibot.max_life
-        medibot.stats["strength"] = 50
-        medibot.stats["intelligence"] = 30
-        medibot.stats["willpower"] = 90
-        medibot.stats["coordination"] = 80
-        medibot.stats["charisma"] = 10
-        medibot.stats["courage"] = 95
-        medibot.stats["offense"] = 10
-        medibot.stats["defense"] = 10
-        medibot.stats["evasion"] = 30
-        medibot.stats["deception"] = 40
-        medibot.stats["analyze"] = 15
-        medibot.stats["movement"] = 30
-        medibot.stats["meleecombat"] = 5
-        medibot.stats["surprise"] = 20
-        medibot.stats["leadership"] = 5
-        medibot.stats["perception"] = 40
-        medibot.skills = {"Medicine": 75, "Xenobiology": 50}
-        medibot.add_item(all_items["stun baton"])
-        medibot.add_item(all_items["medikit"])
-        return medibot
-
-    @staticmethod
-    def create_mulebot(i, all_items):
-        mulebot = Character(i, "robot")
-        mulebot.occupation = "mulebot"
-        mulebot.history = "A robot."
-        mulebot.name = "MUB" + str(i)
-        portrait_path = resource_path(f"gadgets/mulebot.jpg")
-        mulebot.portrait = pygame.image.load(portrait_path)
-        mulebot.portrait = pygame.transform.scale(mulebot.portrait, (70, 80))
-        mulebot.max_life = all_items["mulebot"].hp
-        mulebot.stats["max_health"] = mulebot.max_life
-        mulebot.current_health = mulebot.max_life
-        mulebot.stats["strength"] = 50
-        mulebot.stats["intelligence"] = 30
-        mulebot.stats["willpower"] = 90
-        mulebot.stats["coordination"] = 80
-        mulebot.stats["charisma"] = 10
-        mulebot.stats["courage"] = 95
-        mulebot.stats["offense"] = 10
-        mulebot.stats["defense"] = 10
-        mulebot.stats["evasion"] = 30
-        mulebot.stats["deception"] = 30
-        mulebot.stats["analyze"] = 15
-        mulebot.stats["movement"] = 30
-        mulebot.stats["meleecombat"] = 5
-        mulebot.stats["surprise"] = 20
-        mulebot.stats["leadership"] = 5
-        mulebot.stats["perception"] = 30
-        mulebot.skills = {}
-        mulebot.add_item(all_items["stun baton"])
-        return mulebot
-
-    @staticmethod
-    def create_scoutbot(i, all_items):
-        scoutbot = Character(i, "robot")
-        scoutbot.occupation = "scoutbot"
-        scoutbot.history = "A robot."
-        scoutbot.name = "SCB" + str(i)
-        portrait_path = resource_path(f"gadgets/scoutbot.jpg")
-        scoutbot.portrait = pygame.image.load(portrait_path)
-        scoutbot.portrait = pygame.transform.scale(scoutbot.portrait, (70, 80))
-        scoutbot.max_life = all_items["scoutbot"].hp
-        scoutbot.stats["max_health"] = scoutbot.max_life
-        scoutbot.current_health = scoutbot.max_life
-        scoutbot.stats["strength"] = 30
-        scoutbot.stats["intelligence"] = 50
-        scoutbot.stats["willpower"] = 90
-        scoutbot.stats["coordination"] = 80
-        scoutbot.stats["charisma"] = 10
-        scoutbot.stats["courage"] = 95
-        scoutbot.stats["offense"] = 10
-        scoutbot.stats["defense"] = 60
-        scoutbot.stats["evasion"] = 85
-        scoutbot.stats["deception"] = 50
-        scoutbot.stats["analyze"] = 15
-        scoutbot.stats["movement"] = 125
-        scoutbot.stats["meleecombat"] = 5
-        scoutbot.stats["surprise"] = 150
-        scoutbot.stats["leadership"] = 5
-        scoutbot.stats["perception"] = 75
-        scoutbot.skills = {"Stealth": 50, "Espionage":50, "Detection":75}
-        scoutbot.add_item(all_items["stunner"])
-        scoutbot.add_item(all_items["scanner"])
-        return scoutbot
-
     def to_dict(self):
         """Converts the character to a dictionary for serialization."""
         return {
@@ -1465,8 +1134,11 @@ class Character:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Character":
-        """Creates a Character instance from a dictionary."""
-        character = cls(data["index"], data["type"])
+        """Creates a Character (or Robot) instance from a dictionary."""
+        if data.get("type") == "robot" and cls is Character:
+            character = _robot_mod.Robot(data["index"])
+        else:
+            character = cls(data["index"], data["type"])
         character.name = data["name"]
         character.type = data["type"]
         character.stats = data["stats"]
@@ -1512,11 +1184,12 @@ class Character:
         character.position     = data.get("position", None)
 
         if data["type"] == "robot":
-            portrait_path = resource_path(f"gadgets/{character.occupation}.jpg")
-            try:
-                character.portrait = pygame.image.load(portrait_path)
-                character.portrait = pygame.transform.scale(character.portrait, (70, 80))
-            except pygame.error:
-                print(f"Failed to load robot portrait: {portrait_path}")
+            character.portrait = _robot_mod.Robot.load_robot_portrait(character.occupation)
 
         return character
+
+
+from Battle import BattleAction
+from Item import *
+import Robot as _robot_mod
+

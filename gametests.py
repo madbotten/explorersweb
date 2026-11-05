@@ -2764,8 +2764,89 @@ class TestSoundEffectsPhase3(unittest.IsolatedAsyncioTestCase):
             self.assertIn("play_negative_click()", content, f"{fname} missing play_negative_click()")
 
 
+# ---------------------------------------------------------------------------
+# Robot Module Extraction — Phase 1 Tests
+# ---------------------------------------------------------------------------
+
+from Robot import Robot, ROBOT_ATTRIBUTES, ROBOT_SPECS, get_robot_cost
+from Item import ALL_ATTRIBUTES, load_items_battle
+
+
+class TestRobotModulePhase1(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.all_items = load_items_battle()
+
+    def test_robot_attributes_and_specs_cover_all_ten_robots(self):
+        """ROBOT_ATTRIBUTES and ROBOT_SPECS define all 10 robot types and sync with Item.ALL_ATTRIBUTES."""
+        expected_robots = {
+            "assaultbot", "stunbot", "mechbot", "techbot", "hackbot",
+            "meleebot", "batonbot", "medibot", "mulebot", "scoutbot",
+        }
+        self.assertEqual(set(ROBOT_ATTRIBUTES.keys()), expected_robots)
+        self.assertEqual(set(ROBOT_SPECS.keys()), expected_robots)
+        for rtype in expected_robots:
+            self.assertIn(rtype, ALL_ATTRIBUTES)
+            self.assertEqual(ALL_ATTRIBUTES[rtype], ROBOT_ATTRIBUTES[rtype])
+            self.assertEqual(get_robot_cost(rtype), ROBOT_ATTRIBUTES[rtype][0])
+        self.assertEqual(get_robot_cost("nonexistent_bot"), 0)
+
+    def test_robot_create_builds_robot_and_character_instances(self):
+        """Robot.create returns a Robot (and Character) instance with the expected stats, skills, and equipment."""
+        for idx, (rtype, spec) in enumerate(ROBOT_SPECS.items()):
+            bot = Robot.create(rtype, idx, self.all_items)
+            self.assertIsInstance(bot, Robot)
+            self.assertIsInstance(bot, Character)
+            self.assertTrue(bot.is_robot())
+            self.assertEqual(bot.type, "robot")
+            self.assertEqual(bot.occupation, rtype)
+            self.assertEqual(bot.name, f"{spec['prefix']}{idx}")
+            expected_hp = ROBOT_ATTRIBUTES[rtype][5]
+            self.assertEqual(bot.max_life, expected_hp)
+            self.assertEqual(bot.current_health, expected_hp)
+            self.assertEqual(bot.stats["max_health"], expected_hp)
+            for stat_name, stat_val in spec["stats"].items():
+                self.assertEqual(bot.stats[stat_name], stat_val, f"{rtype} mismatch on {stat_name}")
+            self.assertEqual(bot.skills, spec["skills"])
+            self.assertEqual([item.name for item in bot.equipment], list(spec["equipment"]))
+
+    def test_character_factory_aliases_match_robot_create(self):
+        """All 10 Character.create_<type> and Robot.create_<type> methods return Robot instances."""
+        for rtype in ROBOT_SPECS:
+            factory_name = f"create_{rtype}"
+            char_bot = getattr(Character, factory_name)(4, self.all_items)
+            robot_bot = getattr(Robot, factory_name)(4, self.all_items)
+            self.assertIsInstance(char_bot, Robot)
+            self.assertIsInstance(robot_bot, Robot)
+            self.assertEqual(char_bot.name, robot_bot.name)
+            self.assertEqual(char_bot.stats, robot_bot.stats)
+            self.assertEqual(char_bot.skills, robot_bot.skills)
+            self.assertEqual(
+                [it.name for it in char_bot.equipment],
+                [it.name for it in robot_bot.equipment],
+            )
+
+    def test_robot_to_dict_and_from_dict_roundtrip(self):
+        """Serializing a Robot and restoring via Character.from_dict returns a Robot instance with intact fields."""
+        bot = Robot.create("techbot", 2, self.all_items)
+        data = bot.to_dict()
+        restored = Character.from_dict(data)
+        self.assertIsInstance(restored, Robot)
+        self.assertIsInstance(restored, Character)
+        self.assertTrue(restored.is_robot())
+        self.assertEqual(restored.name, "TKB2")
+        self.assertEqual(restored.occupation, "techbot")
+        self.assertEqual(restored.max_life, bot.max_life)
+        self.assertEqual(restored.current_health, bot.current_health)
+        self.assertEqual(restored.stats, bot.stats)
+        self.assertEqual(restored.skills, bot.skills)
+        self.assertEqual([it.name for it in restored.equipment], ["stunner"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

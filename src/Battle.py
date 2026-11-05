@@ -2,13 +2,6 @@ import asyncio
 
 from enum import Enum
 
-from TypeText import max_y_offset
-from Utils import *
-from Character import *
-from Item import *
-from Location import *
-from constants import DEBUG
-
 class BattleAction(Enum):
     NONE = 0
     SHOOT = 1
@@ -16,6 +9,14 @@ class BattleAction(Enum):
     EVADE = 3
     ITEM = 4
     CHARGE = 5
+
+from TypeText import max_y_offset
+from Utils import *
+from Character import *
+from Item import *
+from Location import *
+from constants import DEBUG
+
 
 FLASH_DURATION = 500
 CHARACTER_COMBAT_WIDTH = 60
