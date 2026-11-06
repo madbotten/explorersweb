@@ -471,8 +471,8 @@ class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Patch standard_skill_check to always fail
-        with patch("Voyage.standard_skill_check", return_value=False), \
-             patch("Voyage.type_out_text"):
+        with patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.type_out_text"):
             await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 95)   # 100 - 5
@@ -483,8 +483,8 @@ class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
         crew[0].skills["Supply Logistics"] = 80
         screen = make_dummy_screen()
         font   = make_dummy_font()
-        with patch("Voyage.standard_skill_check", return_value=True), \
-             patch("Voyage.type_out_text"):
+        with patch("ShipEvents.standard_skill_check", return_value=True), \
+             patch("ShipEvents.type_out_text"):
             await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 100)
@@ -497,9 +497,9 @@ class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Force the human to be selected, skill check fails → only human penalised
-        with patch("Voyage.determine_best_team_member", return_value=human), \
-             patch("Voyage.standard_skill_check", return_value=False), \
-             patch("Voyage.type_out_text"):
+        with patch("ShipEvents.determine_best_team_member", return_value=human), \
+             patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.type_out_text"):
             await calculate_outcome_out_of_oreos(team, None, "Supply Logistics", screen, font)
         self.assertEqual(human.morale, 95)   # human loses 5
         self.assertEqual(robot.morale, 100)  # robot unchanged
@@ -512,8 +512,8 @@ class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
         screen = make_dummy_screen()
         font   = make_dummy_font()
         # Patch determine_best_team_member to None to simulate the no-skill path
-        with patch("Voyage.determine_best_team_member", return_value=None), \
-             patch("Voyage.type_out_text"):
+        with patch("ShipEvents.determine_best_team_member", return_value=None), \
+             patch("ShipEvents.type_out_text"):
             await calculate_outcome_out_of_oreos(crew, None, "Supply Logistics", screen, font)
         for m in crew:
             self.assertEqual(m.morale, 95)
@@ -524,8 +524,8 @@ class TestSupplyLogistics(unittest.IsolatedAsyncioTestCase):
         robot.morale = 100
         screen = make_dummy_screen()
         font   = make_dummy_font()
-        with patch("Voyage.determine_best_team_member", return_value=None), \
-             patch("Voyage.type_out_text"):
+        with patch("ShipEvents.determine_best_team_member", return_value=None), \
+             patch("ShipEvents.type_out_text"):
             await calculate_outcome_out_of_oreos([robot], None, "Supply Logistics", screen, font)
         self.assertEqual(robot.morale, 100)
 
@@ -587,8 +587,8 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
         crew = [make_victim(), make_victim()]
         team = list(crew)
         screen, font = make_dummy_screen(), make_dummy_font()
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.mission_failure"):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.mission_failure"):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
         self.assertEqual(team, crew)   # unchanged
 
@@ -603,12 +603,10 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
         screen, font = make_dummy_screen(), make_dummy_font()
         chosen = []
 
-        original_type_out_text = __import__("ReturnVoyage").type_out_text
-
         async def capture_text(screen, text, font, color=None):
             chosen.append(text)
 
-        with patch("ReturnVoyage.type_out_text", side_effect=capture_text):
+        with patch("ShipEvents.type_out_text", side_effect=capture_text):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
 
         alert_lines = [t for t in chosen if "has snapped" in t]
@@ -625,8 +623,8 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
         screen, font = make_dummy_screen(), make_dummy_font()
 
         # Perception always passes: roll=1, perception=95, difficulty=-20 → 1 < 75
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", return_value=1):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", return_value=1):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
 
         self.assertNotIn(psycho, team)   # removed (brig)
@@ -647,8 +645,8 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
             if b == 30:    return 1    # offense die always low (psycho 1, victim 1 — but victim still wins on stat)
             return (a + b) // 2
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", side_effect=controlled_randint):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", side_effect=controlled_randint):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
 
         self.assertNotIn(psycho, team)
@@ -672,9 +670,9 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
                 return 99 if call_count[0] <= 3 else 1
             return (a + b) // 2
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", side_effect=alternating_randint), \
-             patch("ReturnVoyage.random.choice", return_value=victim1):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", side_effect=alternating_randint), \
+             patch("ShipEvents.random.choice", return_value=victim1):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
 
         self.assertNotIn(psycho, team)   # eventually caught
@@ -697,9 +695,9 @@ class TestPsychoticAttack(unittest.IsolatedAsyncioTestCase):
             chosen_victims.append(chosen)
             return chosen
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", return_value=50), \
-             patch("ReturnVoyage.random.choice", side_effect=track_choice):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", return_value=50), \
+             patch("ShipEvents.random.choice", side_effect=track_choice):
             await calculate_outcome_psychotic_attack(team, None, None, screen, font)
 
         self.assertNotIn(robot, chosen_victims,
@@ -745,8 +743,8 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
         crew = [make_commander(), make_commander()]
         team = list(crew)
         screen, font = make_dummy_screen(), make_dummy_font()
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.standard_skill_check", return_value=False):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
         self.assertEqual(team, crew)
 
@@ -760,9 +758,9 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
         screen, font = make_dummy_screen(), make_dummy_font()
 
         # roll=1 → stat_check passes (1 < ~90*morale_ratio + 0)
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.random.randint", return_value=1):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.random.randint", return_value=1):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         self.assertNotIn(traitor, team)
@@ -776,10 +774,10 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
         screen, font = make_dummy_screen(), make_dummy_font()
         initial_pts = commander.mission_points
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.determine_best_team_member", return_value=commander), \
-             patch("ReturnVoyage.standard_skill_check", return_value=True), \
-             patch("ReturnVoyage.random.randint", return_value=1):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.determine_best_team_member", return_value=commander), \
+             patch("ShipEvents.standard_skill_check", return_value=True), \
+             patch("ShipEvents.random.randint", return_value=1):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         # Should have gained base points AND interrogation bonus
@@ -803,9 +801,9 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
                 return 1    # surprise roll passes (1 < 100)
             return 50
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.random.randint", side_effect=seq_randint):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.random.randint", side_effect=seq_randint):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         self.assertNotIn(traitor, team)
@@ -820,8 +818,8 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
         screen, font = make_dummy_screen(), make_dummy_font()
 
         # Both rolls = 99 → perception fails (99 >= ~1); surprise fails (99 >= 1)
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", return_value=99):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", return_value=99):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         self.assertAlmostEqual(commander.mission_points, 34, delta=2)   # ~34% remain
@@ -833,8 +831,8 @@ class TestTraitorSabotage(unittest.IsolatedAsyncioTestCase):
         team      = [commander, traitor]
         screen, font = make_dummy_screen(), make_dummy_font()
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", return_value=99):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", return_value=99):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         # Traitor escapes — not removed from list (they fled; team can't brig them)
@@ -3100,8 +3098,8 @@ class TestEquipmentAuditPhase1(unittest.IsolatedAsyncioTestCase):
         guard = make_victim(perception=10)
         guard.add_item(make_item("pacifier C"))
         team_p = [psycho, guard]
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.random.randint", return_value=99):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.random.randint", return_value=99):
             await calculate_outcome_psychotic_attack(team_p, None, None, screen, font)
         self.assertNotIn(psycho, team_p)
         self.assertEqual(guard.current_health, 100)
@@ -3111,9 +3109,9 @@ class TestEquipmentAuditPhase1(unittest.IsolatedAsyncioTestCase):
         cmd = make_commander(perception=10, surprise=10)
         cmd.add_item(make_item("pacifier C"))
         team_t = [cmd, traitor]
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.random.randint", return_value=99):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.random.randint", return_value=99):
             await calculate_outcome_traitor_sabotage(team_t, None, None, screen, font)
         self.assertNotIn(traitor, team_t)
 
@@ -3472,9 +3470,9 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
         team = [traitor_cmd, loyal_xo]
         screen, font = make_dummy_screen(), make_dummy_font()
 
-        with patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.standard_skill_check", return_value=False), \
-             patch("ReturnVoyage.random.randint", return_value=1):
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.standard_skill_check", return_value=False), \
+             patch("ShipEvents.random.randint", return_value=1):
             await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
 
         self.assertNotIn(traitor_cmd, team)
@@ -3557,10 +3555,8 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
                 privacy_level=privacy_level,
             )
 
-        with patch("Voyage.type_out_text"), \
-             patch("Voyage.emit_character_image_at_text_offset"), \
-             patch("ReturnVoyage.type_out_text"), \
-             patch("ReturnVoyage.emit_character_image_at_text_offset"), \
+        with patch("ShipEvents.type_out_text"), \
+             patch("ShipEvents.emit_character_image_at_text_offset"), \
              patch("Interaction.Interaction.resolve", side_effect=spy_resolve):
             for _ in range(20):
                 await VoyageMod._run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
@@ -3642,6 +3638,116 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
             await ev.run([c], screen, font, bg, font)
 
         self.assertEqual(call_order, ["battle_and_heal", "pause_to_clear_screen", "calculate_outcome"])
+
+    async def test_enemies_present_statements_and_robot_repair_status(self):
+        """enemies_present_statements has no concatenated strings, and robot repairs display updated status whether or not humans needed healing."""
+        from Event import enemies_present_statements, team_heals, team_repairs_robots
+
+        self.assertIn("Combat commences!", enemies_present_statements)
+        self.assertIn("A fight erupts!", enemies_present_statements)
+        self.assertNotIn("Combat commences!A fight erupts!", enemies_present_statements)
+
+        screen, font = make_dummy_screen(), make_dummy_font()
+        items = load_items_battle()
+
+        # 1. Only scoutbot is hurt (~33% HP), human is at full health
+        human = make_human(50, 50)
+        scout = Robot.create("scoutbot", 1, items)
+        scout.current_health = 6  # 30% of 20 max_life
+        scout.morale_from_health()
+        team = [human, scout]
+
+        typed_lines = []
+        async def capture_text(scr, text, fnt, *args, **kwargs):
+            typed_lines.append(text)
+
+        with patch("Event.type_out_text", side_effect=capture_text), \
+             patch("Event.emit_team_status_portrait"), \
+             patch("Event.team_skill_check", return_value=False):
+            healed = await team_heals(team, screen, font, show_status=False)
+            repaired = await team_repairs_robots(team, screen, font, show_status=False)
+            if healed or repaired:
+                from Event import team_status
+                await team_status(team, screen, font)
+
+        self.assertFalse(healed)
+        self.assertTrue(repaired)
+        self.assertEqual(scout.current_health, 16)  # 6 + 10 base repair = 80%
+        self.assertTrue(any(f"{scout.name}  health 80%" in line for line in typed_lines))
+
+        # 2. Both human and scoutbot are hurt -> team_status shows both healed/repaired
+        human.current_health = 50
+        scout.current_health = 6
+        scout.morale_from_health()
+        typed_lines.clear()
+
+        with patch("Event.type_out_text", side_effect=capture_text), \
+             patch("Event.emit_team_status_portrait"), \
+             patch("Event.team_skill_check", return_value=True):
+            healed = await team_heals(team, screen, font, show_status=False)
+            repaired = await team_repairs_robots(team, screen, font, show_status=False)
+            if healed or repaired:
+                from Event import team_status
+                await team_status(team, screen, font)
+
+        self.assertTrue(healed)
+        self.assertTrue(repaired)
+        self.assertEqual(human.current_health, 100)
+        self.assertEqual(scout.current_health, 20)
+        self.assertTrue(any(f"{scout.name}  health 100%" in line for line in typed_lines))
+
+    async def test_crafting_events_emit_at_least_three_lines_after_portrait(self):
+        """Weaponsmithing, Armorsmithing, and Tinkering in Voyage and ReturnVoyage share a single definition in ShipEvents and emit >= 3 lines beside the portrait."""
+        import Voyage
+        import ReturnVoyage
+        import ShipEvents
+        from Location import load_ship_locations
+
+        screen, font = make_dummy_screen(), make_dummy_font()
+        for fn_name, skill, item_name in (
+            ("calculate_outcome_weaponsmithing", "Weaponsmithing", "pistol C"),
+            ("calculate_outcome_armorsmithing", "Armorsmithing", "veer suit C"),
+            ("calculate_outcome_tinkering", "Tinkering", "medikit C"),
+        ):
+            self.assertIs(getattr(Voyage, fn_name), getattr(ShipEvents, fn_name))
+            self.assertIs(getattr(ReturnVoyage, fn_name), getattr(ShipEvents, fn_name))
+            for pass_check in (True, False):
+                c = make_human(60, 60)
+                c.skills = {skill: 80}
+                give_item(c, item_name)
+                lines_after_portrait = []
+                portrait_emitted = {"flag": False}
+
+                async def fake_skill_check(member, scr, st, sk, fnt, diff):
+                    portrait_emitted["flag"] = True
+                    lines_after_portrait.append("roll_line")
+                    return pass_check
+
+                async def fake_type_out(scr, text, fnt, *args, **kwargs):
+                    if portrait_emitted["flag"]:
+                        lines_after_portrait.extend(text.splitlines())
+
+                fn = getattr(ShipEvents, fn_name)
+                with patch("ShipEvents.standard_skill_check", side_effect=fake_skill_check), \
+                     patch("ShipEvents.type_out_text", side_effect=fake_type_out):
+                    await fn([c], None, skill, screen, font)
+
+                self.assertGreaterEqual(
+                    len(lines_after_portrait),
+                    3,
+                    f"ShipEvents.{fn_name} (pass={pass_check}) emitted only {len(lines_after_portrait)} lines beside portrait",
+                )
+
+        # Verify Voyage and ReturnVoyage event sets are built from the shared catalog
+        locs = load_ship_locations()
+        items = load_items_battle()
+        v_rep, v_opt, v_req = ShipEvents.build_voyage_event_sets(locs, items)
+        rv_rep, rv_opt, rv_req = ShipEvents.build_return_voyage_event_sets(locs, items, [make_human(50, 50)])
+        v_names = {e.name for e in v_rep}
+        rv_names = {e.name for e in rv_rep}
+        self.assertTrue({"weaponsmithing", "armorsmithing", "tinkering"}.issubset(v_names))
+        self.assertTrue({"weaponsmithing", "armorsmithing", "tinkering"}.issubset(rv_names))
+        self.assertNotEqual(v_names, rv_names)
 
 
 if __name__ == "__main__":

@@ -470,7 +470,8 @@ async def resolve_procedural_challenge(team, archetype_key, screen, font):
                     return True
                 else:
                     fail_text = approach.get("fail_text", "could not succeed.")
-                    await type_out_text(screen, f"{member.name} {fail_text}", font, WHITE)
+                    await type_out_text(screen, f"{member.name} {fail_text}\n ", font, WHITE)
+                    reset_x_offset()
 
     if not attempted_any:
         await type_out_text(screen, random.choice(no_suitable_statements), font)
@@ -510,7 +511,7 @@ async def calculate_goal_outcome_hack(member, screen, font):
         member.increase_skill("Hacking", 5)
         result = True
     else:
-        result_text = f"{member.name} could not break in."
+        result_text = f"{member.name} could not break in.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -537,7 +538,7 @@ async def calculate_goal_outcome_explosives(member, screen, font):
         member.increase_skill("Explosives", 5)
         result = True
     else:
-        result_text = f"{member.name} detonates a shaped charge but the mechanism remains secured."
+        result_text = f"{member.name} detonates a shaped charge but the mechanism remains secured.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -561,11 +562,11 @@ async def calculate_goal_outcome_cutter(member, screen, font):
     await type_out_text(screen, roll_string(roll, None, "coordination", diff), font, color)
 
     if skill_check:
-        result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points)."
+        result_text = f"{member.name} cuts past the controller and forces the portal open (+10 mission points).\n "
         member.mission_points += 10
         result = True
     else:
-        result_text = f"{member.name} tries cutting in, but the area remains unbreached."
+        result_text = f"{member.name} tries cutting in, but the area remains unbreached.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -592,7 +593,7 @@ async def calculate_goal_outcome_negotiation(member, screen, font):
         member.increase_skill("Negotiation", 5)
         result = True
     else:
-        result_text = f"{member.name} could not reach an agreement with the AI."
+        result_text = f"{member.name} could not reach an agreement with the AI.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -619,7 +620,7 @@ async def calculate_goal_outcome_diplomacy(member, screen, font):
         member.increase_skill("Diplomacy", 5)
         result = True
     else:
-        result_text = f"{member.name} could not establish terms the AI would accept."
+        result_text = f"{member.name} could not establish terms the AI would accept.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -641,11 +642,11 @@ async def calculate_goal_outcome_espionage(member, screen, font):
     await type_out_text(screen, roll_string(roll, "Espionage", None, diff), font, color)
 
     if skill_check:
-        result_text = f"{member.name} succeeds in the operation (+10 mission points)."
+        result_text = f"{member.name} succeeds in the operation (+10 mission points).\n "
         member.mission_points += 10
         result = True
     else:
-        result_text = f"{member.name} fails to make any progress."
+        result_text = f"{member.name} fails to make any progress.\n "
         result = False
 
     await type_out_text(screen, result_text, font, WHITE)
@@ -769,7 +770,7 @@ async def calculate_outcome_hack_a_console(team, stat_name, skill_name, screen, 
         member.increase_skill(skill_name, 5)
         member.increase_stat(stat_name, 3)
     else:
-        result_text = f"{member.name} could not discover anything useful."
+        result_text = f"{member.name} could not discover anything useful.\n "
 
     await type_out_text(screen, result_text, font, WHITE)
     reset_x_offset()
@@ -855,8 +856,23 @@ async def calculate_outcome_derelict_bridge(team, stat_name, skill_name, screen,
             if await standard_skill_check(member, screen, "intelligence", skill, font, diff):
                 member.mission_points += 10
                 member.increase_skill(skill, 4)
+                await type_out_text(
+                    screen,
+                    f"{member.name} extracts the encrypted flight core (+10 mission points).\nTheir skill has been strengthened.",
+                    font,
+                    GREEN,
+                )
+                reset_x_offset()
                 mission_failed = False
                 break
+            else:
+                await type_out_text(
+                    screen,
+                    f"{member.name} cannot bypass the bridge lockout.\n ",
+                    font,
+                    WHITE,
+                )
+                reset_x_offset()
 
     if mission_failed:
         await calculate_outcome_ai_core(team, stat_name, skill_name, screen, font)

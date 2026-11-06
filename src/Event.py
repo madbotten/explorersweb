@@ -14,7 +14,7 @@ enemies_present_statements = [
     "An alarm blares, and enemy forces rush into the room from a far door!",
     "The team encounters hostiles!",
     "Enemies block the team's path!",
-    "Combat commences!"
+    "Combat commences!",
     "A fight erupts!",
     "The team finds themselves face-to-face with a group of hostiles!"
 ]
@@ -97,7 +97,7 @@ async def team_status(team, screen, font):
 
     reset_x_offset()
 
-async def team_repairs_robots(team, screen, font):
+async def team_repairs_robots(team, screen, font, show_status=True):
     # Check if any robot item hp is below normal
     repair_needed = False
     robots = [m for m in team if m.type == "robot"]
@@ -109,7 +109,9 @@ async def team_repairs_robots(team, screen, font):
 
     if not repair_needed:
         await type_out_text(screen, "No robot repairs needed.", font)
-        return
+        return False
+
+    await type_out_text(screen, "The team pauses to repair the robots.", font)
 
     # Perform skill check for "Robot Repair"
     repair_successful = team_skill_check(team, "Robot Repair", 0)
@@ -120,12 +122,14 @@ async def team_repairs_robots(team, screen, font):
         base_repair = 10
 
     for robot in robots:
-        if robot.type == "robot":
+        if robot.type == "robot" and robot.current_health > 0:
           robot.current_health = min(robot.max_life, robot.current_health + base_repair)
           # Robot morale = health ratio - update after repair
           robot.morale_from_health()
 
-    return
+    if show_status:
+        await team_status(team, screen, font)
+    return True
 
 def _select_spare_weapon_to_pass(donor):
     """Return one weapon Item from donor (who has >= 2 weapons) that donor
@@ -187,7 +191,7 @@ async def share_spare_weapons(team, screen=None, font=None):
     return spare
 
 
-async def team_heals(team, screen, font):
+async def team_heals(team, screen, font, show_status=True):
     # take out your dead
     for member in team[:]:
         if member.current_health <= 0:
@@ -202,7 +206,7 @@ async def team_heals(team, screen, font):
     healing_needed = team_needs_heal(team)
     if not healing_needed:
         await type_out_text(screen, "No healing is needed.", font)
-        return  # No healing needed
+        return False  # No healing needed
 
     await type_out_text(screen, "The team pauses to heal.", font)
 
@@ -253,7 +257,9 @@ async def team_heals(team, screen, font):
     heal_amount = base_heal + (medikit_heal if has_medikit else 0)
     heal_team_by(team, heal_amount)
 
-    await team_status(team, screen, font)
+    if show_status:
+        await team_status(team, screen, font)
+    return True
 
 async def calculate_outcome_found_items(team, stat_name, skill_name, screen, font):
     """Outcome for the 'found items' event. Finds one useful unkeyed item for a
@@ -540,8 +546,10 @@ class Event:
 
         # Heal if appropriate
         if self.context.enemies:
-            await team_heals(self.context.team, self.context.screen, self.context.font)
-            await team_repairs_robots(self.context.team, self.context.screen, self.context.font)
+            healed = await team_heals(self.context.team, self.context.screen, self.context.font, show_status=False)
+            repaired = await team_repairs_robots(self.context.team, self.context.screen, self.context.font, show_status=False)
+            if healed or repaired:
+                await team_status(self.context.team, self.context.screen, self.context.font)
 
         has_non_empty_outcome = (
             self.context.calculate_outcome is not None

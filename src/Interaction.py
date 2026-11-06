@@ -100,7 +100,7 @@ _PERSUADE_OBJECTS = [
     "reconsider the plan",
     "back down from the argument",
     "support the team's decision",
-    "volunteer for the dangerous task",
+    "volunteer for a dangerous task",
     "lend their expertise to the group",
     "change their approach",
     "accept a different assignment",
@@ -117,7 +117,7 @@ _THREATEN_OBJECTS = [
 _DEMAND_OBJECTS = [
     "man a watch station",
     "follow orders immediately",
-    "complete the assigned mission task",
+    "complete an assigned task",
     "report to their post",
     "hand over the supplies",
     "stand down from the argument",
