@@ -776,6 +776,52 @@ async def empty_outcome(team, stat_name, skill_name, screen, font):
     return
 
 
+async def calculate_outcome_derelict_toxic_air(team, stat_name, skill_name, screen, font):
+    """Klackon derelict ship event: best team member rolls against Survival to counter toxic air,
+    or on failure the team takes a 5% health and morale hit."""
+    await type_out_text(screen, "The air on this ship is making the team fall ill.", font, WHITE)
+    member = determine_best_team_member(team, stat_name, "Survival")
+    if member and member.get_effective_skill_level("Survival", learning=False) > 0:
+        diff = 0 + get_specialist_position_bonus(member)
+        await type_out_text(screen, f"{member.name} attempts to counteract the atmospheric toxin:", font)
+        check_passed = await standard_skill_check(member, screen, stat_name, "Survival", font, diff)
+        if check_passed:
+            await type_out_text(
+                screen,
+                f"{member.name} pinpoints the issue and administers a drug to counteract the effects.\n(+5 mission points)",
+                font,
+                GREEN,
+            )
+            member.mission_points += 5
+            member.increase_skill("Survival", 2)
+            reset_x_offset()
+            return True
+        else:
+            await type_out_text(
+                screen,
+                f"{member.name} cannot identify a counteragent in time.",
+                font,
+                WHITE,
+            )
+    else:
+        await type_out_text(screen, random.choice(no_suitable_statements), font)
+
+    for m in team:
+        if m and m.is_alive() and not m.is_robot():
+            hp_loss = max(1, round(m.get_max_health() * 0.05))
+            m.current_health = max(1, m.current_health - hp_loss)
+            m.demoralize(5)
+            m.morale = min(m.morale, m.health_pct())
+    await type_out_text(
+        screen,
+        "The toxic air saps the crew's strength! (-5% health and -5 morale)",
+        font,
+        RED,
+    )
+    reset_x_offset()
+    return False
+
+
 async def calculate_outcome_derelict_warpchamber(team, stat_name, skill_name, screen, font):
     global mission_failed
     await calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, font)
@@ -974,7 +1020,18 @@ def build_procedural_mission_room_event(
     if mission_idx == 4 and num_enemies == 0 and random.random() < 0.65:
         num_enemies = random.randint(2, 4)
 
-    outcome_fn = make_challenge_outcome(archetype_key) if archetype_key else empty_outcome
+    is_derelict = (
+        (team and getattr(team[0], "mission", None) and team[0].mission.get("theatre") == "derelict")
+        or "throneroom" in locations
+        or "biolab" in locations
+    )
+    toxic_air_used = bool(supply_locker_state and supply_locker_state.get("toxic_air_used"))
+    if archetype_key is None and is_derelict and not toxic_air_used:
+        outcome_fn = calculate_outcome_derelict_toxic_air
+        if isinstance(supply_locker_state, dict):
+            supply_locker_state["toxic_air_used"] = True
+    else:
+        outcome_fn = make_challenge_outcome(archetype_key) if archetype_key else empty_outcome
     return Event(
         pre_desc,
         post_desc,

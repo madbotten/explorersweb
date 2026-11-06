@@ -561,6 +561,8 @@ async def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen
         return
 
     commander = get_active_commander(non_robots)
+    if commander in traitors:
+        commander = get_active_commander([m for m in non_robots if m is not commander])
     if commander is None:
         return
     traitor_names = " and ".join(t.name for t in traitors)

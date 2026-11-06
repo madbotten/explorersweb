@@ -3458,6 +3458,66 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
             self.assertLessEqual(len(helmets), 1, f"{e.name} has multiple helmets")
             self.assertLessEqual(len(body_armors), 1, f"{e.name} has multiple body armors")
 
+    async def test_traitor_commander_does_not_roll_against_own_conspiracy(self):
+        """When the Commander is a traitor, perception/surprise rolls fall to another team member (e.g. Executive Officer)."""
+        traitor_cmd = make_traitor(leadership=120, perception=99, surprise=99)
+        traitor_cmd.command_role = ROLE_COMMANDER
+        loyal_xo = make_commander(leadership=80, perception=90, surprise=80, mission_points=50)
+        loyal_xo.command_role = ROLE_EXEC
+        team = [traitor_cmd, loyal_xo]
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.random.randint", return_value=1):
+            await calculate_outcome_traitor_sabotage(team, None, None, screen, font)
+
+        self.assertNotIn(traitor_cmd, team)
+        self.assertIn(loyal_xo, team)
+        self.assertEqual(loyal_xo.mission_points, 60)
+
+    async def test_derelict_toxic_air_survival_event_success_and_failure(self):
+        """calculate_outcome_derelict_toxic_air rolls Survival for the best member, or inflicts 5% HP and 5 morale loss on failure."""
+        from Mission import calculate_outcome_derelict_toxic_air
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # 1. Success path: best Survival member counteracts the toxin
+        survivor = make_human(50, 50)
+        survivor.skills = {"Survival": 60}
+        survivor.mission_points = 0
+        teammate = make_human(60, 40)
+        team_ok = [survivor, teammate]
+        spoken = []
+
+        async def capture_text(scr, txt, fnt, color=None):
+            spoken.append(txt)
+
+        with patch("Mission.type_out_text", side_effect=capture_text), \
+             patch("Mission.standard_skill_check", return_value=True):
+            res = await calculate_outcome_derelict_toxic_air(team_ok, None, None, screen, font)
+
+        self.assertTrue(res)
+        self.assertTrue(any("The air on this ship is making the team fall ill" in s for s in spoken))
+        self.assertTrue(any("pinpoints the issue and administers a drug to counteract the effects" in s for s in spoken))
+        self.assertEqual(survivor.mission_points, 5)
+        self.assertEqual(survivor.skills["Survival"], 62)
+        self.assertEqual(survivor.current_health, 100)
+        self.assertEqual(teammate.current_health, 100)
+
+        # 2. Failure path: team takes 5% health and 5 morale hit
+        c1 = make_human(50, 50)   # 100 HP -> -5 HP (95), -5 morale (95)
+        c2 = make_human(100, 100) # 200 HP -> -10 HP (190), -5 morale (95)
+        c1.skills = {"Survival": 30}
+        with patch("Mission.type_out_text"), \
+             patch("Mission.standard_skill_check", return_value=False):
+            res_fail = await calculate_outcome_derelict_toxic_air([c1, c2], None, None, screen, font)
+
+        self.assertFalse(res_fail)
+        self.assertEqual(c1.current_health, 95)
+        self.assertEqual(c1.morale, 95)
+        self.assertEqual(c2.current_health, 190)
+        self.assertEqual(c2.morale, 95)
+
 
 if __name__ == "__main__":
     unittest.main()
