@@ -416,14 +416,17 @@ def get_needed_item(team, all_items):
             gaps.append("slicer C")
         if member.has_skill("Exoskeleton Systems") and \
                 not member.has_item("exoskeleton") and \
-                not member.has_item("powered armor"):
+                not member.has_item("powered armor") and \
+                member.get_armor_count() < 2:
             gaps.append("exoskeleton C")
         if member.has_skill("Medicine") and not member.has_item("medikit"):
             gaps.append("medikit C")
         if member.has_skill("Stealth") and not member.has_item("stealth orb"):
             gaps.append("stealth orb C")
-        if not any(i.type == "armor" for i in member.equipment):
+        if not member.has_body_armor():
             gaps.append("veer suit C")
+        elif not member.has_helmet() and member.get_armor_count() < 2:
+            gaps.append("sonic helmet C")
         for key in gaps:
             if key in all_items:
                 return key

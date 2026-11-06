@@ -71,9 +71,26 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
     PROCEED_RECT = pygame.Rect(1220, TOP_BAR_Y, 105, 25)
     PROCEED_TEXT = DEFAULT_FONT.render("PROCEED", True, CYAN)
     STORE_RECT = pygame.Rect(0, 50, ITEM_PANEL_WIDTH - 50, SCREEN_HEIGHT)
+    STORE_LIST_TOP = CREDITS_BAR_HEIGHT + 40
+    STORE_LIST_BOTTOM = SCREEN_HEIGHT - 10
+    STORE_ITEM_STRIDE = 65
+    STORE_SCROLL_STEP = 65
+    STORE_CLIP_RECT = pygame.Rect(0, STORE_LIST_TOP, ITEM_PANEL_WIDTH - 6, STORE_LIST_BOTTOM - STORE_LIST_TOP)
+    SCROLL_UP_RECT = pygame.Rect(ITEM_PANEL_WIDTH - 42, STORE_LIST_TOP + 2, 30, 26)
+    SCROLL_DOWN_RECT = pygame.Rect(ITEM_PANEL_WIDTH - 42, STORE_LIST_BOTTOM - 28, 30, 26)
     EXIT_RECT = pygame.Rect(1400, TOP_BAR_Y, 105, 25)
     EXIT_TEXT = DEFAULT_FONT.render("EXIT", True, RED)
     MESSAGE_LEFT = 300
+    tab_scroll_offsets = {tab: 0 for tab in TABS}
+
+    def get_max_scroll_offset(tab_name: str) -> int:
+        visible_h = STORE_LIST_BOTTOM - STORE_LIST_TOP
+        total_h = len(items_by_tab.get(tab_name, [])) * STORE_ITEM_STRIDE
+        return max(0, total_h - visible_h)
+
+    def scroll_store(delta_px: int) -> None:
+        max_scroll = get_max_scroll_offset(selected_tab)
+        tab_scroll_offsets[selected_tab] = max(0, min(max_scroll, tab_scroll_offsets[selected_tab] + delta_px))
 
     def display_credits():
         """Displays the current balance of credits and mission objective in the top bar."""
@@ -96,6 +113,8 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
 
     # Display item descriptions on mouseover
     def blit_item_descriptions_with_hover(surface, items, font, mouse_pos):
+        if not STORE_CLIP_RECT.collidepoint(mouse_pos):
+            return
         for item_entry in items:
             # Check for mouse hover
             if item_entry.rect.collidepoint(mouse_pos):
@@ -104,13 +123,23 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                 background_surface = pygame.Surface(
                     (description_surface.get_width() + 10, description_surface.get_height() + 10))
                 background_surface.fill((125, 125, 125))  # Black background
-                background_position = (item_entry.rect.left + 10, item_entry.rect.bottom + 10)
+                bg_y = min(SCREEN_HEIGHT - description_surface.get_height() - 15, item_entry.rect.bottom + 10)
+                background_position = (item_entry.rect.left + 10, bg_y)
                 surface.blit(background_surface, background_position)
                 surface.blit(description_surface, (background_position[0] + 5, background_position[1] + 5))
 
     def draw_items():
-        y_offset = CREDITS_BAR_HEIGHT + 40
-        for item in items_by_tab[selected_tab]:
+        scroll_offset = tab_scroll_offsets.get(selected_tab, 0)
+        max_scroll = get_max_scroll_offset(selected_tab)
+        prev_clip = screen.get_clip()
+        screen.set_clip(STORE_CLIP_RECT)
+
+        for idx, item in enumerate(items_by_tab[selected_tab]):
+            y_offset = STORE_LIST_TOP + idx * STORE_ITEM_STRIDE - scroll_offset
+            if y_offset + STORE_ITEM_STRIDE < STORE_LIST_TOP or y_offset > STORE_LIST_BOTTOM:
+                item.rect = pygame.Rect(-1000, -1000, 50, 50)
+                continue
+
             item_icon_rect = item.icon.get_rect(topleft=(10, y_offset + 5))
             item.rect = item_icon_rect
             screen.blit(item.icon, item_icon_rect)
@@ -125,7 +154,31 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
             screen.blit(cost_text, (property_x, y_offset + 20))
             screen.blit(mass_text, (property_x, y_offset + 40))
 
-            y_offset += 65
+        screen.set_clip(prev_clip)
+
+        # Draw scroll controls when the current tab overflows the visible store panel
+        if max_scroll > 0:
+            up_color = CYAN if scroll_offset > 0 else (70, 70, 70)
+            down_color = CYAN if scroll_offset < max_scroll else (70, 70, 70)
+            pygame.draw.rect(screen, DARK_CYAN, SCROLL_UP_RECT)
+            pygame.draw.rect(screen, up_color, SCROLL_UP_RECT, 2)
+            up_label = ITEM_DESC_FONT.render("^", True, up_color)
+            screen.blit(up_label, (SCROLL_UP_RECT.centerx - up_label.get_width() // 2, SCROLL_UP_RECT.y + 4))
+
+            pygame.draw.rect(screen, DARK_CYAN, SCROLL_DOWN_RECT)
+            pygame.draw.rect(screen, down_color, SCROLL_DOWN_RECT, 2)
+            down_label = ITEM_DESC_FONT.render("v", True, down_color)
+            screen.blit(down_label, (SCROLL_DOWN_RECT.centerx - down_label.get_width() // 2, SCROLL_DOWN_RECT.y + 3))
+
+            track_top = SCROLL_UP_RECT.bottom + 4
+            track_bottom = SCROLL_DOWN_RECT.top - 4
+            track_h = max(20, track_bottom - track_top)
+            visible_h = STORE_LIST_BOTTOM - STORE_LIST_TOP
+            total_h = visible_h + max_scroll
+            thumb_h = max(24, int(track_h * (visible_h / total_h)))
+            thumb_y = track_top + int((track_h - thumb_h) * (scroll_offset / max_scroll))
+            pygame.draw.rect(screen, (40, 60, 60), pygame.Rect(SCROLL_UP_RECT.centerx - 3, track_top, 6, track_h))
+            pygame.draw.rect(screen, CYAN, pygame.Rect(SCROLL_UP_RECT.centerx - 3, thumb_y, 6, thumb_h))
 
     def draw_dragged_item():
         """Draws only the currently dragged item or robot at its current mouse-following position."""
@@ -184,19 +237,16 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
         Handles item cost deduction and adding item to character's equipment as an icon.
         Must pass basic checks:
         1. max 2 weapons per character
-        2. max 2 armros per character
-        3. Max team size 10 counting characters + assault bots + melee bots
+        2. max 2 armors per character (at most 1 helmet + 1 body armor)
+        3. Max team size 10 counting characters + robots
         """
         if item.type == "robot":
             return await handle_robot_drag(team, item)
 
-        if character.get_weapon_count() >= 2 and item.type == "weapon":
+        allowed, err_msg = character.can_equip_item(item)
+        if not allowed:
             play_negative_click()
-            await display_message("Max two weapons per character", screen, DEFAULT_FONT)
-            return
-        if character.get_armor_count() >= 2 and item.type == "armor":
-            play_negative_click()
-            await display_message("Max two armors per character", screen, DEFAULT_FONT)
+            await display_message(err_msg, screen, DEFAULT_FONT)
             return
 
         nonlocal credits
@@ -286,7 +336,16 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
             if event.type == pygame.QUIT:
                 stage = 1000
                 running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                if not showing_character_info and mouse_pos[0] < ITEM_PANEL_WIDTH:
+                    scroll_store(-event.y * STORE_SCROLL_STEP)
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                button = getattr(event, "button", 1)
+                if button in (4, 5):
+                    if not showing_character_info and mouse_pos[0] < ITEM_PANEL_WIDTH:
+                        scroll_store(-STORE_SCROLL_STEP if button == 4 else STORE_SCROLL_STEP)
+                    continue
+
                 if PROCEED_RECT.collidepoint(event.pos):
                     play_positive_click()
                     running = False
@@ -294,6 +353,17 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                     play_negative_click()
                     stage = 1000
                     running = False
+
+                # Check for scroll button clicks on the store panel
+                if not showing_character_info and get_max_scroll_offset(selected_tab) > 0:
+                    if SCROLL_UP_RECT.collidepoint(mouse_pos):
+                        play_positive_click()
+                        scroll_store(-STORE_SCROLL_STEP * 3)
+                        continue
+                    elif SCROLL_DOWN_RECT.collidepoint(mouse_pos):
+                        play_positive_click()
+                        scroll_store(STORE_SCROLL_STEP * 3)
+                        continue
 
                 # Check for tab selection if not viewing character info
                 if not showing_character_info:
@@ -333,12 +403,13 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                     showing_character_info = False
 
                 # Check if clicking on an item in the left panel (for new purchases)
-                for item in items_by_tab[selected_tab]:
-                    if item.rect.collidepoint(mouse_pos):
-                        dragging_item = item.copy()
-                        dragging_item.rect = pygame.Rect(mouse_pos[0], mouse_pos[1], 50, 50)
-                        original_item_position = dragging_item.rect.topleft
-                        dragging_from_character = None  # Not from a character's inventory
+                if not showing_character_info and STORE_CLIP_RECT.collidepoint(mouse_pos):
+                    for item in items_by_tab[selected_tab]:
+                        if item.rect.collidepoint(mouse_pos):
+                            dragging_item = item.copy()
+                            dragging_item.rect = pygame.Rect(mouse_pos[0], mouse_pos[1], 50, 50)
+                            original_item_position = dragging_item.rect.topleft
+                            dragging_from_character = None  # Not from a character's inventory
 
                 # Check if clicking on an item in a character's equipment
                 for character in team:
@@ -370,13 +441,10 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                     if dropped_on_character:
                         # If dropped on a different character, move the item
                         if dragging_from_character and dragging_from_character != dropped_on_character:
-                            if dropped_on_character.get_weapon_count() >= 2 and dragging_item.type == "weapon":
+                            allowed, err_msg = dropped_on_character.can_equip_item(dragging_item)
+                            if not allowed:
                                 play_negative_click()
-                                await display_message("Max two weapons per character", screen, DEFAULT_FONT)
-                                dragging_item.rect.topleft = original_item_position
-                            elif dropped_on_character.get_armor_count() >= 2 and dragging_item.type == "armor":
-                                play_negative_click()
-                                await display_message("Max two armors per character", screen, DEFAULT_FONT)
+                                await display_message(err_msg, screen, DEFAULT_FONT)
                                 dragging_item.rect.topleft = original_item_position
                             else:
                                 play_positive_click()

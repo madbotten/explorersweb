@@ -189,17 +189,107 @@ ITEM_ATTRIBUTES = {
     "stun baton B": (184, 2, 1, 21, "sonic", 210, "weapon", "A nonlethal melee weapon"),
     "stun baton A": (193, 2, 1, 22, "sonic", 220, "weapon", "A nonlethal melee weapon"),
     "stun baton S": (201, 2, 2, 23, "sonic", 230, "weapon", "A nonlethal melee weapon"),
+    # ---- grenade rifle (ranged impact rifle) ----
+    "grenade rifle":   (650, 8, 1, 45, "impact", 50, "weapon", "A heavy rifle that fires high-velocity impact grenades"),
+    "grenade rifle C": (650, 8, 1, 45, "impact", 50, "weapon", "A heavy rifle that fires high-velocity impact grenades"),
+    "grenade rifle B": (683, 7, 1, 47, "impact", 53, "weapon", "A heavy rifle that fires high-velocity impact grenades"),
+    "grenade rifle A": (715, 7, 2, 50, "impact", 55, "weapon", "A heavy rifle that fires high-velocity impact grenades"),
+    "grenade rifle S": (748, 6, 2, 52, "impact", 58, "weapon", "A heavy rifle that fires high-velocity impact grenades"),
+    # ---- power mace (melee impact weapon) ----
+    "power mace":   (325, 5, 1, 32, "impact", 80, "weapon", "A high-tech powered mace that crushes armor on impact"),
+    "power mace C": (325, 5, 1, 32, "impact", 80, "weapon", "A high-tech powered mace that crushes armor on impact"),
+    "power mace B": (341, 4, 1, 34, "impact", 84, "weapon", "A high-tech powered mace that crushes armor on impact"),
+    "power mace A": (358, 4, 2, 35, "impact", 88, "weapon", "A high-tech powered mace that crushes armor on impact"),
+    "power mace S": (374, 4, 2, 37, "impact", 92, "weapon", "A high-tech powered mace that crushes armor on impact"),
+    # ---- flechette pistol (ranged slash weapon) ----
+    "flechette pistol":   (250, 2, 3, 14, "slash", 40, "weapon", "Fires bursts of razor-sharp micro-flechettes that shred lightly armored targets"),
+    "flechette pistol C": (250, 2, 3, 14, "slash", 40, "weapon", "Fires bursts of razor-sharp micro-flechettes that shred lightly armored targets"),
+    "flechette pistol B": (263, 1, 3, 15, "slash", 42, "weapon", "Fires bursts of razor-sharp micro-flechettes that shred lightly armored targets"),
+    "flechette pistol A": (275, 1, 4, 15, "slash", 44, "weapon", "Fires bursts of razor-sharp micro-flechettes that shred lightly armored targets"),
+    "flechette pistol S": (288, 1, 4, 16, "slash", 46, "weapon", "Fires bursts of razor-sharp micro-flechettes that shred lightly armored targets"),
+    # ---- mono spear (melee pierce weapon) ----
+    "mono spear":   (375, 4, 1, 35, "pierce", 60, "weapon", "A monomolecular-tipped combat spear that punches through heavy armor"),
+    "mono spear C": (375, 4, 1, 35, "pierce", 60, "weapon", "A monomolecular-tipped combat spear that punches through heavy armor"),
+    "mono spear B": (394, 3, 1, 37, "pierce", 63, "weapon", "A monomolecular-tipped combat spear that punches through heavy armor"),
+    "mono spear A": (413, 3, 2, 39, "pierce", 66, "weapon", "A monomolecular-tipped combat spear that punches through heavy armor"),
+    "mono spear S": (431, 3, 2, 40, "pierce", 69, "weapon", "A monomolecular-tipped combat spear that punches through heavy armor"),
+    # ---- launcher (ranged concussion weapon) ----
+    "launcher":   (650, 9, 1, 55, "concussion", 50, "weapon", "A heavy concussion grenade launcher that batters armored targets"),
+    "launcher C": (650, 9, 1, 55, "concussion", 50, "weapon", "A heavy concussion grenade launcher that batters armored targets"),
+    "launcher B": (683, 8, 1, 58, "concussion", 53, "weapon", "A heavy concussion grenade launcher that batters armored targets"),
+    "launcher A": (715, 8, 1, 61, "concussion", 55, "weapon", "A heavy concussion grenade launcher that batters armored targets"),
+    "launcher S": (748, 7, 2, 63, "concussion", 58, "weapon", "A heavy concussion grenade launcher that batters armored targets"),
+    # ---- grav hammer (melee concussion weapon) ----
+    "grav hammer":   (450, 7, 1, 45, "concussion", 80, "weapon", "A heavy melee warhammer that releases a concussive shockwave on impact"),
+    "grav hammer C": (450, 7, 1, 45, "concussion", 80, "weapon", "A heavy melee warhammer that releases a concussive shockwave on impact"),
+    "grav hammer B": (473, 6, 1, 47, "concussion", 84, "weapon", "A heavy melee warhammer that releases a concussive shockwave on impact"),
+    "grav hammer A": (495, 6, 1, 50, "concussion", 88, "weapon", "A heavy melee warhammer that releases a concussive shockwave on impact"),
+    "grav hammer S": (518, 5, 2, 52, "concussion", 92, "weapon", "A heavy melee warhammer that releases a concussive shockwave on impact"),
+    # ---- arc thrower (ranged electric weapon) ----
+    "arc thrower":   (450, 6, 2, 25, "electric", 45, "weapon", "Projects lethal high-voltage electrical arcs, devastating against robots"),
+    "arc thrower C": (450, 6, 2, 25, "electric", 45, "weapon", "Projects lethal high-voltage electrical arcs, devastating against robots"),
+    "arc thrower B": (473, 5, 2, 26, "electric", 47, "weapon", "Projects lethal high-voltage electrical arcs, devastating against robots"),
+    "arc thrower A": (495, 5, 2, 28, "electric", 50, "weapon", "Projects lethal high-voltage electrical arcs, devastating against robots"),
+    "arc thrower S": (518, 5, 3, 29, "electric", 52, "weapon", "Projects lethal high-voltage electrical arcs, devastating against robots"),
+    # ---- shock prod (melee electric nonlethal weapon) ----
+    "shock prod":   (225, 3, 2, 18, "electric", 80, "weapon", "An electrified close-combat prod that incapacitates humanoids and overloads robots"),
+    "shock prod C": (225, 3, 2, 18, "electric", 80, "weapon", "An electrified close-combat prod that incapacitates humanoids and overloads robots"),
+    "shock prod B": (236, 2, 2, 19, "electric", 84, "weapon", "An electrified close-combat prod that incapacitates humanoids and overloads robots"),
+    "shock prod A": (248, 2, 2, 20, "electric", 88, "weapon", "An electrified close-combat prod that incapacitates humanoids and overloads robots"),
+    "shock prod S": (259, 2, 3, 21, "electric", 92, "weapon", "An electrified close-combat prod that incapacitates humanoids and overloads robots"),
+    # ---- sonic helmet (helmet; strong vs sonic, boosts Detection) ----
+    "sonic helmet":   (150, 2, 1, 25, "sonic", 60, "armor", "A sound-dampening helmet that protects against sonic attacks and aids detection"),
+    "sonic helmet C": (150, 2, 1, 25, "sonic", 60, "armor", "A sound-dampening helmet that protects against sonic attacks and aids detection"),
+    "sonic helmet B": (158, 1, 1, 26, "sonic", 63, "armor", "A sound-dampening helmet that protects against sonic attacks and aids detection"),
+    "sonic helmet A": (165, 1, 1, 28, "sonic", 66, "armor", "A sound-dampening helmet that protects against sonic attacks and aids detection"),
+    "sonic helmet S": (173, 1, 1, 29, "sonic", 69, "armor", "A sound-dampening helmet that protects against sonic attacks and aids detection"),
+    # ---- targeting helmet (helmet; boosts ranged accuracy and perception) ----
+    "targeting helmet":   (250, 2, 1, 15, "impact", 50, "armor", "A HUD helmet that improves ranged accuracy and sharpens perception"),
+    "targeting helmet C": (250, 2, 1, 15, "impact", 50, "armor", "A HUD helmet that improves ranged accuracy and sharpens perception"),
+    "targeting helmet B": (263, 1, 1, 16, "impact", 53, "armor", "A HUD helmet that improves ranged accuracy and sharpens perception"),
+    "targeting helmet A": (275, 1, 1, 17, "impact", 55, "armor", "A HUD helmet that improves ranged accuracy and sharpens perception"),
+    "targeting helmet S": (288, 1, 1, 17, "impact", 58, "armor", "A HUD helmet that improves ranged accuracy and sharpens perception"),
+    # ---- command helmet (helmet; boosts leadership, squad tactics, and morale) ----
+    "command helmet":   (225, 2, 1, 15, "impact", 60, "armor", "A tactical comms helmet that boosts leadership, squad coordination, and morale resistance"),
+    "command helmet C": (225, 2, 1, 15, "impact", 60, "armor", "A tactical comms helmet that boosts leadership, squad coordination, and morale resistance"),
+    "command helmet B": (236, 1, 1, 16, "impact", 63, "armor", "A tactical comms helmet that boosts leadership, squad coordination, and morale resistance"),
+    "command helmet A": (248, 1, 1, 17, "impact", 66, "armor", "A tactical comms helmet that boosts leadership, squad coordination, and morale resistance"),
+    "command helmet S": (259, 1, 1, 17, "impact", 69, "armor", "A tactical comms helmet that boosts leadership, squad coordination, and morale resistance"),
+    # ---- flak vest (body armor; strong vs concussion, slash, and impact) ----
+    "flak vest":   (150, 4, 1, 25, "impact", 90, "armor", "Layered ballistic vest that absorbs shrapnel, slashes, and concussive blasts"),
+    "flak vest C": (150, 4, 1, 25, "impact", 90, "armor", "Layered ballistic vest that absorbs shrapnel, slashes, and concussive blasts"),
+    "flak vest B": (158, 3, 1, 26, "impact", 95, "armor", "Layered ballistic vest that absorbs shrapnel, slashes, and concussive blasts"),
+    "flak vest A": (165, 3, 1, 28, "impact", 99, "armor", "Layered ballistic vest that absorbs shrapnel, slashes, and concussive blasts"),
+    "flak vest S": (173, 3, 1, 29, "impact", 104, "armor", "Layered ballistic vest that absorbs shrapnel, slashes, and concussive blasts"),
+    # ---- insulated suit (body armor; strong vs electric and energy) ----
+    "insulated suit":   (225, 4, 1, 28, "electric", 90, "armor", "Grounded hazard suit that insulates against electrical and energy attacks"),
+    "insulated suit C": (225, 4, 1, 28, "electric", 90, "armor", "Grounded hazard suit that insulates against electrical and energy attacks"),
+    "insulated suit B": (236, 3, 1, 29, "electric", 95, "armor", "Grounded hazard suit that insulates against electrical and energy attacks"),
+    "insulated suit A": (248, 3, 1, 31, "electric", 99, "armor", "Grounded hazard suit that insulates against electrical and energy attacks"),
+    "insulated suit S": (259, 3, 1, 32, "electric", 104, "armor", "Grounded hazard suit that insulates against electrical and energy attacks"),
+    # ---- chitin carapace (body armor; strong vs slash, pierce, and impact) ----
+    "chitin carapace":   (425, 5, 1, 35, "impact", 140, "armor", "Bio-composite alien carapace plating that excels against blades, projectiles, and acid"),
+    "chitin carapace C": (425, 5, 1, 35, "impact", 140, "armor", "Bio-composite alien carapace plating that excels against blades, projectiles, and acid"),
+    "chitin carapace B": (446, 4, 1, 37, "impact", 147, "armor", "Bio-composite alien carapace plating that excels against blades, projectiles, and acid"),
+    "chitin carapace A": (468, 4, 1, 39, "impact", 154, "armor", "Bio-composite alien carapace plating that excels against blades, projectiles, and acid"),
+    "chitin carapace S": (489, 4, 1, 40, "impact", 161, "armor", "Bio-composite alien carapace plating that excels against blades, projectiles, and acid"),
 }
 
 # Armor protection multipliers per effect_type:
 #   (energy, sonic, impact, slash, pierce, concussion, electric)
 # Protection applied = round(armor.effect * multiplier)
 ARMOR_ATTRIBUTES = {
-    "power shield":  (1.0, 0.0, 0.05, 0.05, 0.05, 0.10, 0.50),  # excellent vs energy; near-zero vs physical
-    "veer suit":     (0.3, 0.3, 0.50, 0.50, 0.50, 0.40, 0.30),  # moderate all-round
-    "exoskeleton":   (0.2, 0.2, 0.60, 0.50, 0.40, 0.50, 0.30),  # strong vs impact/concussion
-    "holofier":      (0.0, 0.0, 0.00, 0.00, 0.00, 0.00, 0.00),  # miss-chance only; no flat reduction
-    "powered armor": (0.5, 0.5, 1.00, 0.80, 0.70, 0.80, 0.50),  # elite: full impact, strong elsewhere
+    "power shield":     (1.0, 0.0, 0.05, 0.05, 0.05, 0.10, 0.50),  # excellent vs energy; near-zero vs physical
+    "veer suit":        (0.3, 0.3, 0.50, 0.50, 0.50, 0.40, 0.30),  # moderate all-round
+    "exoskeleton":      (0.2, 0.2, 0.60, 0.50, 0.40, 0.50, 0.30),  # strong vs impact/concussion
+    "holofier":         (0.0, 0.0, 0.00, 0.00, 0.00, 0.00, 0.00),  # miss-chance only; no flat reduction
+    "powered armor":    (0.5, 0.5, 1.00, 0.80, 0.70, 0.80, 0.50),  # elite: full impact, strong elsewhere
+    "sonic helmet":     (0.1, 1.0, 0.20, 0.10, 0.10, 0.40, 0.10),  # specialized sonic/concussion helmet
+    "targeting helmet": (0.2, 0.2, 0.20, 0.20, 0.20, 0.20, 0.20),  # light protection; accuracy/perception bonus
+    "command helmet":   (0.1, 0.4, 0.30, 0.20, 0.20, 0.30, 0.20),  # light protection; command/morale bonus
+    "flak vest":        (0.1, 0.1, 0.60, 0.70, 0.50, 0.80, 0.10),  # strong vs concussion, slash, and impact
+    "insulated suit":   (0.6, 0.4, 0.30, 0.30, 0.20, 0.40, 1.00),  # immune/strong vs electric and energy
+    "chitin carapace":  (0.3, 0.1, 0.70, 0.90, 0.80, 0.50, 0.20),  # strong vs slash, pierce, and impact
 }
 
 TABS = ["weapons", "armor", "robots", "misc"]
@@ -233,17 +323,22 @@ class Item:
     # ("laser rifle B", "carbine S", etc.) resolve correctly.
     # ------------------------------------------------------------------
 
-    _RIFLE_BASES      = {"blaster rifle", "laser rifle"}
+    _RIFLE_BASES      = {"blaster rifle", "laser rifle", "grenade rifle"}
     _RANGED_BASES     = {"blaster rifle", "laser rifle", "laser pistol",
-                         "carbine", "magnum", "pistol", "stunner"}
-    _MELEE_BASES      = {"slicer", "stun baton"}
-    _ENERGY_BASES     = {"laser rifle", "laser pistol"}
+                         "carbine", "magnum", "pistol", "stunner",
+                         "grenade rifle", "flechette pistol", "launcher", "arc thrower"}
+    _MELEE_BASES      = {"slicer", "stun baton", "power mace", "mono spear", "grav hammer", "shock prod"}
+    _ENERGY_BASES     = {"laser rifle", "laser pistol", "arc thrower"}
     _SONIC_BASES      = {"blaster rifle", "stunner", "stun baton"}
-    _PROJECTILE_BASES = {"carbine", "magnum", "pistol"}
-    _NONLETHAL_BASES  = {"stunner", "stun baton"}
+    _PROJECTILE_BASES = {"carbine", "magnum", "pistol", "grenade rifle", "flechette pistol"}
+    _EXPLOSIVE_BASES  = {"launcher"}
+    _NONLETHAL_BASES  = {"stunner", "stun baton", "shock prod"}
+    _HELMET_BASES     = {"sonic helmet", "targeting helmet", "command helmet"}
+    _BODY_ARMOR_BASES = {"power shield", "veer suit", "exoskeleton", "holofier",
+                         "powered armor", "flak vest", "insulated suit", "chitin carapace"}
 
     def is_rifle(self) -> bool:
-        """True for blaster rifle and laser rifle (benefits from Sharpshooting)."""
+        """True for blaster rifle, laser rifle, and grenade rifle (benefits from Sharpshooting)."""
         return item_base_name(self.name) in self._RIFLE_BASES
 
     def is_ranged_weapon(self) -> bool:
@@ -255,7 +350,7 @@ class Item:
         return self.type == "weapon" and item_base_name(self.name) in self._MELEE_BASES
 
     def is_energy_weapon(self) -> bool:
-        """True for weapons with energy effect type (laser rifle, laser pistol)."""
+        """True for weapons using Energy Weapons skill (laser rifle, laser pistol, arc thrower)."""
         return self.type == "weapon" and item_base_name(self.name) in self._ENERGY_BASES
 
     def is_sonic_weapon(self) -> bool:
@@ -263,12 +358,24 @@ class Item:
         return self.type == "weapon" and item_base_name(self.name) in self._SONIC_BASES
 
     def is_projectile_weapon(self) -> bool:
-        """True for weapons with impact/projectile effect type (carbine, magnum, pistol)."""
+        """True for projectile/ballistic weapons (carbine, magnum, pistol, grenade rifle, flechette pistol)."""
         return self.type == "weapon" and item_base_name(self.name) in self._PROJECTILE_BASES
 
+    def is_explosive_weapon(self) -> bool:
+        """True for heavy explosive/ordnance weapons (launcher)."""
+        return self.type == "weapon" and item_base_name(self.name) in self._EXPLOSIVE_BASES
+
     def is_lethal(self) -> bool:
-        """True for weapons that can kill. Stunner and stun baton are non-lethal."""
+        """True for weapons that can kill. Stunner, stun baton, and shock prod are non-lethal."""
         return self.type == "weapon" and item_base_name(self.name) not in self._NONLETHAL_BASES
+
+    def is_helmet(self) -> bool:
+        """True for helmet armor items (at most 1 helmet per character)."""
+        return self.type == "armor" and item_base_name(self.name) in self._HELMET_BASES
+
+    def is_body_armor(self) -> bool:
+        """True for non-helmet body armor items (at most 1 body armor per character)."""
+        return self.type == "armor" and item_base_name(self.name) not in self._HELMET_BASES
 
 
     @classmethod
@@ -294,12 +401,12 @@ class Item:
     def load_icon(cls, item_name, size=(50, 50)):
         """Load icon, stripping any class suffix before building the filename."""
         base = item_base_name(item_name)
-        icon_path = resource_path(f"gadgets/{base}.jpg")
+        icon_path = _resolve_gadget_icon_path(base)
         try:
             icon = pygame.image.load(icon_path)
             return pygame.transform.scale(icon, size)
         except pygame.error:
-            print(f"Failed to load icon for '{item_name}' (tried '{base}.jpg').")
+            print(f"Failed to load icon for '{item_name}' (tried '{icon_path}').")
             return None
 
     @classmethod
@@ -334,13 +441,24 @@ from Robot import ROBOT_ATTRIBUTES
 ALL_ATTRIBUTES = {**ITEM_ATTRIBUTES, **ROBOT_ATTRIBUTES}
 
 
+def _resolve_gadget_icon_path(base_name: str) -> str:
+    """Resolve gadget icon path, checking spaced filename first and falling back to no-space filename."""
+    spaced_path = resource_path(f"gadgets/{base_name}.jpg")
+    if os.path.exists(spaced_path):
+        return spaced_path
+    nospace_path = resource_path(f"gadgets/{base_name.replace(' ', '')}.jpg")
+    if os.path.exists(nospace_path):
+        return nospace_path
+    return spaced_path
+
+
 def _build_items(icon_size: tuple) -> dict:
     items = {}
     _icon_cache: dict = {}
 
     def get_icon(base_name: str):
         if base_name not in _icon_cache:
-            path = resource_path(f"gadgets/{base_name}.jpg")
+            path = _resolve_gadget_icon_path(base_name)
             try:
                 img = pygame.image.load(path)
                 _icon_cache[base_name] = pygame.transform.scale(img, icon_size)

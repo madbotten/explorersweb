@@ -3130,6 +3130,137 @@ class TestEquipmentAuditPhase1(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(medibot.has_item("medikit"))
 
 
+# ---------------------------------------------------------------------------
+# Equipment Audit & Expansion — Phase 2 & 3 Tests
+# ---------------------------------------------------------------------------
+
+from Item import ITEM_ATTRIBUTES, ARMOR_ATTRIBUTES, load_items, upgrade_item_class
+from Event import calculate_outcome_found_items
+
+
+class TestEquipmentExpansionPhase3(unittest.IsolatedAsyncioTestCase):
+
+    def test_all_seven_damage_types_covered_by_weapons(self):
+        """Every damage type in ARMOR_ATTRIBUTES (energy, sonic, impact, slash, pierce, concussion, electric) has weapon items."""
+        expected_damage_types = {"energy", "sonic", "impact", "slash", "pierce", "concussion", "electric"}
+        all_items = load_items()
+        weapons = [it for name, it in all_items.items() if it.type == "weapon" and item_class(name) == "C"]
+
+        weapon_damage_types = {w.effect_type for w in weapons}
+        self.assertEqual(weapon_damage_types, expected_damage_types)
+
+        # Verify all 17 C-tier weapons exist in the store catalog
+        tabs = load_item_tabs()
+        weapon_bases = {item_base_name(it.name) for it in tabs["weapons"]}
+        expected_weapons = {
+            "magnum", "laser pistol", "pistol", "slicer", "stunner",
+            "carbine", "laser rifle", "blaster rifle", "stun baton",
+            "grenade rifle", "power mace", "flechette pistol", "mono spear",
+            "launcher", "grav hammer", "arc thrower", "shock prod",
+        }
+        self.assertEqual(weapon_bases, expected_weapons)
+
+    def test_all_armors_and_helmets_in_store_and_armor_attributes(self):
+        """All 11 armor bases (3 helmets + 8 body armors) exist across C/B/A/S tiers and in ARMOR_ATTRIBUTES."""
+        tabs = load_item_tabs()
+        armor_bases = {item_base_name(it.name) for it in tabs["armor"]}
+        expected_armors = {
+            "power shield", "veer suit", "exoskeleton", "holofier", "powered armor",
+            "sonic helmet", "targeting helmet", "command helmet",
+            "flak vest", "insulated suit", "chitin carapace",
+        }
+        self.assertEqual(armor_bases, expected_armors)
+        self.assertEqual(set(ARMOR_ATTRIBUTES.keys()), expected_armors)
+
+        all_items = load_items()
+        for base in expected_armors:
+            self.assertEqual(len(ARMOR_ATTRIBUTES[base]), 7)
+            item_c = all_items[f"{base} C"]
+            item_b = upgrade_item_class(item_c, all_items)
+            item_a = upgrade_item_class(item_b, all_items)
+            item_s = upgrade_item_class(item_a, all_items)
+            self.assertIsNotNone(item_b)
+            self.assertIsNotNone(item_a)
+            self.assertIsNotNone(item_s)
+            self.assertIsNone(upgrade_item_class(item_s, all_items))
+
+    def test_all_gadget_icons_load_without_missing_images(self):
+        """Every item in load_items() loads a valid pygame.Surface icon from gadgets/."""
+        all_items = load_items()
+        for name, item in all_items.items():
+            self.assertIsNotNone(item.icon, f"Missing icon surface for item '{name}'")
+
+    def test_helmet_and_body_armor_slot_enforcement(self):
+        """Characters can equip at most 1 helmet and at most 1 body armor (up to 2 armor items total)."""
+        c = make_human(50, 50)
+        sonic_helm = make_item("sonic helmet C")
+        target_helm = make_item("targeting helmet C")
+        flak = make_item("flak vest C")
+        carapace = make_item("chitin carapace C")
+
+        self.assertTrue(sonic_helm.is_helmet())
+        self.assertFalse(sonic_helm.is_body_armor())
+        self.assertTrue(flak.is_body_armor())
+        self.assertFalse(flak.is_helmet())
+
+        # Equip 1 helmet -> allowed
+        ok1, err1 = c.can_equip_item(sonic_helm)
+        self.assertTrue(ok1)
+        self.assertIsNone(err1)
+        c.add_item(sonic_helm)
+        self.assertTrue(c.has_helmet())
+        self.assertFalse(c.has_body_armor())
+
+        # Second helmet -> blocked
+        ok2, err2 = c.can_equip_item(target_helm)
+        self.assertFalse(ok2)
+        self.assertEqual(err2, "Max one helmet per character")
+
+        # Equip 1 body armor alongside the helmet -> allowed
+        ok3, err3 = c.can_equip_item(flak)
+        self.assertTrue(ok3)
+        c.add_item(flak)
+        self.assertTrue(c.has_body_armor())
+        self.assertEqual(c.get_armor_count(), 2)
+
+        # Second body armor -> blocked
+        c.remove_item("sonic helmet C")
+        ok4, err4 = c.can_equip_item(carapace)
+        self.assertFalse(ok4)
+        self.assertEqual(err4, "Max one body armor per character")
+
+    async def test_found_items_and_get_needed_item_respect_helmet_and_body_armor_slots(self):
+        """get_needed_item suggests a helmet when body armor is already worn, and found_items swaps body armor rather than stacking two."""
+        c = make_human(50, 50)
+        c.add_item(make_item("laser pistol S"))
+        c.add_item(make_item("slicer S"))
+        c.add_item(make_item("veer suit S"))
+        all_items = {
+            "veer suit C": make_item("veer suit C"),
+            "sonic helmet C": make_item("sonic helmet C"),
+        }
+
+        with patch("Utils.random.random", return_value=0.1):
+            res = get_needed_item([c], all_items)
+        self.assertIsNotNone(res)
+        _, suggested = res
+        self.assertEqual(suggested.name, "sonic helmet C")
+
+        # If a character with Exoskeleton Systems wearing veer suit C finds exoskeleton C, it swaps veer suit C
+        exo_user = make_human(50, 50)
+        exo_user.skills = {"Exoskeleton Systems": 60}
+        exo_user.add_item(make_item("laser pistol C"))
+        exo_user.add_item(make_item("slicer C"))
+        exo_user.add_item(make_item("veer suit C"))
+        screen, font = make_dummy_screen(), make_dummy_font()
+        with patch("Event.get_needed_item", return_value=(exo_user, make_item("exoskeleton C"))), \
+             patch("Event.type_out_text"):
+            await calculate_outcome_found_items([exo_user], None, None, screen, font)
+        body_armors = [i for i in exo_user.equipment if i.is_body_armor()]
+        self.assertEqual(len(body_armors), 1)
+        self.assertEqual(body_armors[0].name, "exoskeleton C")
+
+
 if __name__ == "__main__":
     unittest.main()
 

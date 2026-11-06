@@ -267,8 +267,12 @@ async def calculate_outcome_found_items(team, stat_name, skill_name, screen, fon
         return
     recipient, item = result
     old_item = recipient.get_item(item_base_name(item.name))
+    if old_item is None and item.is_body_armor() and recipient.has_body_armor():
+        old_item = next((i for i in recipient.equipment if i.is_body_armor()), None)
+    elif old_item is None and item.is_helmet() and recipient.has_helmet():
+        old_item = next((i for i in recipient.equipment if i.is_helmet()), None)
     if old_item is not None:
-        # Upgrade path: swap out the old tier
+        # Upgrade path (or armor-slot replacement): swap out the old item
         replace_item_in_inventory(recipient, old_item, item)
         await type_out_text(
             screen,
@@ -277,7 +281,7 @@ async def calculate_outcome_found_items(team, stat_name, skill_name, screen, fon
         )
     else:
         # Gap-fill: character had nothing of this type
-        recipient.equipment.append(item)
+        recipient.add_item(item)
         await type_out_text(
             screen,
             f"{recipient.name} finds a {item.name} \u2014 exactly what they needed.",

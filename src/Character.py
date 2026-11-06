@@ -569,14 +569,16 @@ class Character:
         return total
 
     # --- Weapon-base classification constants used by the choosers below ---
-    _RIFLE_BASES      = {"blaster rifle", "laser rifle"}
+    _RIFLE_BASES      = {"blaster rifle", "laser rifle", "grenade rifle"}
     _RANGED_BASES     = {"blaster rifle", "laser rifle", "laser pistol",
-                         "carbine", "magnum", "pistol", "stunner"}
-    _MELEE_BASES      = {"slicer", "stun baton"}
-    _ENERGY_BASES     = {"laser rifle", "laser pistol"}
+                         "carbine", "magnum", "pistol", "stunner",
+                         "grenade rifle", "flechette pistol", "launcher", "arc thrower"}
+    _MELEE_BASES      = {"slicer", "stun baton", "power mace", "mono spear", "grav hammer", "shock prod"}
+    _ENERGY_BASES     = {"laser rifle", "laser pistol", "arc thrower"}
     _SONIC_RANGED     = {"blaster rifle", "stunner"}
     _SONIC_MELEE      = {"stun baton"}
-    _PROJECTILE_BASES = {"carbine", "magnum", "pistol"}
+    _PROJECTILE_BASES = {"carbine", "magnum", "pistol", "grenade rifle", "flechette pistol"}
+    _EXPLOSIVE_BASES  = {"launcher"}
 
     def choose_ranged_weapon(self) -> "Item | None":
         """Return the best ranged weapon Item this character should use.
@@ -758,20 +760,39 @@ class Character:
         return max(1, (evasion + strength) * self.get_health_ratio())
 
     def has_ranged_weapon(self):
-        return (self.has_item("laser pistol")
-                or self.has_item("pistol")
-                or self.has_item("laser rifle")
-                or self.has_item("blaster rifle")
-                or self.has_item("carbine")
-                or self.has_item("launcher")
-                or self.has_item("stunner")
-                )
+        return any(
+            item.type == "weapon" and item_base_name(item.name) in self._RANGED_BASES
+            for item in self.equipment
+        )
 
     def has_melee_weapon(self):
         return any(
             item.type == "weapon" and item_base_name(item.name) in self._MELEE_BASES
             for item in self.equipment
         )
+
+    def has_helmet(self) -> bool:
+        """Return True if the character has a helmet armor item equipped."""
+        return any(item.is_helmet() for item in self.equipment)
+
+    def has_body_armor(self) -> bool:
+        """Return True if the character has a non-helmet body armor item equipped."""
+        return any(item.is_body_armor() for item in self.equipment)
+
+    def can_equip_item(self, item: "Item") -> tuple[bool, str | None]:
+        """Return (allowed, error_message) for equipping *item* on this character.
+        Enforces max 2 weapons and max 2 armors (at most 1 helmet + 1 body armor).
+        """
+        if item.type == "weapon" and self.get_weapon_count() >= 2:
+            return False, "Max two weapons per character"
+        if item.type == "armor":
+            if self.get_armor_count() >= 2:
+                return False, "Max two armors per character"
+            if item.is_helmet() and self.has_helmet():
+                return False, "Max one helmet per character"
+            if item.is_body_armor() and self.has_body_armor():
+                return False, "Max one body armor per character"
+        return True, None
 
     def has_item(self, item_name):
         """Return True if the character carries any item whose base name matches item_name.
