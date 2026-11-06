@@ -473,6 +473,15 @@ class Event:
         if team_dead(team):
             return
 
+        has_non_empty_outcome = (
+            self.context.calculate_outcome is not None
+            and getattr(self.context.calculate_outcome, "__name__", "") != "empty_outcome"
+        )
+        if self.context.enemies and has_non_empty_outcome:
+            await pause_to_clear_screen(screen, background, font)
+            if self.context.post_description is not None:
+                await type_out_text(screen, self.context.post_description, font)
+
         # Calculate the outcome of the event
         next_event = await self.context.calculate_outcome(team, self.context.stat_name, self.context.skill_name, screen, font)
         compound_event = False
@@ -534,8 +543,13 @@ class Event:
             await team_heals(self.context.team, self.context.screen, self.context.font)
             await team_repairs_robots(self.context.team, self.context.screen, self.context.font)
 
-        # Display the post-battle description
-        if self.context.post_description is not None:
+        has_non_empty_outcome = (
+            self.context.calculate_outcome is not None
+            and getattr(self.context.calculate_outcome, "__name__", "") != "empty_outcome"
+        )
+        # Display the post-battle description here if there is no follow-up outcome;
+        # otherwise Event.run() displays it on the fresh screen after pause_to_clear_screen.
+        if self.context.post_description is not None and not has_non_empty_outcome:
             await type_out_text(self.context.screen, self.context.post_description, self.context.font)
         if mission_index == 4 and self.context.enemies:
             await type_out_text(

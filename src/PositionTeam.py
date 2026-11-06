@@ -15,6 +15,8 @@ from Utils import (
     color_for_skill,
     resource_path,
     play_background_music,
+    play_positive_click,
+    play_negative_click,
     save_team_named,
     load_team_named,
 )

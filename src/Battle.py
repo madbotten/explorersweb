@@ -162,6 +162,8 @@ _MELEE_INITIATIVE_BASES = {"slicer", "stun baton", "power mace", "mono spear", "
 def _best_weapon_rate(character, phase: str) -> int:
     """Return the rate of the character's pre-chosen weapon for *phase*
     ('ranged' or 'melee').  Returns 1 if no weapon was chosen."""
+    if phase == "melee" and not character.is_pirate() and getattr(character, "position", None) == "protected":
+        return 1
     item = (character.chosen_ranged_weapon if phase == "ranged"
             else character.chosen_melee_weapon)
     return item.rate if item is not None else 1
@@ -382,6 +384,11 @@ class TeamBattle:
     def choose_battle_action_melee_phase(self, member):
         if (
             member in self.context.team
+            and getattr(member, "position", None) == "protected"
+        ):
+            return BattleAction.EVADE
+        if (
+            member in self.context.team
             and getattr(member, "position", None) == "overwatch"
             and any(
                 m.is_alive() and getattr(m, "position", None) == "center"
@@ -425,13 +432,15 @@ class TeamBattle:
         else:
             target = self.choose_target(character, self.context.team, round_num=self.round, attack_type="melee")
         if target is None:
-            print(f"{character.name} Finds no target!")
+            if DEBUG:
+                print(f"{character.name} Finds no target!")
             return
 
         # Choose weapon logic
         chosen_weapon = self.choose_melee_weapon(character, target)
         if chosen_weapon is None:
-            print(f"{character.name} Finds no weapon!")
+            if DEBUG:
+                print(f"{character.name} Finds no weapon!")
             return
         weapon_obj = (
             self.context.all_items.get(chosen_weapon)
@@ -497,10 +506,11 @@ class TeamBattle:
             battle_display_character_action_result(character, BattleAction.MELEE, hit, self.context.screen, self.context.font)
         else:
             battle_display_pirate_action_result(character, BattleAction.MELEE, hit, self.context.screen, self.context.font)
-        if hit:
-            print(f"Hit on roll {roll}")
-        else:
-            print(f"Miss on roll {roll}")
+        if DEBUG:
+            if hit:
+                print(f"Hit on roll {roll}")
+            else:
+                print(f"Miss on roll {roll}")
 
         # If hit calculate damage
         adjusted_damage = 0
@@ -515,7 +525,8 @@ class TeamBattle:
                 elif character.get_effective_skill_level(melee_skill) > 50:
                     adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
-            print(f"Damage is: {adjusted_damage}")
+            if DEBUG:
+                print(f"Damage is: {adjusted_damage}")
 
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)
@@ -535,7 +546,7 @@ class TeamBattle:
         # Player team attacking enemies: uniform random among living enemies
         if not character.is_pirate():
             target = random_alive_member(alive)
-            if target:
+            if DEBUG and target:
                 print(f"{character.name} chooses target {target.name}")
             return target
 
@@ -574,7 +585,7 @@ class TeamBattle:
         else:
             target = random.choices(eligible, weights=weights, k=1)[0]
 
-        if target:
+        if DEBUG and target:
             print(f"{character.name} chooses target {target.name}")
         return target
 
@@ -606,13 +617,15 @@ class TeamBattle:
         else:
             target = self.choose_target(character, self.context.team, round_num=self.round, attack_type="ranged")
         if target is None:
-            print(f"{character.name} Finds no target!")
+            if DEBUG:
+                print(f"{character.name} Finds no target!")
             return
 
         # Choose weapon logic
         chosen_weapon = self.choose_ranged_weapon(character, target)
         if chosen_weapon is None:
-            print(f"{character.name} Finds no weapon!")
+            if DEBUG:
+                print(f"{character.name} Finds no weapon!")
             return
         base_weapon_effect = self.context.all_items[chosen_weapon].effect
         effect_type = self.context.all_items[chosen_weapon].effect_type
@@ -687,10 +700,11 @@ class TeamBattle:
             battle_display_character_action_result(character, BattleAction.SHOOT, hit, self.context.screen, self.context.font)
         else:
             battle_display_pirate_action_result(character, BattleAction.SHOOT, hit, self.context.screen, self.context.font)
-        if hit:
-            print(f"{character.name} hit on roll {roll}")
-        else:
-            print(f"{character.name} missed on roll {roll}")
+        if DEBUG:
+            if hit:
+                print(f"{character.name} hit on roll {roll}")
+            else:
+                print(f"{character.name} missed on roll {roll}")
 
         # If hit calculate damage
         adjusted_damage = 0
@@ -703,7 +717,8 @@ class TeamBattle:
             elif character.get_effective_skill_level(skill) > 50:
                 adjusted_damage += 10
             adjusted_damage = round(adjusted_damage)
-            print(f"Damage is: {adjusted_damage}")
+            if DEBUG:
+                print(f"Damage is: {adjusted_damage}")
 
         # Round and apply damage
         adjusted_damage = round(adjusted_damage)

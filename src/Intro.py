@@ -82,7 +82,7 @@ async def introduction3() :
         "Point Man scouts ahead and strikes fast, but draws early enemy fire. Scout robots excel here.",
         "Center forms the main line, holding off close-quarters attacks and fighting stronger together.",
         "Overwatch delivers ranged covering fire from behind the Center while avoiding melee.",
-        "Protected Specialists are shielded in the rear so they stay fresh for non-combat challenges.",
+        "Protected Specialists are shielded in the rear, do not make melee attacks, and stay fresh for non-combat challenges.",
         "Click any character icon to inspect their stats, skills, and equipment.",
         "Once Commander, Exec, and all team positions are assigned, click PROCEED.",
         "Click anywhere to continue..."

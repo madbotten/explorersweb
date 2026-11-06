@@ -2756,12 +2756,17 @@ class TestSoundEffectsPhase3(unittest.IsolatedAsyncioTestCase):
             "ReturnVoyage.py",
             "Score.py",
         )
+        import importlib
         src_dir = os.path.join(os.path.dirname(__file__), "src")
         for fname in stage_files:
             with open(os.path.join(src_dir, fname), "r", encoding="utf-8") as f:
                 content = f.read()
             self.assertIn("play_positive_click()", content, f"{fname} missing play_positive_click()")
             self.assertIn("play_negative_click()", content, f"{fname} missing play_negative_click()")
+            mod_name = fname[:-3]
+            mod = importlib.import_module(mod_name)
+            self.assertTrue(hasattr(mod, "play_positive_click"), f"{mod_name} missing imported play_positive_click")
+            self.assertTrue(hasattr(mod, "play_negative_click"), f"{mod_name} missing imported play_negative_click")
 
 
 # ---------------------------------------------------------------------------
@@ -3486,6 +3491,7 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
         survivor.skills = {"Survival": 60}
         survivor.mission_points = 0
         teammate = make_human(60, 40)
+        teammate.skills = {}
         team_ok = [survivor, teammate]
         spoken = []
 
@@ -3508,6 +3514,7 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
         c1 = make_human(50, 50)   # 100 HP -> -5 HP (95), -5 morale (95)
         c2 = make_human(100, 100) # 200 HP -> -10 HP (190), -5 morale (95)
         c1.skills = {"Survival": 30}
+        c2.skills = {}
         with patch("Mission.type_out_text"), \
              patch("Mission.standard_skill_check", return_value=False):
             res_fail = await calculate_outcome_derelict_toxic_air([c1, c2], None, None, screen, font)
@@ -3517,6 +3524,124 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(c1.morale, 95)
         self.assertEqual(c2.current_health, 190)
         self.assertEqual(c2.morale, 95)
+
+    async def test_interactions_exclude_robots_and_shortcut_hides_room_count(self):
+        """_run_interaction in Voyage and ReturnVoyage excludes robots as initiators, targets, and observers, and shortcut text hides room counts."""
+        import Voyage as VoyageMod
+        import ReturnVoyage as ReturnVoyageMod
+        from Interaction import PUBLIC, PROFESSIONAL
+
+        h1 = make_human(50, 50)
+        h1.name = "HumanOne"
+        h2 = make_human(50, 50)
+        h2.name = "HumanTwo"
+        all_items = load_items_battle()
+        bots = [
+            Robot.create("assaultbot", 1, all_items),
+            Robot.create("hackbot", 2, all_items),
+            Robot.create("medibot", 3, all_items),
+            Robot.create("scoutbot", 4, all_items),
+        ]
+        team = [h1, h2] + bots
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        seen_pairs = []
+        orig_resolve = VoyageMod.Interaction.resolve
+
+        def spy_resolve(initiator, target, observer_list=None, setting_type=None, privacy_level=None):
+            seen_pairs.append((initiator, target, list(observer_list or [])))
+            return orig_resolve(
+                initiator, target,
+                observer_list=observer_list,
+                setting_type=setting_type,
+                privacy_level=privacy_level,
+            )
+
+        with patch("Voyage.type_out_text"), \
+             patch("Voyage.emit_character_image_at_text_offset"), \
+             patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.emit_character_image_at_text_offset"), \
+             patch("Interaction.Interaction.resolve", side_effect=spy_resolve):
+            for _ in range(20):
+                await VoyageMod._run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
+                await ReturnVoyageMod._run_interaction(team, screen, font, PROFESSIONAL, PUBLIC)
+
+        self.assertEqual(len(seen_pairs), 40)
+        for init, tgt, obs in seen_pairs:
+            self.assertFalse(init.is_robot())
+            self.assertFalse(tgt.is_robot())
+            for o in obs:
+                self.assertFalse(o.is_robot())
+
+        # Verify shortcut reward text does not expose 'room to objective'
+        spoken = []
+        async def capture(scr, txt, fnt, color=None):
+            spoken.append(txt)
+
+        with patch("Mission.type_out_text", side_effect=capture):
+            await resolve_procedural_challenge([h1, bots[1]], "SECURITY_GRID", screen, font)
+        for line in spoken:
+            self.assertNotIn("room to objective", line)
+
+    def test_protected_specialists_cannot_make_melee_attacks(self):
+        """Team members in Protected Specialists always EVADE during the melee phase, even with a melee weapon equipped."""
+        from Battle import BattleAction, initiative_melee
+        spec = make_human(50, 50)
+        spec.position = POS_PROTECTED
+        give_item(spec, "slicer A")  # rate 2 melee weapon
+        spec.chosen_melee_weapon = spec.choose_melee_weapon()
+
+        enemy = make_human(50, 50)
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+
+        ctx = EventContext("", "", 1, None, None, None, None, {"slicer A": make_item("slicer A")})
+        ctx.add_run_params([spec], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+
+        # Even with no one in Center, Protected Specialists always EVADE in melee phase
+        self.assertEqual(battle.choose_battle_action_melee_phase(spec), BattleAction.EVADE)
+
+        # And they do not get extra melee turns from weapon rate > 1
+        melee_order = initiative_melee([spec], [enemy], round_num=1)
+        self.assertEqual(melee_order.count(spec), 1)
+
+    async def test_event_run_pauses_to_clear_screen_between_combat_healing_and_outcome(self):
+        """After combat + healing, Event.run calls pause_to_clear_screen before running a non-empty calculate_outcome."""
+        from Event import Event
+        c = make_human(50, 50)
+        screen, font, bg = make_dummy_screen(), make_dummy_font(), make_dummy_screen()
+        call_order = []
+
+        async def fake_run_battle(self_ev):
+            call_order.append("battle_and_heal")
+            return False
+
+        async def fake_pause(scr, background, fnt):
+            call_order.append("pause_to_clear_screen")
+
+        async def fake_goal_outcome(team, stat_name, skill_name, scr, fnt):
+            call_order.append("calculate_outcome")
+            return None
+
+        ev = Event(
+            "Pre-battle text",
+            "Post-battle goal prompt",
+            2,
+            "Intelligence",
+            "Hacking",
+            None,
+            fake_goal_outcome,
+            load_items_battle(),
+            is_goal=True,
+        )
+        with patch("Event.type_out_text"), \
+             patch.object(Event, "run_battle", fake_run_battle), \
+             patch("Event.pause_to_clear_screen", side_effect=fake_pause):
+            await ev.run([c], screen, font, bg, font)
+
+        self.assertEqual(call_order, ["battle_and_heal", "pause_to_clear_screen", "calculate_outcome"])
 
 
 if __name__ == "__main__":

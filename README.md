@@ -15,7 +15,7 @@ These are the files for **Explorers**, a science fiction tactical RPG management
    - **Point Man**: Scouts ahead to help the team avoid detection and strike quickly when combat begins, though they draw heavy early attention from enemies. Scout robots are especially effective in this role, while leaving the position empty leaves the squad vulnerable to being caught off guard.
    - **Center**: Forms the main battle line, engaging enemies in close quarters, shielding the rear positions, and supporting one another when fighting side by side.
    - **Overwatch**: Provides ranged covering fire from behind the front line while avoiding close-quarters combat as long as the Center holds.
-   - **Protected Specialists**: Kept shielded behind the front and support lines so they avoid the brunt of enemy attacks and stay fresh to handle non-combat challenges.
+   - **Protected Specialists**: Kept shielded behind the front and support lines so they avoid the brunt of enemy attacks, do not make melee attacks, and stay fresh to handle non-combat challenges.
 5. **Voyage** — Watch your team train, interact, and handle shipboard events on the outbound journey.
 6. **Mission** — Follow your team through rooms, challenges, and tactical battles to achieve the mission objective.
 7. **Return Voyage** — Navigate the journey back to base while guarding against conspiracies and hazards.

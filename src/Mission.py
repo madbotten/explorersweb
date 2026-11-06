@@ -118,7 +118,7 @@ CHALLENGE_ARCHETYPES = {
         "penalty": {
             "type": "damage_all",
             "amount": 8,
-            "text": "Automated defense turrets graze the squad before they can retreat! (-8 HP each)",
+            "text": "Automated defense turrets graze the squad before they can retreat!",
         },
     },
     "INTEL_CONSOLE": {
@@ -188,7 +188,7 @@ CHALLENGE_ARCHETYPES = {
         "penalty": {
             "type": "damage_all",
             "amount": 10,
-            "text": "Volatile fumes and electrical arcs scorch the team! (-10 HP each)",
+            "text": "Volatile fumes and electrical arcs scorch the team!",
         },
     },
     "MEDICAL_CACHE": {
@@ -243,7 +243,7 @@ CHALLENGE_ARCHETYPES = {
         "penalty": {
             "type": "demoralize",
             "amount": 4,
-            "text": "A painful static shock from the pod rattles the crew's nerves. (-4 morale each)",
+            "text": "A painful static shock from the pod rattles the crew's nerves.",
         },
     },
     "SUPPLY_LOCKER": {
@@ -313,7 +313,7 @@ CHALLENGE_ARCHETYPES = {
         "penalty": {
             "type": "demoralize",
             "amount": 5,
-            "text": "Unable to drop the force field in time, the team is forced to leave the cells behind. (-5 morale each)",
+            "text": "Unable to drop the force field in time, the team is forced to leave the cells behind.",
         },
     },
 }
@@ -333,7 +333,7 @@ async def _apply_challenge_reward(team, actor, reward, screen, font):
         rooms_to_goal = max(0, globals().get("rooms_to_goal", 5) - amt)
         await type_out_text(
             screen,
-            f"The team discovers a shortcut deeper into the stronghold! (-{amt} room to objective)",
+            "The team discovers a shortcut deeper into the facility!",
             font,
             GREEN,
         )
@@ -342,7 +342,7 @@ async def _apply_challenge_reward(team, actor, reward, screen, font):
         heal_team_by(team, amt)
         await type_out_text(
             screen,
-            f"The medical supplies restore the squad's vitality. (+{amt} HP to team)",
+            "The medical supplies restore the squad's vitality.",
             font,
             GREEN,
         )
@@ -354,7 +354,7 @@ async def _apply_challenge_reward(team, actor, reward, screen, font):
             target.increase_stat(stat_name, amt)
             await type_out_text(
                 screen,
-                f"{target.name}'s {stat_name} is enhanced! (+{amt} {stat_name})",
+                f"{target.name}'s {stat_name} is enhanced!",
                 font,
                 GREEN,
             )
@@ -671,7 +671,8 @@ async def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, fo
         member = determine_best_team_member(team, None, "Explosives",)
         if member:
             mission_failed = not await calculate_goal_outcome_explosives(member, screen, font)
-            print(f"{mission_failed}")
+            if DEBUG:
+                print(f"{mission_failed}")
 
     if mission_failed:
         if DEBUG:
@@ -679,7 +680,8 @@ async def calculate_outcome_pirate_vault(team, stat_name, skill_name, screen, fo
         if team_has_item(team, "cutter"):
             member = next(m for m in team if m.has_item("cutter"))
             mission_failed = not await calculate_goal_outcome_cutter(member, screen, font)
-            print(f"{mission_failed}")
+            if DEBUG:
+                print(f"{mission_failed}")
 
     if mission_failed:
         await type_out_text(screen, "The mission has failed!", font)
@@ -814,7 +816,7 @@ async def calculate_outcome_derelict_toxic_air(team, stat_name, skill_name, scre
             m.morale = min(m.morale, m.health_pct())
     await type_out_text(
         screen,
-        "The toxic air saps the crew's strength! (-5% health and -5 morale)",
+        "The toxic air saps the crew's strength!",
         font,
         RED,
     )

@@ -564,14 +564,14 @@ async def _run_interaction(team, screen, font, setting_type, privacy_level):
         return
 
     initiator = random.choice(non_robots)
-    candidates = [m for m in team if m is not initiator]
+    candidates = [m for m in non_robots if m is not initiator]
     if not candidates:
         return
     target = random.choice(candidates)
 
-    # Build observer list for PUBLIC interactions (0-2 random bystanders).
+    # Build observer list for PUBLIC interactions (0-2 random non-robot bystanders).
     if privacy_level == PUBLIC:
-        bystanders = [m for m in team if m is not initiator and m is not target]
+        bystanders = [m for m in non_robots if m is not initiator and m is not target]
         num_observers = random.randint(0, min(2, len(bystanders)))
         observer_list = random.sample(bystanders, num_observers)
     else:
@@ -961,6 +961,7 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
         ),
     ]
 
+    human_crew = [m for m in team if not m.is_robot()] or team
     rando_atmosphere_strings = [
         " the vastness of space overwhelms the crew, causing a combination of awe and anxiety.",
         " the tiny confines of the Knacknarpia press in on the crew, causing them to feel trapped.",
@@ -970,10 +971,10 @@ async def voyage(team_data, team_name="Debug Team", loop=1) :
         " despite the best life support, the air in the ship is stale.",
         " data drops from the frontier become fewer and far between.",
         " the crew hypothesizes about that intermittent creaking sound in the bulkhead.",
-        f" {team[random.randint(0, len(team) - 1)].name} regales the crew with tales of past glory.",
+        f" {random.choice(human_crew).name} regales the crew with tales of past glory.",
         " the Knacknarpia has become home for the team until they reach the mission point.",
         " the team starts to doubt if their mission can be accomplished.",
-        f" {team[random.randint(0, len(team) - 1)].name} has a dream they are convinced is an alien warning to turn back.",
+        f" {random.choice(human_crew).name} has a dream they are convinced is an alien warning to turn back.",
     ]
 
     # Load and scale background image
