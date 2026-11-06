@@ -50,32 +50,52 @@ PIRATE_LOCATION_ATTRIBUTES = {
 
 DERELICT_LOCATION_ATTRIBUTES = {
     "analysisbay": ("An alien specimen and artifact analysis bay.", {"south": True}, ("tech",)),
-    "armory": ("A derelict weapons locker lined with chitin-encrusted racks.", {"south": True}, ("supply",)),
-    "barracks1": ("A deserted crew barracks strewn with shattered carapaces.", {"south": True}, ("combat",)),
-    "barracks2": ("A secondary troop berth converted into a Klackon nesting den.", {"south": True}, ("combat",)),
-    "biolab": ("A bio-research laboratory overgrown with pulsing alien resin.", {"south": True}, ("goal",)),
-    "bridge": ("The dark, silent command bridge of the derelict vessel.", {"south": True}, ("goal",)),
-    "captainquarters": ("The former captain's quarters, ransacked and eerie.", {"south": True}, ("tech",)),
-    "corridor": ("A scarred ship corridor flickering with emergency lighting.", {"south": True}, ("corridor",)),
+    "armory": ("A derelict weapons locker lined with\nchitin-encrusted racks.", {"south": True}, ("supply",)),
+    "barracks1": ("A deserted crew barracks strewn with\nshattered carapaces.", {"south": True}, ("combat",)),
+    "barracks2": ("A secondary troop berth converted into a\nKlackon nesting den.", {"south": True}, ("combat",)),
+    "biolab": ("A bio-research laboratory overgrown with\npulsing alien resin.", {"south": True}, ("goal",)),
+    "bridge": ("The dark, silent command bridge of the\nderelict vessel.", {"south": True}, ("goal",)),
+    "captainquarters": ("The former captain's quarters, ransacked\nand eerie.", {"south": True}, ("tech",)),
+    "corridor": ("A scarred ship corridor flickering with\nemergency lighting.", {"south": True}, ("corridor",)),
     "empty": ("A stripped, depressurized hull compartment.", {"south": True}, ("corridor",)),
-    "engineering": ("Main engineering, where damaged conduits hiss with plasma.", {"south": True}, ("tech",)),
-    "fabrication": ("An automated fabrication bay covered in alien webbing.", {"south": True}, ("supply",)),
+    "engineering": ("Main engineering, where damaged conduits\nhiss with plasma.", {"south": True}, ("tech",)),
+    "fabrication": ("An automated fabrication bay covered in\nalien webbing.", {"south": True}, ("supply",)),
     "generator": ("A cavernous auxiliary power generator chamber.", {"south": True}, ("tech",)),
-    "implant": ("A cybernetic surgical bay with flickering diagnostic screens.", {"south": True}, ("medical",)),
+    "implant": ("A cybernetic surgical bay with flickering\ndiagnostic screens.", {"south": True}, ("medical",)),
     "medbay": ("An abandoned sickbay with overturned stasis beds.", {"south": True}, ("medical",)),
-    "navigation": ("A stellar navigation dome displaying dead star charts.", {"south": True}, ("tech",)),
-    "orechamber": ("A raw ore processing chamber hollowed out by mandibles.", {"south": True}, ("supply",)),
-    "parts": ("A spare-parts warehouse stacked with salvaged hull plating.", {"south": True}, ("supply",)),
-    "quarters1": ("Abandoned crew quarters smelling of ozone and chitin.", {"south": True}, ("corridor",)),
-    "quarters2": ("Dimly lit officer berths with claw marks across the bulkheads.", {"south": True}, ("corridor",)),
-    "robotshop": ("A robotics maintenance shop littered with dismantled chassis.", {"south": True}, ("supply",)),
-    "s-corridor": ("A curved service corridor winding through the hull.", {"south": True}, ("corridor",)),
-    "shipsweapons": ("A heavy weapons battery deck patrolled by Klackon warriors.", {"south": True}, ("combat",)),
-    "shuttlebay": ("A cavernous shuttle bay where the boarding craft docked.", {"south": True}, ("corridor",)),
-    "suitroom": ("An EVA suit locker room with rows of vacuum-sealed armor.", {"south": True}, ("supply",)),
-    "throneroom": ("A monumental hive-throne chamber at the heart of the derelict.", {"south": True}, ("goal",)),
-    "warpchamber": ("The unstable warp core chamber humming with dimensional energy.", {"south": True}, ("goal",)),
+    "navigation": ("A stellar navigation dome displaying dead\nstar charts.", {"south": True}, ("tech",)),
+    "orechamber": ("A raw ore processing chamber hollowed out\nby mandibles.", {"south": True}, ("supply",)),
+    "parts": ("A spare-parts warehouse stacked with\nsalvaged hull plating.", {"south": True}, ("supply",)),
+    "quarters1": ("Abandoned crew quarters smelling of ozone\nand chitin.", {"south": True}, ("corridor",)),
+    "quarters2": ("Dimly lit officer berths with claw marks\nacross the bulkheads.", {"south": True}, ("corridor",)),
+    "robotshop": ("A robotics maintenance shop littered with\ndismantled chassis.", {"south": True}, ("supply",)),
+    "s-corridor": ("A curved service corridor winding through\nthe hull.", {"south": True}, ("corridor",)),
+    "shipsweapons": ("A heavy weapons battery deck patrolled by\nKlackon warriors.", {"south": True}, ("combat",)),
+    "shuttlebay": ("A cavernous shuttle bay where the boarding craft\ndocked.", {"south": True}, ("corridor",)),
+    "suitroom": ("An EVA suit locker room with rows of\nvacuum-sealed armor.", {"south": True}, ("supply",)),
+    "throneroom": ("A monumental hive-throne chamber at the\nheart of the derelict.", {"south": True}, ("goal",)),
+    "warpchamber": ("The unstable warp core chamber humming with\ndimensional energy.", {"south": True}, ("goal",)),
 }
+
+LOCATION_DISPLAY_NAMES = {
+    "analysisbay": "analysis bay",
+    "barracks1": "barracks",
+    "barracks2": "barracks",
+    "captainquarters": "captain's quarters",
+    "orechamber": "ore chamber",
+    "quarters1": "quarters",
+    "quarters2": "quarters",
+    "robotshop": "robot shop",
+    "shipsweapons": "ship's weapons",
+    "shuttlebay": "shuttle bay",
+    "suitroom": "suit room",
+    "throneroom": "throne room",
+    "warpchamber": "warp chamber",
+}
+
+def get_location_display_name(location_or_name):
+    name = location_or_name if isinstance(location_or_name, str) else getattr(location_or_name, "name", str(location_or_name))
+    return LOCATION_DISPLAY_NAMES.get(name, name)
 
 # name: description, items (items can be picked up)
 KNAKNARPIA_LOCATION_ATTRIBUTES = {
@@ -189,7 +209,7 @@ def load_derelict_locations():
     return locations
 
 def draw_location(location, screen, left, top, font, small_font):
-    loc_text = font.render("Location: " + location.name, True, WHITE)
+    loc_text = font.render("Location: " + get_location_display_name(location), True, WHITE)
     screen.blit(loc_text, (left, top - 25))
     screen.blit(location.icon, (left, top))
     blit_location_description(screen, location.description, (LOCATION_LEFT, LOCATION_TOP + LOCATION_HEIGHT + 10), small_font)

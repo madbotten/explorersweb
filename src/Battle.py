@@ -26,9 +26,18 @@ ITEM_COMBAT_HEIGHT = 40
 ROUND_AND_PHASE_LEFT = 30
 ACTION_LEFT = 300
 TEAM_LEFT = 30
-TEAM_RIGHT = 880
+TEAM_RIGHT = 850
 TEAM_TOP = 5
 TEAM_ACTIONS_X_OFFSET = 300
+
+MIN_DAMAGE_MULTIPLIER = 0.25
+MAX_DAMAGE_MULTIPLIER = 2.5
+
+
+def compute_damage_multiplier(attacker, target) -> float:
+    """Compute the offense/defense damage multiplier clamped to [MIN_DAMAGE_MULTIPLIER, MAX_DAMAGE_MULTIPLIER]."""
+    raw_ratio = attacker.get_effective_combat_offense() / target.get_effective_combat_defense()
+    return max(MIN_DAMAGE_MULTIPLIER, min(MAX_DAMAGE_MULTIPLIER, raw_ratio))
 
 async def clear_announce_bar(surface):
     background_surface = pygame.Surface((800, 25))
@@ -518,7 +527,7 @@ class TeamBattle:
         melee_skill = "Sonic Weapons" if effect_type == "sonic" else "Martial Arts"
         if hit:
             adjusted_damage = random.randint(1, base_weapon_effect)
-            adjusted_damage = adjusted_damage * (character.get_effective_combat_offense() / target.get_effective_combat_defense())
+            adjusted_damage = adjusted_damage * compute_damage_multiplier(character, target)
             if item_base_name(chosen_weapon) != "knife":
                 if character.get_effective_skill_level(melee_skill) > 75:
                     adjusted_damage += 20
@@ -710,8 +719,7 @@ class TeamBattle:
         adjusted_damage = 0
         if hit:
             adjusted_damage = random.randint(1, base_weapon_effect)
-            adjusted_damage = (adjusted_damage *
-                               (character.get_effective_combat_offense() / target.get_effective_combat_defense()))
+            adjusted_damage = adjusted_damage * compute_damage_multiplier(character, target)
             if character.get_effective_skill_level(skill) > 75:
                 adjusted_damage += 20
             elif character.get_effective_skill_level(skill) > 50:

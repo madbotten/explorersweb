@@ -1063,6 +1063,95 @@ def build_procedural_mission_room_event(
     )
 
 
+def build_mission_goal_events(theatre, locations, all_items):
+    """Build the 5 goal Event instances for *theatre* ('pirates' or 'derelict')."""
+    if theatre == "derelict":
+        return [
+            Event(
+                "The team breaches a sealed bulkhead and enters the derelict's warp chamber.",
+                "The warp containment vault must be breached to recover the Xeno-Relic.",
+                5, "Intelligence", "Hacking", locations["warpchamber"],
+                calculate_outcome_derelict_warpchamber,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a chitin-encrusted hatch into the hive throne room!",
+                "Broodmother Xylarx is neutralized. The mission has been completed!",
+                6, None, None, locations["throneroom"],
+                calculate_outcome_derelict_throneroom,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team breaches a hatch and enters the overgrown derelict biolab!",
+                "The Klackon bio-nest has been purged. The mission is a success!",
+                5, None, None, locations["biolab"],
+                calculate_outcome_derelict_biolab,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team reaches the dark command bridge of the derelict vessel!",
+                "The team must extract the black-box flight core to succeed.",
+                5, None, None, locations["bridge"],
+                calculate_outcome_derelict_bridge,
+                all_items,
+                is_goal=True,
+            ),
+            Event(
+                "The team sweeps a Klackon staging chamber aboard the derelict vessel!",
+                "The Klackon swarm in this sector has been neutralized.",
+                5, None, None, locations["barracks1"],
+                empty_outcome,
+                all_items,
+                is_goal=True,
+            ),
+        ]
+    return [
+        Event(
+            "The team breaches a hatch and discovers a vault room beyond.",
+            "The vault must be breached to obtain the mission objective.",
+            5, "Intelligence", "Hacking", locations["vault"],
+            calculate_outcome_pirate_vault,
+            all_items,
+            is_goal=True,
+        ),
+        Event(
+            "The team breaches a hatch and discovers the officer's quarters!",
+            "Jalorith is neutralized. The mission has been completed!",
+            6, None, None, locations["officer's quarters"],
+            calculate_outcome_officers_quarters_jalorith,
+            all_items,
+            is_goal=True,
+        ),
+        Event(
+            "The team breaches a hatch and discovers the officer's quarters!",
+            "Pirate officers have been neutralized. The mission is a success!",
+            5, None, None, locations["officer's quarters"],
+            calculate_outcome_officers_quarters_neutralize,
+            all_items,
+            is_goal=True,
+        ),
+        Event(
+            "The team breaches a hatch and discovers the ai core room!",
+            "The team must obtain secrets held by the AI core to succeed.",
+            5, None, None, locations["ai core"],
+            calculate_outcome_ai_core,
+            all_items,
+            is_goal=True,
+        ),
+        Event(
+            "The team storms a heavily guarded pirate barracks!",
+            "The pirate patrol has been neutralized.",
+            5, None, None, locations["guard room"],
+            empty_outcome,
+            all_items,
+            is_goal=True,
+        ),
+    ]
+
+
 async def go_mission(team_data, team_name="Debug Team", loop=1) :
     global max_height
     global locations
@@ -1115,93 +1204,7 @@ async def go_mission(team_data, team_name="Debug Team", loop=1) :
     else:
         locations = load_pirate_locations()
     all_items = load_items_battle()
-
-    if theatre == "derelict":
-        goal_event = [
-            Event(
-                "The team breaches a sealed bulkhead and enters the derelict's warp chamber.",
-                "The warp containment vault must be breached to recover the Xeno-Relic.",
-                5, "Intelligence", "Hacking", locations["warpchamber"],
-                calculate_outcome_derelict_warpchamber,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team breaches a chitin-encrusted hatch into the hive throne room!",
-                "Broodmother Xylarx is neutralized. The mission has been completed!",
-                6, None, None, locations["throneroom"],
-                calculate_outcome_derelict_throneroom,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team breaches a hatch and enters the overgrown derelict biolab!",
-                "The Klackon bio-nest has been purged. The mission is a success!",
-                5, None, None, locations["biolab"],
-                calculate_outcome_derelict_biolab,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team reaches the dark command bridge of the derelict vessel!",
-                "The team must extract the black-box flight core to succeed.",
-                5, None, None, locations["bridge"],
-                calculate_outcome_derelict_bridge,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team sweeps a Klackon staging chamber aboard the derelict vessel!",
-                "The Klackon swarm in this sector has been neutralized.",
-                5, None, None, locations["guard room"],
-                empty_outcome,
-                all_items,
-                is_goal=True,
-            ),
-        ]
-    else:
-        goal_event = [
-            Event(
-                "The team breaches a hatch and discovers a vault room beyond.",
-                "The vault must be breached to obtain the mission objective.",
-                5, "Intelligence", "Hacking", locations["vault"],
-                calculate_outcome_pirate_vault,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team breaches a hatch and discovers the officer's quarters!",
-                "Jalorith is neutralized. The mission has been completed!",
-                6, None, None, locations["officer's quarters"],
-                calculate_outcome_officers_quarters_jalorith,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team breaches a hatch and discovers the officer's quarters!",
-                "Pirate officers have been neutralized. The mission is a success!",
-                5, None, None, locations["officer's quarters"],
-                calculate_outcome_officers_quarters_neutralize,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team breaches a hatch and discovers the ai core room!",
-                "The team must obtain secrets held by the AI core to succeed.",
-                5, None, None, locations["ai core"],
-                calculate_outcome_ai_core,
-                all_items,
-                is_goal=True,
-            ),
-            Event(
-                "The team storms a heavily guarded pirate barracks!",
-                "The pirate patrol has been neutralized.",
-                5, None, None, locations["guard room"],
-                empty_outcome,
-                all_items,
-                is_goal=True,
-            ),
-        ]
+    goal_event = build_mission_goal_events(theatre, locations, all_items)
 
     rando_atmosphere_strings = [
         " the scent of oil and burnt metal fills the air, mingling with the faint aroma of alien spices.",

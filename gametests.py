@@ -3749,6 +3749,92 @@ class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
         self.assertTrue({"weaponsmithing", "armorsmithing", "tinkering"}.issubset(rv_names))
         self.assertNotEqual(v_names, rv_names)
 
+    async def test_offense_defense_damage_multiplier_is_clamped(self):
+        """Offense/defense damage multiplier is clamped to [0.25, 2.5] so shooting a 1-HP target with a pistol C never deals 500 damage."""
+        from Battle import compute_damage_multiplier, MIN_DAMAGE_MULTIPLIER, MAX_DAMAGE_MULTIPLIER
+
+        shooter = make_human(80, 80)
+        shooter.stats["courage"] = 90
+        shooter.stats["coordination"] = 90
+        shooter.skills = {}
+        give_item(shooter, "pistol C")
+        shooter.chosen_ranged_weapon = shooter.choose_ranged_weapon()
+
+        target = make_human(50, 50)
+        target.current_health = 1  # 1% HP -> raw defense = 1
+        target.set_rect(pygame.Rect(0, 0, 60, 70))
+
+        self.assertEqual(compute_damage_multiplier(shooter, target), MAX_DAMAGE_MULTIPLIER)
+        self.assertEqual(compute_damage_multiplier(target, shooter), MIN_DAMAGE_MULTIPLIER)
+
+        ctx = EventContext("", "", 1, None, None, None, None, {"pistol C": make_item("pistol C")})
+        ctx.add_run_params([shooter], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [target]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        dealt = []
+        async def capture_dmg(att, tgt, dmg, eff, scr, fnt):
+            dealt.append(dmg)
+
+        with patch("Battle.random.randint", return_value=25), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch.object(battle, "damage_target", side_effect=capture_dmg):
+            await battle.run_battle_action_shoot(shooter)
+
+        self.assertEqual(len(dealt), 1)
+        self.assertEqual(dealt[0], round(25 * MAX_DAMAGE_MULTIPLIER))  # 62 instead of 2250
+
+    def test_build_mission_goal_events_succeeds_for_pirates_and_derelict(self):
+        """build_mission_goal_events builds all 5 goal events for both 'pirates' and 'derelict' theatres without KeyError."""
+        from Mission import build_mission_goal_events
+        from Location import load_pirate_locations, load_derelict_locations
+
+        items = load_items_battle()
+        pirate_goals = build_mission_goal_events("pirates", load_pirate_locations(), items)
+        derelict_goals = build_mission_goal_events("derelict", load_derelict_locations(), items)
+
+        self.assertEqual(len(pirate_goals), 5)
+        self.assertEqual(len(derelict_goals), 5)
+        self.assertEqual(
+            [e.context.location.name for e in derelict_goals],
+            ["warpchamber", "throneroom", "biolab", "bridge", "barracks1"],
+        )
+
+    def test_derelict_location_descriptions_wrapped_and_display_names_spaced(self):
+        """Derelict location descriptions wrap lines within 50 chars and shuttlebay/robotshop/barracks2 display cleanly."""
+        from Location import DERELICT_LOCATION_ATTRIBUTES, get_location_display_name
+        from Battle import TEAM_RIGHT
+
+        expected_display = {
+            "analysisbay": "analysis bay",
+            "barracks1": "barracks",
+            "barracks2": "barracks",
+            "captainquarters": "captain's quarters",
+            "orechamber": "ore chamber",
+            "quarters1": "quarters",
+            "quarters2": "quarters",
+            "robotshop": "robot shop",
+            "shipsweapons": "ship's weapons",
+            "shuttlebay": "shuttle bay",
+            "suitroom": "suit room",
+            "throneroom": "throne room",
+            "warpchamber": "warp chamber",
+        }
+        for key, label in expected_display.items():
+            self.assertEqual(get_location_display_name(key), label)
+        self.assertEqual(TEAM_RIGHT, 850)
+        for name, entry in DERELICT_LOCATION_ATTRIBUTES.items():
+            for line in entry[0].splitlines():
+                self.assertLessEqual(
+                    len(line),
+                    50,
+                    f"Derelict location '{name}' description line exceeds 50 chars: {line!r}",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

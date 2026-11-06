@@ -15,6 +15,7 @@ from Event import *
 from TypeText import *
 from Interaction import Interaction, PRIVATE, PUBLIC, PERSONAL, PROFESSIONAL
 from ShipEvents import *
+from ShipEvents import _run_interaction, _interaction_reaction_string
 from constants import TOP_BAR_Y, DEBUG
 
 # Screen settings
