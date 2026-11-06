@@ -457,6 +457,9 @@ class TeamBattle:
             target_melee = target.get_effective_combat_melee()
             target_evasion = target.get_effective_stat_level("evasion")
             offense = character.get_effective_stat_level("offense")
+            if character.has_item("offense implant"):
+                imp = character.get_item("offense implant")
+                offense += imp.effect if imp else 50
             
             adjusted_roll = roll
             if target.last_action == BattleAction.EVADE:
@@ -632,7 +635,7 @@ class TeamBattle:
             target_evasion = target.get_effective_combat_evasion()
             
             adjusted_roll = roll
-            if effect_type == "impact":
+            if effect_type in ("impact", "pierce", "slash"):
                 skill = "Projectile Weapons"
             elif effect_type == "energy":
                 skill = "Energy Weapons"

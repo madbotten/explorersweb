@@ -36,7 +36,7 @@ ROBOT_SPECS = {
             "evasion": 50, "deception": 50, "analyze": 10, "movement": 30,
             "meleecombat": 10, "surprise": 125, "leadership": 5, "perception": 30,
         },
-        "skills": {"Energy Weapons": 75, "Mech Combat": 50},
+        "skills": {"Sonic Weapons": 75, "Mech Combat": 50},
         "equipment": ("stunner", "power shield"),
     },
     "mechbot": {

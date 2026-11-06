@@ -166,11 +166,9 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                 x_offset += 60  # Space between items
 
             # Encumbrance warning
-            if not team_has_item(team, "mulebot"):
-                total_mass = character.get_carried_mass()
-                if total_mass > (character.get_effective_stat_level("strength") / 2):
-                    encumbered_text = DEFAULT_FONT.render("Encumbered", True, RED)
-                    screen.blit(encumbered_text, (character_rect.x + 110, character_rect.y + 65))
+            if character.is_encumbered():
+                encumbered_text = DEFAULT_FONT.render("Encumbered", True, RED)
+                screen.blit(encumbered_text, (character_rect.x + 110, character_rect.y + 65))
 
     def display_tabs():
         """Displays tabs for item categories."""
@@ -382,8 +380,8 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                                 dragging_item.rect.topleft = original_item_position
                             else:
                                 play_positive_click()
-                                dragging_from_character.equipment.remove(original_dragging_item)
-                                dropped_on_character.equipment.append(dragging_item)
+                                dragging_from_character.remove_item(original_dragging_item.name)
+                                dropped_on_character.add_item(dragging_item)
                         elif dragging_from_character:
                             dragging_item.rect.topleft = original_item_position
                         else:
@@ -392,7 +390,7 @@ async def equip_team(team_data, team_name="Debug Team", loop=1) :
                     elif STORE_RECT.collidepoint(dragging_item.rect.center):
                         if dragging_from_character:
                             play_positive_click()
-                            dragging_from_character.equipment.remove(original_dragging_item)
+                            dragging_from_character.remove_item(original_dragging_item.name)
                             handle_item_return(original_dragging_item)
                     else:
                         # If it's a robot dropped in open space, add it to the team

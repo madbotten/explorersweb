@@ -37,6 +37,8 @@ def team_evades_notice(team):
         else:
             total_evasion += ev
             total_weight += 1
+    if scanner_bonus == 0 and any(m.is_alive() and m.has_item("scanner") for m in team):
+        scanner_bonus = 10
     avg_evasion = (total_evasion / total_weight) + scanner_bonus
     roll = random.randint(1, 100)
     evaded = roll < avg_evasion
@@ -225,11 +227,16 @@ async def team_heals(team, screen, font):
         base_heal = 25
         medikit_heal = (best_medikit.effect // 2) if best_medikit else 0
 
-    # Check if a medikit is available
-    has_medikit = best_medikit is not None or team_has_item(team, "medibot")
+    # Check if a medibot or medikit is available
+    has_medibot = team_has_item(team, "medibot") or any(
+        m.is_alive() and getattr(m, "occupation", None) == "medibot" for m in team
+    )
+    if has_medibot and medikit_heal == 0:
+        medikit_heal = 60 if healing_successful else 30
+    has_medikit = best_medikit is not None or has_medibot
 
-    # Remove one medikit if available
-    if has_medikit:
+    # Remove one medikit if available (medibot provides reusable supplies without consuming an item)
+    if best_medikit is not None and not has_medibot:
         await type_out_text(screen, "A medikit had to be consumed to patch everyone up.", font)
         for member in team:
             for item in member.equipment:
@@ -239,6 +246,8 @@ async def team_heals(team, screen, font):
             else:
                 continue
             break
+    elif has_medibot:
+        await type_out_text(screen, "The medibot dispenses medical supplies to patch everyone up.", font)
 
     # Heal all ALIVE team members
     heal_amount = base_heal + (medikit_heal if has_medikit else 0)

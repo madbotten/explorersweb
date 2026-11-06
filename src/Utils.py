@@ -477,7 +477,7 @@ def team_skill_check(team, skill_name, difficulty_modifier):
 def team_needs_heal(team):
     return any(
         member.current_health > 0 and member.type == "team"
-        and member.current_health < 0.75 * member.stats["max_health"]
+        and member.current_health < 0.75 * member.get_max_health()
         for member in team
     )
 
@@ -486,7 +486,7 @@ def heal_team_by(team, amount):
     for member in bio_team:
         if member.current_health > 0:  # Only heal alive members
             member.current_health = min(
-                member.stats["max_health"],   # cap at max-HP stat
+                member.get_max_health(),   # cap at max-HP (including stimulant overheal)
                 member.current_health + amount
             )
             # Healing raises morale toward the current health ratio

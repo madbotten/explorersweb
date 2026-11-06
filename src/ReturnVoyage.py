@@ -463,6 +463,17 @@ async def calculate_outcome_psychotic_attack(team, stat_name, skill_name, screen
             team.remove(psycho)
             return
 
+        pacifier_holder = next((m for m in candidates if m.has_item("pacifier")), None)
+        if pacifier_holder is not None:
+            await type_out_text(
+                screen,
+                f"{pacifier_holder.name} reacts quickly with a pacifier, incapacitating {psycho.name} before anyone is harmed! "
+                f"{psycho.name} is restrained and thrown in the brig.",
+                font, GREEN,
+            )
+            team.remove(psycho)
+            return
+
         await type_out_text(
             screen,
             f"{perceiver.name} fails to notice the warning signs. The attack continues!",
@@ -616,6 +627,20 @@ async def calculate_outcome_traitor_sabotage(team, stat_name, skill_name, screen
         f"{traitor_names} steal valuable mission data and materials!",
         font, RED,
     )
+
+    loyal_crew = [m for m in non_robots if m not in traitors]
+    pacifier_holder = next((m for m in loyal_crew if m.has_item("pacifier")), None)
+    if pacifier_holder is not None:
+        await type_out_text(
+            screen,
+            f"{pacifier_holder.name} deploys a pacifier to incapacitate the fleeing traitor(s)! "
+            f"{traitor_names} {'are' if plural else 'is'} captured and thrown in the brig.",
+            font, GREEN,
+        )
+        await try_interrogation(10, "Despite the stolen data, the interrogation recovers some intelligence.")
+        for t in traitors:
+            team.remove(t)
+        return
 
     surprise_threshold = commander.stats.get("surprise", 0) / 2
     surprise_roll = random.randint(1, 100)

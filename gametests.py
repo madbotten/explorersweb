@@ -2901,6 +2901,235 @@ class TestRobotModulePhase2(unittest.TestCase):
         self.assertEqual(h1.team, [h1])
 
 
+# ---------------------------------------------------------------------------
+# Equipment Audit & Expansion — Phase 1 Tests
+# ---------------------------------------------------------------------------
+
+from Utils import heal_team_by, team_needs_heal
+from Mission import calculate_goal_outcome_cutter, calculate_outcome_officers_quarters_jalorith
+
+
+class TestEquipmentAuditPhase1(unittest.IsolatedAsyncioTestCase):
+
+    def test_rebalanced_item_attributes_and_damage_types(self):
+        """Existing items have updated costs, masses, effects, and effect types (pierce for firearms, slash for slicer)."""
+        ps = make_item("power shield C")
+        self.assertEqual(ps.mass, 4)
+        self.assertEqual(ps.cost, 200)
+
+        holo = make_item("holofier C")
+        self.assertEqual(holo.cost, 325)
+        self.assertEqual(holo.mass, 2)
+
+        orb = make_item("stealth orb C")
+        self.assertEqual(orb.mass, 3)
+
+        pac = make_item("pacifier C")
+        self.assertEqual(pac.cost, 250)
+        self.assertEqual(pac.mass, 3)
+
+        nt = make_item("neural trainer C")
+        self.assertEqual(nt.cost, 250)
+
+        for firearm in ("pistol C", "magnum C", "carbine C"):
+            w = make_item(firearm)
+            self.assertEqual(w.effect_type, "pierce", f"{firearm} should deal pierce damage")
+
+        carbine = make_item("carbine C")
+        self.assertEqual(carbine.cost, 400)
+        self.assertEqual(carbine.mass, 6)
+        self.assertEqual(carbine.effect, 18)
+
+        slicer = make_item("slicer C")
+        self.assertEqual(slicer.effect_type, "slash")
+        self.assertEqual(slicer.mass, 4)
+
+    def test_stunbot_has_sonic_weapons_skill(self):
+        """Stunbot has Sonic Weapons: 75 to match its equipped stunner."""
+        self.assertEqual(ROBOT_SPECS["stunbot"]["skills"].get("Sonic Weapons"), 75)
+        self.assertNotIn("Energy Weapons", ROBOT_SPECS["stunbot"]["skills"])
+
+    def test_stimulant_overheals_and_raises_max_health_with_tier_scaling(self):
+        """Stimulant increases get_max_health() by effect*2, boosts current_health on add_item, and allows heal_team_by up to get_max_health()."""
+        c = make_human(50, 50)  # base max_health = 100
+        self.assertEqual(c.get_max_health(), 100)
+
+        stim_c = make_item("stimulant C")  # effect 25 -> +50 max_health
+        c.add_item(stim_c)
+        self.assertEqual(c.get_max_health(), 150)
+        self.assertEqual(c.current_health, 150)
+        self.assertEqual(c.get_health_ratio(), 1.0)
+
+        # Taking 30 damage leaves c at 120 HP (still above 100 base max_health -> health_ratio 1.0)
+        c.hurt(30, "impact")
+        self.assertEqual(c.current_health, 120)
+        self.assertEqual(c.get_health_ratio(), 1.0)
+
+        # Damage down to 90 HP -> heal_team_by(40) heals back up to 130 (above base 100, capped at 150)
+        c.current_health = 90
+        self.assertTrue(team_needs_heal([c]))  # 90 < 0.75 * 150 (112.5)
+        heal_team_by([c], 40)
+        self.assertEqual(c.current_health, 130)
+
+        # Removing stimulant clamps current_health back to base max_health (100)
+        c.remove_item("stimulant C")
+        self.assertEqual(c.get_max_health(), 100)
+        self.assertEqual(c.current_health, 100)
+
+        # S-tier stimulant (effect 29) grants +58 max_health
+        c.add_item(make_item("stimulant S"))
+        self.assertEqual(c.get_max_health(), 158)
+        self.assertEqual(c.current_health, 158)
+
+    def test_powered_armor_eliminates_encumbrance(self):
+        """Character wearing powered armor is never encumbered regardless of carried mass."""
+        c = make_human_controlled(strength=20)  # max unencumbered mass = 10
+        heavy = Item("Heavy Crate", "misc", 10, 50, 1, 0, "impact", 10, "A heavy crate")
+        c.add_item(heavy)
+        self.assertTrue(c.is_encumbered())
+
+        c.add_item(make_item("powered armor C"))
+        self.assertFalse(c.is_encumbered())
+
+    def test_neural_trainer_skill_floor_tier_scaling_and_double_learning(self):
+        """Neural trainer sets untrained skill floor to effect*3 (21..30) and doubles learning rate."""
+        c = make_human(50, 50)
+        c.skills = {}
+        self.assertEqual(c.get_effective_skill_level("Hacking", learning=False), 0)
+
+        c.add_item(make_item("neural trainer C"))  # effect 7 -> floor 21
+        self.assertEqual(c.get_effective_skill_level("Hacking", learning=False), 21)
+
+        c.remove_item("neural trainer C")
+        c.add_item(make_item("neural trainer S"))  # effect 10 -> floor 30
+        self.assertEqual(c.get_effective_skill_level("Hacking", learning=False), 30)
+
+        # Double learning progress: skill at 20 has threshold 2 -> 1 use with neural trainer advances skill to 21
+        c.skills = {"Piloting": 20}
+        c.stats["coordination"] = 60
+        c.stats["willpower"] = 60
+        c.learning_skills_dict["Piloting"] = 0
+        c.get_effective_skill_level("Piloting", learning=True)
+        self.assertEqual(c.skills["Piloting"], 21)
+
+    def test_scanner_and_stealth_orb_skill_and_evasion_bonuses(self):
+        """Scanner boosts analyze, Detection/Artifact Analysis/Xenobiology, and team_evades_notice; stealth orb boosts Stealth skill."""
+        c = make_human_controlled(intelligence=50, coordination=50, willpower=50)
+        c.skills = {"Detection": 40, "Stealth": 40}
+        base_analyze = c.get_effective_stat_level("analyze")
+
+        c.add_item(make_item("scanner C"))  # effect 20 -> analyze +30, Detection +20
+        self.assertEqual(c.get_effective_stat_level("analyze"), base_analyze + 30)
+        self.assertEqual(c.get_effective_skill_level("Detection", learning=False), 60)
+        self.assertEqual(c.get_effective_skill_level("Artifact Analysis", learning=False), 20)
+        self.assertEqual(c.get_effective_skill_level("Xenobiology", learning=False), 20)
+
+        # Scanner grants +10 to team_evades_notice (evasion 50 + 10 = 60 -> roll 55 evades)
+        with patch("Event.random.randint", return_value=55):
+            self.assertTrue(team_evades_notice([c]))
+
+        c.add_item(make_item("stealth orb C"))  # effect 40 -> Stealth +20
+        self.assertEqual(c.get_effective_skill_level("Stealth", learning=False), 60)
+        self.assertFalse(c.is_encumbered())
+
+    async def test_offense_implant_scales_by_tier_and_aids_melee_hit(self):
+        """Offense implant scales by item.effect in get_effective_combat_offense and boosts melee hit threshold."""
+        c = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        c.skills = {}
+        c.set_rect(pygame.Rect(0, 0, 60, 70))
+        base_off = c.get_effective_combat_offense()
+        c.add_item(make_item("offense implant S"))  # effect 58
+        self.assertAlmostEqual(c.get_effective_combat_offense(), base_off + 58)
+
+        give_item(c, "slicer C")
+        c.chosen_melee_weapon = c.choose_melee_weapon()
+
+        enemy = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+        enemy.skills = {}
+        enemy.set_rect(pygame.Rect(0, 0, 60, 70))
+
+        all_items = {"slicer C": make_item("slicer C")}
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([c], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        # Roll 80 normally misses (80 >= 50), but with offense implant S (offense = 50 + 58 = 108), 80 < 108 hits!
+        start_hp = enemy.current_health
+        with patch("Battle.random.randint", return_value=80), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch("Battle.draw_life_bar"), \
+             patch("Battle.battle_display_action_damage"), \
+             patch("Battle.battle_display_character_hit"):
+            await battle.run_battle_action_melee(c)
+        self.assertLess(enemy.current_health, start_hp)
+
+    async def test_bio_container_pacifier_cutter_and_medibot_uses(self):
+        """Bio container bypasses MEDICAL_CACHE; pacifier handles psycho/traitor/Jalorith; medibot heals without consuming medikit."""
+        from Event import team_heals
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        # 1. Bio container bypasses MEDICAL_CACHE and heals team
+        c = make_human(50, 50)
+        c.current_health = 60
+        c.add_item(make_item("bio container C"))
+        with patch("Mission.type_out_text"):
+            passed = await resolve_procedural_challenge([c], "MEDICAL_CACHE", screen, font)
+        self.assertTrue(passed)
+        self.assertEqual(c.current_health, 95)
+
+        # 2. Pacifier subdues psychotic crew member when perception fails
+        psycho = make_psycho(offense=99)
+        guard = make_victim(perception=10)
+        guard.add_item(make_item("pacifier C"))
+        team_p = [psycho, guard]
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.random.randint", return_value=99):
+            await calculate_outcome_psychotic_attack(team_p, None, None, screen, font)
+        self.assertNotIn(psycho, team_p)
+        self.assertEqual(guard.current_health, 100)
+
+        # 3. Pacifier captures fleeing traitor when perception fails
+        traitor = make_traitor()
+        cmd = make_commander(perception=10, surprise=10)
+        cmd.add_item(make_item("pacifier C"))
+        team_t = [cmd, traitor]
+        with patch("ReturnVoyage.type_out_text"), \
+             patch("ReturnVoyage.standard_skill_check", return_value=False), \
+             patch("ReturnVoyage.random.randint", return_value=99):
+            await calculate_outcome_traitor_sabotage(team_t, None, None, screen, font)
+        self.assertNotIn(traitor, team_t)
+
+        # 4. Pacifier awards +15 bonus points on Jalorith mission goal
+        cmd.mission_points = 0
+        with patch("Mission.type_out_text"):
+            await calculate_outcome_officers_quarters_jalorith([cmd], None, None, screen, font)
+        self.assertEqual(cmd.mission_points, 15)
+
+        # 5. Medibot provides medical supplies in team_heals without consuming medikit
+        wounded = make_human(50, 50)
+        wounded.current_health = 40
+        medibot = Robot.create("medibot", 1, load_items_battle())
+        team_m = [wounded, medibot]
+        with patch("Event.type_out_text"), \
+             patch("Event.team_skill_check", return_value=True):
+            await team_heals(team_m, screen, font)
+        self.assertEqual(wounded.current_health, 100)
+        self.assertTrue(medibot.has_item("medikit"))
+
+
 if __name__ == "__main__":
     unittest.main()
 

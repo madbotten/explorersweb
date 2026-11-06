@@ -315,9 +315,9 @@ class Character:
     def get_health_ratio(self):
         """Current HP as a 0.0-1.0 fraction of max HP."""
         if self.is_robot():
-            return self.current_health / self.max_life if self.max_life > 0 else 0.0
+            return min(1.0, self.current_health / self.max_life) if self.max_life > 0 else 0.0
         max_hp = self.stats["max_health"]
-        return self.current_health / max_hp if max_hp > 0 else 0.0
+        return min(1.0, self.current_health / max_hp) if max_hp > 0 else 0.0
 
     def health_pct(self):
         """Current HP as a 0–100 integer percentage of max HP."""
@@ -341,10 +341,13 @@ class Character:
         return self.morale / 100
 
     def get_max_health(self):
-        """Max HP for this character (stat, never changes during play)."""
-        base = self.stats["strength"] + self.stats["willpower"]
-        if self.has_item("stimulant"):
-            base += 50
+        """Max HP for this character (including stimulant overheal capacity)."""
+        if self.is_robot():
+            return self.max_life
+        base = self.stats.get("max_health", self.stats["strength"] + self.stats["willpower"])
+        stim = self.get_item("stimulant")
+        if stim is not None:
+            base += stim.effect * 2
         return base
 
     def get_lifelevel(self):
@@ -491,6 +494,8 @@ class Character:
 
     # If encumbered and team has no mulebot, evasion will suffer
     def is_encumbered(self):
+        if self.has_item("powered armor"):
+            return False
         if self.team and any(m.occupation == "mulebot" and m.is_alive() for m in self.team):
             return False
         total_mass = self.get_carried_mass()
@@ -538,7 +543,8 @@ class Character:
 
         # --- learning system ---
         if learning and not self.is_robot() and skill_name in self.learning_skills_dict:
-            self.learning_skills_dict[skill_name] += 1
+            learn_step = 2 if self.has_item("neural trainer") else 1
+            self.learning_skills_dict[skill_name] += learn_step
             current_level = self.skills.get(skill_name, 0)
             threshold = max(1, current_level // 10)
             if self.learning_skills_dict[skill_name] >= threshold:
@@ -547,8 +553,18 @@ class Character:
                 total += 1  # reflect the just-earned point in this return value
 
         if self.has_item("neural trainer"):
-          if total < 10:
-            total += 10
+            trainer = self.get_item("neural trainer")
+            floor_val = (trainer.effect * 3) if trainer else 21
+            if total < floor_val:
+                total = floor_val
+
+        if self.has_item("scanner") and skill_name in ("Detection", "Artifact Analysis", "Xenobiology"):
+            scanner = self.get_item("scanner")
+            total += scanner.effect if scanner else 20
+
+        if self.has_item("stealth orb") and skill_name == "Stealth":
+            orb = self.get_item("stealth orb")
+            total += round(orb.effect / 2) if orb else 20
 
         return total
 
@@ -678,13 +694,15 @@ class Character:
         total = self.stats[stat_name]
         if "strength" == stat_name:
             if self.has_item("exoskeleton"):
-                total += 50
+                exo = self.get_item("exoskeleton")
+                total += (exo.effect * 2) if exo else 50
         if "evasion" == stat_name:
             if self.is_encumbered():
                 total -= 10
         if "analyze" == stat_name:
             if self.has_item("scanner"):
-                total += 30
+                scanner = self.get_item("scanner")
+                total += (10 + scanner.effect) if scanner else 30
         return total
 
     # Effective evasion with health ratio
@@ -708,7 +726,8 @@ class Character:
         offense = (courage + coordination) / 2
         offense += (military_science / 10)
         if self.has_item("offense implant"):
-            offense += 50
+            imp = self.get_item("offense implant")
+            offense += imp.effect if imp else 50
         return max(1, offense * self.get_health_ratio())
 
     # Effective defense with health ratio
@@ -782,7 +801,10 @@ class Character:
     def add_item(self, item: "Item"):
         """Adds an Item object to the character's equipment."""
         if isinstance(item, Item):
+            had_stim = self.has_item("stimulant")
             self.equipment.append(item.copy())
+            if not self.is_robot() and self.current_health > 0 and item_base_name(item.name) == "stimulant" and not had_stim:
+                self.current_health = min(self.get_max_health(), self.current_health + item.effect * 2)
         else:
             raise ValueError("Only Item instances can be added to equipment.")
 
@@ -790,6 +812,8 @@ class Character:
         for i, item in enumerate(self.equipment):
             if item.name == item_name:
                 del self.equipment[i]
+                if not self.is_robot() and item_base_name(item_name) == "stimulant":
+                    self.current_health = min(self.current_health, self.get_max_health())
                 return
 
     def remove_random_item(self):

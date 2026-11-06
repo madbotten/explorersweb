@@ -195,6 +195,7 @@ CHALLENGE_ARCHETYPES = {
         "intro": "A sealed trauma station contains intact medical supplies.",
         "approaches": [
             {"robot": "medibot", "success_text": "The team's medibot unlocks the trauma station and administers treatment."},
+            {"item": "bio container", "success_text": "The team uses a rugged bio container to safely extract and stabilize the restorative compounds."},
             {
                 "stat": "intelligence",
                 "skill": "Medicine",
@@ -549,7 +550,9 @@ async def calculate_goal_outcome_cutter(member, screen, font):
     # Simulate a skill check
     emit_character_image_at_text_offset(member, screen)
     roll = random.randint(1, 100)
-    diff = 10 + get_specialist_position_bonus(member)
+    cutter = member.get_item("cutter")
+    cutter_bonus = (cutter.effect - 20) if cutter else 10
+    diff = cutter_bonus + get_specialist_position_bonus(member)
     skill_check = member.stat_and_skill_check(roll, "coordination", None, diff)
     if skill_check:
         color = GREEN
@@ -690,7 +693,18 @@ async def calculate_outcome_officers_quarters_jalorith(team, stat_name, skill_na
     global mission_failed
 
     mission_failed = False
-    await type_out_text(screen, "Jalorith has been defeated. The mission objective has been achieved!", font)
+    if team_has_item(team, "pacifier"):
+        captor = next((m for m in team if m and m.is_alive() and m.has_item("pacifier")), team[0] if team else None)
+        if captor is not None:
+            captor.mission_points += 15
+        await type_out_text(
+            screen,
+            "Jalorith is incapacitated with a pacifier and taken alive for Space Force interrogation! (+15 bonus mission points)",
+            font,
+            GREEN,
+        )
+    else:
+        await type_out_text(screen, "Jalorith has been defeated. The mission objective has been achieved!", font)
     return
 
 async def calculate_outcome_officers_quarters_neutralize(team, stat_name, skill_name, screen, font):
