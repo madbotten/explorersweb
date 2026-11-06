@@ -144,7 +144,7 @@ def _select_spare_weapon_to_pass(donor):
 
     # Donor has 1 ranged weapon and 1 melee weapon; keep the one matching their
     # stronger combat specialization (defaulting to keeping ranged on ties).
-    ranged_skills = ("Sharpshooting", "Energy Weapons", "Sonic Weapons", "Projectile Weapons")
+    ranged_skills = ("Sharpshooting", "Explosives", "Energy Weapons", "Sonic Weapons", "Projectile Weapons")
     best_ranged_skill = max(
         (donor.get_effective_skill_level(s, learning=False) for s in ranged_skills),
         default=0,
@@ -322,14 +322,14 @@ def klackon_enemy(i, weapon_items, armor_items, non_weapon_items, all_items, loo
     klackon.index = i
     klackon.name = f"Klackon {i + 1}"
 
-    # Klackons favor fierce melee weapons (slicer / stun baton) and natural chitin armor
+    # Klackons favor fierce melee weapons and natural chitin armor
     melee_pool = [
         w for w in weapon_items
-        if item_base_name(w.name) in ("slicer", "stun baton")
+        if item_base_name(w.name) in ("slicer", "stun baton", "mono spear", "power mace", "grav hammer", "shock prod")
     ] or weapon_items
     ranged_pool = [
         w for w in weapon_items
-        if item_base_name(w.name) in ("blaster rifle", "stunner", "laser pistol")
+        if item_base_name(w.name) in ("blaster rifle", "stunner", "laser pistol", "flechette pistol", "arc thrower")
     ]
     if melee_pool:
         klackon.add_item(random.choice(melee_pool))
@@ -338,7 +338,7 @@ def klackon_enemy(i, weapon_items, armor_items, non_weapon_items, all_items, loo
 
     heavy_armor_pool = [
         a for a in armor_items
-        if item_base_name(a.name) in ("exoskeleton", "powered armor", "veer suit")
+        if item_base_name(a.name) in ("chitin carapace", "exoskeleton", "powered armor", "veer suit", "flak vest")
     ] or armor_items
     if heavy_armor_pool:
         klackon.add_item(random.choice(heavy_armor_pool))
@@ -350,7 +350,9 @@ def klackon_queen(items, loop=2):
     queen = Character(1, "klackon", 60, 70)
     queen.occupation = "klackon"
     queen.name = "Xylarx"
-    for item_key in ("slicer S", "blaster rifle A", "powered armor A", "offense implant C"):
+    melee_key = "mono spear S" if "mono spear S" in items else "slicer S"
+    armor_key = "chitin carapace A" if "chitin carapace A" in items else "powered armor A"
+    for item_key in (melee_key, "blaster rifle A", armor_key, "sonic helmet A", "offense implant C"):
         if item_key in items:
             queen.add_item(items[item_key])
     return _apply_loop_scaling(queen, max(2, loop))
@@ -374,9 +376,11 @@ def jalorith(items):
     pirate.occupation = "pirate"  # Override occupation to "pirate"
     pirate.name = "Jalorith"
 
-    # Assign a random weapon
+    # Assign boss equipment
     pirate.add_item(items["laser rifle A"])
     pirate.add_item(items["powered armor A"])
+    if "targeting helmet A" in items:
+        pirate.add_item(items["targeting helmet A"])
     pirate.add_item(items["offense implant C"])
     pirate.add_item(items["slicer S"])
     return pirate
@@ -390,10 +394,12 @@ def pirate_enemy(i, weapon_items, armor_items, non_weapon_items, all_items):
     if weapon_items:
         weapon = random.choice(weapon_items)
         pirate.add_item(weapon)
-        #pirate.add_item(all_items["pistol"])
     if armor_items:
-        armor = random.choice(armor_items)
-        pirate.add_item(armor)
+        body_armors = [a for a in armor_items if a.is_body_armor()] or armor_items
+        helmets = [a for a in armor_items if a.is_helmet()]
+        pirate.add_item(random.choice(body_armors))
+        if helmets and random.random() < 0.30:
+            pirate.add_item(random.choice(helmets))
 
     # Assign 1-3 random additional items
     num_additional_items = random.randint(1, 3)

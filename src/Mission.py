@@ -377,7 +377,7 @@ async def _apply_challenge_penalty(team, penalty, screen, font):
     elif ptype == "damage_all":
         amt = penalty.get("amount", 10)
         for m in team:
-            if m and m.is_alive():
+            if m and m.is_alive() and not m.has_item("insulated suit"):
                 m.hurt(amt, "impact")
     elif ptype == "demoralize":
         amt = penalty.get("amount", 5)

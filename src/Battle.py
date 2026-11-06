@@ -155,8 +155,9 @@ def initiative(team, enemies, brazen_bonus=0, round_num=1):
 
 # Weapon-base sets used by the phase-specific initiative functions
 _RANGED_INITIATIVE_BASES = {"blaster rifle", "laser rifle", "laser pistol",
-                             "carbine", "magnum", "pistol", "stunner"}
-_MELEE_INITIATIVE_BASES = {"slicer", "stun baton"}
+                             "carbine", "magnum", "pistol", "stunner",
+                             "grenade rifle", "flechette pistol", "launcher", "arc thrower"}
+_MELEE_INITIATIVE_BASES = {"slicer", "stun baton", "power mace", "mono spear", "grav hammer", "shock prod"}
 
 def _best_weapon_rate(character, phase: str) -> int:
     """Return the rate of the character's pre-chosen weapon for *phase*
@@ -578,7 +579,8 @@ class TeamBattle:
         return target
 
     _RANGED_WEAPON_BASES = {"blaster rifle", "laser rifle", "laser pistol",
-                             "carbine", "magnum", "pistol", "stunner"}
+                             "carbine", "magnum", "pistol", "stunner",
+                             "grenade rifle", "flechette pistol", "launcher", "arc thrower"}
 
     def choose_ranged_weapon(self, character, target):
         """Return the name of the character's pre-chosen ranged weapon."""
@@ -586,9 +588,9 @@ class TeamBattle:
         return item.name if item else None
 
     def weapon_is_rifle(self, weapon):
-        return item_base_name(weapon) in {"blaster rifle", "laser rifle"}
+        return item_base_name(weapon) in {"blaster rifle", "laser rifle", "grenade rifle"}
 
-    _MELEE_WEAPON_BASES = {"slicer", "stun baton"}
+    _MELEE_WEAPON_BASES = {"slicer", "stun baton", "power mace", "mono spear", "grav hammer", "shock prod"}
 
     @staticmethod
     def choose_melee_weapon(character, target):
@@ -635,9 +637,12 @@ class TeamBattle:
             target_evasion = target.get_effective_combat_evasion()
             
             adjusted_roll = roll
-            if effect_type in ("impact", "pierce", "slash"):
+            weapon_base = item_base_name(chosen_weapon)
+            if weapon_base == "launcher" or effect_type == "concussion":
+                skill = "Explosives"
+            elif effect_type in ("impact", "pierce", "slash"):
                 skill = "Projectile Weapons"
-            elif effect_type == "energy":
+            elif effect_type in ("energy", "electric") or weapon_base == "arc thrower":
                 skill = "Energy Weapons"
             elif effect_type == "sonic":
                 skill = "Sonic Weapons"
@@ -649,6 +654,9 @@ class TeamBattle:
             if target.has_item("holofier"):
                 holofier_item = target.get_item("holofier")
                 adjusted_roll += holofier_item.effect if holofier_item else 25
+            if character.has_item("targeting helmet"):
+                t_helm = character.get_item("targeting helmet")
+                adjusted_roll -= t_helm.effect if t_helm else 15
             adjusted_roll -= character.get_effective_skill_level(skill)/10
             if self.weapon_is_rifle(chosen_weapon):
                 adjusted_roll -= character.get_effective_skill_level("Sharpshooting") / 10

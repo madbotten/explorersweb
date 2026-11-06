@@ -186,6 +186,13 @@ WEAPON_SOUND_PATHS = {
     "stun baton": "sounds/combat/melee.ogg",
     "knife": "sounds/combat/melee.ogg",
     "launcher": "sounds/combat/launcher.ogg",
+    "grenade rifle": "sounds/combat/launcher.ogg",
+    "flechette pistol": "sounds/combat/carbine.ogg",
+    "arc thrower": "sounds/combat/stunner.ogg",
+    "power mace": "sounds/combat/melee.ogg",
+    "mono spear": "sounds/combat/slicer.ogg",
+    "grav hammer": "sounds/combat/melee.ogg",
+    "shock prod": "sounds/combat/stunner.ogg",
 }
 
 CHARACTER_COMBAT_SOUND_PATHS = {

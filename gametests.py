@@ -3261,6 +3261,204 @@ class TestEquipmentExpansionPhase3(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body_armors[0].name, "exoskeleton C")
 
 
+# ---------------------------------------------------------------------------
+# Equipment Audit & Expansion — Phase 4 Tests
+# ---------------------------------------------------------------------------
+
+from Event import pirate_enemies, mission_enemies, klackon_queen, jalorith
+
+
+class TestEquipmentCombatPhase4(unittest.IsolatedAsyncioTestCase):
+
+    def test_all_seven_damage_types_reduced_by_matching_armor_in_hurt(self):
+        """Character.hurt applies ARMOR_ATTRIBUTES multipliers across all 7 damage types."""
+        cases = [
+            ("energy", "power shield C", 30),       # round(30 * 1.0) = 30
+            ("sonic", "sonic helmet C", 25),        # round(25 * 1.0) = 25
+            ("impact", "flak vest C", 15),          # round(25 * 0.6) = 15
+            ("slash", "chitin carapace C", 32),     # round(35 * 0.9) = 32
+            ("pierce", "chitin carapace C", 28),    # round(35 * 0.8) = 28
+            ("concussion", "flak vest C", 20),      # round(25 * 0.8) = 20
+            ("electric", "insulated suit C", 28),   # round(28 * 1.0) = 28
+        ]
+        for dmg_type, armor_name, expected_reduction in cases:
+            c = make_human(50, 50)  # 100 HP
+            c.add_item(make_item(armor_name))
+            c.hurt(70, dmg_type)
+            expected_hp = 100 - max(1, 70 - expected_reduction)
+            self.assertEqual(
+                c.current_health,
+                expected_hp,
+                f"Expected {expected_hp} HP after 70 {dmg_type} vs {armor_name}, got {c.current_health}",
+            )
+
+    def test_robot_sonic_immunity_and_electric_vulnerability(self):
+        """Robots take 0 damage from sonic attacks and 1.5x damage from electric attacks."""
+        all_items = load_items_battle()
+        bot = Robot.create("scoutbot", 1, all_items)  # no armor, 20 HP
+        start_hp = bot.current_health
+
+        # Immune to sonic
+        died = bot.hurt(40, "sonic")
+        self.assertFalse(died)
+        self.assertEqual(bot.current_health, start_hp)
+
+        # +50% electric damage (10 -> 15)
+        bot.hurt(10, "electric")
+        self.assertEqual(bot.current_health, start_hp - 15)
+
+    def test_choose_ranged_and_melee_weapons_support_new_arsenal(self):
+        """choose_ranged_weapon and choose_melee_weapon select the new weapons based on character skills and pacifist means."""
+        # Explosives -> launcher
+        demo = make_human(50, 50)
+        demo.skills = {"Explosives": 60}
+        demo.add_item(make_item("pistol C"))
+        demo.add_item(make_item("launcher C"))
+        self.assertEqual(item_base_name(demo.choose_ranged_weapon().name), "launcher")
+
+        # Sharpshooting -> grenade rifle
+        sniper = make_human(50, 50)
+        sniper.skills = {"Sharpshooting": 60}
+        sniper.add_item(make_item("pistol C"))
+        sniper.add_item(make_item("grenade rifle C"))
+        self.assertEqual(item_base_name(sniper.choose_ranged_weapon().name), "grenade rifle")
+
+        # Energy Weapons -> arc thrower
+        zapper = make_human(50, 50)
+        zapper.skills = {"Energy Weapons": 60}
+        zapper.add_item(make_item("pistol C"))
+        zapper.add_item(make_item("arc thrower C"))
+        self.assertEqual(item_base_name(zapper.choose_ranged_weapon().name), "arc thrower")
+
+        # Projectile Weapons -> flechette pistol
+        gunner = make_human(50, 50)
+        gunner.skills = {"Projectile Weapons": 60}
+        gunner.add_item(make_item("stunner C"))
+        gunner.add_item(make_item("flechette pistol C"))
+        self.assertEqual(item_base_name(gunner.choose_ranged_weapon().name), "flechette pistol")
+
+        # Martial Arts -> grav hammer / mono spear / power mace over stun baton
+        brawler = make_human(50, 50)
+        brawler.skills = {"Martial Arts": 60}
+        brawler.add_item(make_item("stun baton C"))
+        brawler.add_item(make_item("grav hammer C"))
+        self.assertEqual(item_base_name(brawler.choose_melee_weapon().name), "grav hammer")
+
+        # Pacifist -> shock prod
+        pac = make_human(50, 50)
+        pac.mission = {"means": "pacifist"}
+        pac.add_item(make_item("slicer C"))
+        pac.add_item(make_item("shock prod C"))
+        self.assertEqual(item_base_name(pac.choose_melee_weapon().name), "shock prod")
+
+    async def test_helmet_stat_skill_morale_and_ranged_accuracy_bonuses(self):
+        """Sonic, targeting, and command helmets apply their skill, stat, morale, and ranged accuracy bonuses."""
+        # 1. Sonic helmet -> Detection +round(effect * 0.6) (effect 25 -> +15)
+        scout = make_human_controlled(intelligence=50, coordination=50, willpower=50)
+        scout.skills = {"Detection": 40}
+        scout.add_item(make_item("sonic helmet C"))
+        self.assertEqual(scout.get_effective_skill_level("Detection", learning=False), 55)
+
+        # 2. Command helmet -> leadership +effect*2, Squad Tactics +effect, Military Science +effect, halves morale drop
+        cmd = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        cmd.skills = {"Squad Tactics": 40, "Military Science": 30}
+        base_lead = cmd.get_effective_stat_level("leadership")
+        cmd.add_item(make_item("command helmet C"))  # effect 15
+        self.assertEqual(cmd.get_effective_stat_level("leadership"), base_lead + 30)
+        self.assertEqual(cmd.get_effective_skill_level("Squad Tactics", learning=False), 55)
+        self.assertEqual(cmd.get_effective_skill_level("Military Science", learning=False), 45)
+
+        start_morale = cmd.morale
+        cmd.demoralize(10)  # halved to 5
+        self.assertEqual(cmd.morale, start_morale - 5)
+
+        # 3. Targeting helmet -> perception +effect, surprise +effect, Sharpshooting +effect, and ranged accuracy bonus
+        marksman = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        marksman.skills = {"Sharpshooting": 20}
+        marksman.set_rect(pygame.Rect(0, 0, 60, 70))
+        base_perc = marksman.get_effective_stat_level("perception")
+        base_surp = marksman.get_effective_stat_level("surprise")
+        marksman.add_item(make_item("targeting helmet S"))  # effect 17
+        self.assertEqual(marksman.get_effective_stat_level("perception"), base_perc + 17)
+        self.assertEqual(marksman.get_effective_stat_level("surprise"), base_surp + 17)
+        self.assertEqual(marksman.get_effective_skill_level("Sharpshooting", learning=False), 37)
+
+        give_item(marksman, "grenade rifle C")
+        marksman.chosen_ranged_weapon = marksman.choose_ranged_weapon()
+
+        enemy = make_human_controlled(
+            strength=50, willpower=50, coordination=50,
+            intelligence=50, courage=50, charisma=50,
+        )
+        enemy.type = "pirate"
+        enemy.occupation = "pirate"
+        enemy.skills = {}
+        enemy.set_rect(pygame.Rect(0, 0, 60, 70))
+
+        all_items = {"grenade rifle C": make_item("grenade rifle C")}
+        ctx = EventContext("", "", 1, None, None, None, None, all_items)
+        ctx.add_run_params([marksman], make_dummy_screen(), make_dummy_font(), None, make_dummy_font())
+        ctx.enemies = [enemy]
+        battle = TeamBattle(ctx)
+        battle.round = 2
+
+        # marksman base accuracy = 50, Sharpshooting 37 -> -18, targeting helmet S -> -17: roll 70 -> adjusted 35 < 50 hits!
+        start_hp = enemy.current_health
+        with patch("Battle.random.randint", return_value=70), \
+             patch("Battle.announce_action"), \
+             patch("Battle.play_weapon_sound"), \
+             patch("Battle.battle_display_action"), \
+             patch("Battle.battle_display_character_action_result"), \
+             patch("Battle.draw_life_bar"), \
+             patch("Battle.battle_display_action_damage"), \
+             patch("Battle.battle_display_character_hit"):
+            await battle.run_battle_action_shoot(marksman)
+        self.assertLess(enemy.current_health, start_hp)
+
+    async def test_insulated_suit_protects_against_hazard_leak_damage(self):
+        """Characters wearing an insulated suit take 0 damage when a HAZARD_LEAK challenge fails."""
+        protected = make_human(50, 50)
+        protected.add_item(make_item("insulated suit C"))
+        unprotected = make_human(50, 50)
+        screen, font = make_dummy_screen(), make_dummy_font()
+
+        with patch("Mission.type_out_text"), \
+             patch("Mission.standard_skill_check", return_value=False):
+            passed = await resolve_procedural_challenge([protected, unprotected], "HAZARD_LEAK", screen, font)
+        self.assertFalse(passed)
+        self.assertEqual(protected.current_health, 100)
+        self.assertEqual(unprotected.current_health, 90)
+
+    def test_new_weapons_resolve_combat_sound_paths_and_enemy_loadouts_valid(self):
+        """All 8 new weapons resolve to valid .ogg combat sound paths, and enemy factories respect armor slot rules."""
+        human = make_human_controlled()
+        for weapon in (
+            "grenade rifle", "flechette pistol", "launcher", "arc thrower",
+            "power mace", "mono spear", "grav hammer", "shock prod",
+        ):
+            rel = resolve_combat_sound_path(weapon, human)
+            self.assertTrue(rel.endswith(".ogg"))
+            self.assertTrue(os.path.exists(resource_path(rel)), f"Missing sound file {rel} for {weapon}")
+
+        all_items = load_items_battle()
+        enemies = (
+            pirate_enemies(8, all_items)
+            + mission_enemies(4, all_items, theatre="derelict")
+            + [klackon_queen(all_items), jalorith(all_items)]
+        )
+        for e in enemies:
+            helmets = [i for i in e.equipment if i.is_helmet()]
+            body_armors = [i for i in e.equipment if i.is_body_armor()]
+            self.assertLessEqual(len(helmets), 1, f"{e.name} has multiple helmets")
+            self.assertLessEqual(len(body_armors), 1, f"{e.name} has multiple body armors")
+
+
 if __name__ == "__main__":
     unittest.main()
 

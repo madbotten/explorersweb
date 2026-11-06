@@ -365,6 +365,8 @@ class Character:
         """
         if self.is_robot() or self.psychotic:
             return
+        if amount > 0 and self.has_item("command helmet"):
+            amount = max(1, amount // 2)
         self.morale = max(0, self.morale - amount)
 
     def encourage(self, amount):
@@ -378,11 +380,18 @@ class Character:
         """
         Apply damage and update morale.
 
-        Robots: morale is set to health% (damage state proxy).
+        Robots: immune to sonic attacks, +50% vulnerable to electric attacks;
+                morale is set to health% (damage state proxy).
         Humans: morale drops by the damage dealt AND is clamped so it
                 cannot exceed the current health percentage — injury
                 always pulls morale down at least as far as HP dropped.
         """
+        if self.is_robot():
+            if effect_type == "sonic":
+                return False
+            if effect_type == "electric":
+                damage = round(damage * 1.5)
+
         # effect_type → index in ARMOR_ATTRIBUTES multiplier tuple
         # (energy, sonic, impact, slash, pierce, concussion, electric)
         EFFECT_TYPE_INDEX = {
@@ -417,6 +426,8 @@ class Character:
             # Also clamped so morale can never exceed the current health%.
             max_hp = self.stats["max_health"]
             morale_drop = round(damage / max_hp * 100) if max_hp > 0 else damage
+            if self.has_item("command helmet"):
+                morale_drop = morale_drop // 2
             self.morale = max(0, min(self.morale - morale_drop, self.health_pct()))
 
         if self.current_health <= 0:
@@ -566,6 +577,18 @@ class Character:
             orb = self.get_item("stealth orb")
             total += round(orb.effect / 2) if orb else 20
 
+        if self.has_item("sonic helmet") and skill_name == "Detection":
+            helm = self.get_item("sonic helmet")
+            total += round(helm.effect * 0.6) if helm else 15
+
+        if self.has_item("targeting helmet") and skill_name == "Sharpshooting":
+            helm = self.get_item("targeting helmet")
+            total += helm.effect if helm else 15
+
+        if self.has_item("command helmet") and skill_name in ("Squad Tactics", "Military Science"):
+            helm = self.get_item("command helmet")
+            total += helm.effect if helm else 15
+
         return total
 
     # --- Weapon-base classification constants used by the choosers below ---
@@ -621,34 +644,40 @@ class Character:
             if rifles:
                 return _best_in(rifles)
 
-        # 2. Energy Weapons → energy-type
+        # 2. Explosives → launcher
+        if self.get_effective_skill_level("Explosives", learning=False) > 0:
+            explosives = [i for i in ranged if item_base_name(i.name) in self._EXPLOSIVE_BASES]
+            if explosives:
+                return _best_in(explosives)
+
+        # 3. Energy Weapons → energy-type (including arc thrower)
         if self.get_effective_skill_level("Energy Weapons", learning=False) > 0:
             energy = [i for i in ranged if item_base_name(i.name) in self._ENERGY_BASES]
             if energy:
                 return _best_in(energy)
 
-        # 3. Sonic Weapons → sonic-type
+        # 4. Sonic Weapons → sonic-type
         if self.get_effective_skill_level("Sonic Weapons", learning=False) > 0:
             sonic = [i for i in ranged if item_base_name(i.name) in self._SONIC_RANGED]
             if sonic:
                 return _best_in(sonic)
 
-        # 4. Projectile Weapons → projectile-type
+        # 5. Projectile Weapons → projectile-type
         if self.get_effective_skill_level("Projectile Weapons", learning=False) > 0:
             proj = [i for i in ranged if item_base_name(i.name) in self._PROJECTILE_BASES]
             if proj:
                 return _best_in(proj)
 
-        # 5. Fallback: highest throughput
+        # 6. Fallback: highest throughput
         return _best_in(ranged)
 
     def choose_melee_weapon(self) -> "Item | None":
         """Return the best melee weapon Item this character should use.
 
         Priority:
-        0. Pacifist means          → prefer stun baton
+        0. Pacifist means          → prefer stun baton or shock prod
         1. Sonic Weapons skill > 0 → prefer stun baton
-        2. Martial Arts skill > 0  → prefer slicer
+        2. Martial Arts skill > 0  → prefer martial melee weapons (slicer, power mace, mono spear, grav hammer, shock prod)
         3. Fallback: highest effect × rate among all melee weapons
         """
         from Item import item_base_name, DEFAULT_KNIFE_WEAPON  # avoid circular import at module level
@@ -670,9 +699,9 @@ class Character:
             or (self.team[0].mission.get("means") if getattr(self, "team", None) and getattr(self.team[0], "mission", None) else None)
         )
         if means == "pacifist":
-            stun_batons = [i for i in melee if item_base_name(i.name) == "stun baton"]
-            if stun_batons:
-                return max(stun_batons, key=_score)
+            nonlethal_melee = [i for i in melee if item_base_name(i.name) in ("stun baton", "shock prod")]
+            if nonlethal_melee:
+                return max(nonlethal_melee, key=_score)
 
         # 1. Sonic Weapons → stun baton
         if self.get_effective_skill_level("Sonic Weapons", learning=False) > 0:
@@ -680,11 +709,11 @@ class Character:
             if sonic:
                 return max(sonic, key=_score)
 
-        # 2. Martial Arts → slicer
+        # 2. Martial Arts → non-sonic martial melee weapons
         if self.get_effective_skill_level("Martial Arts", learning=False) > 0:
-            slicers = [i for i in melee if item_base_name(i.name) == "slicer"]
-            if slicers:
-                return max(slicers, key=_score)
+            martial = [i for i in melee if item_base_name(i.name) not in self._SONIC_MELEE]
+            if martial:
+                return max(martial, key=_score)
 
         # 3. Fallback: highest throughput
         return max(melee, key=_score)
@@ -705,6 +734,14 @@ class Character:
             if self.has_item("scanner"):
                 scanner = self.get_item("scanner")
                 total += (10 + scanner.effect) if scanner else 30
+        if stat_name in ("perception", "surprise"):
+            if self.has_item("targeting helmet"):
+                helm = self.get_item("targeting helmet")
+                total += helm.effect if helm else 15
+        if "leadership" == stat_name:
+            if self.has_item("command helmet"):
+                helm = self.get_item("command helmet")
+                total += (helm.effect * 2) if helm else 30
         return total
 
     # Effective evasion with health ratio
